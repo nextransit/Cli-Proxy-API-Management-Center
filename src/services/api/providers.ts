@@ -140,6 +140,7 @@ const serializeOpenAIProvider = (provider: OpenAIProviderConfig) => {
   const payload: Record<string, unknown> = {
     name: provider.name,
     'base-url': provider.baseUrl,
+    disabled: Boolean(provider.disabled),
     'api-key-entries': Array.isArray(provider.apiKeyEntries)
       ? provider.apiKeyEntries.map((entry) => serializeApiKeyEntry(entry))
       : []
@@ -228,8 +229,8 @@ export const providersApi = {
   updateOpenAIProvider: (index: number, value: OpenAIProviderConfig) =>
     apiClient.patch('/openai-compatibility', { index, value: serializeOpenAIProvider(value) }),
 
-  updateOpenAIProviderDisabled: (index: number, disabled: boolean) =>
-    apiClient.patch('/openai-compatibility', { index, value: { disabled } }),
+  updateOpenAIProviderDisabled: (index: number, name: string, disabled: boolean) =>
+    apiClient.patch('/openai-compatibility', { index, name, value: { disabled } }),
 
   deleteOpenAIProvider: (name: string) =>
     apiClient.delete(`/openai-compatibility?name=${encodeURIComponent(name)}`)

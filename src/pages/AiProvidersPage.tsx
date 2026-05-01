@@ -312,7 +312,7 @@ export function AiProvidersPage() {
     clearCache('openai-compatibility');
 
     try {
-      await providersApi.updateOpenAIProviderDisabled(index, !enabled);
+      await providersApi.updateOpenAIProviderDisabled(index, current.name, !enabled);
       showNotification(
         enabled ? t('notification.config_enabled') : t('notification.config_disabled'),
         'success'

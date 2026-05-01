@@ -22,6 +22,7 @@ export type KeyTestStatus = {
 
 export type OpenAIEditBaseline = {
   name: string;
+  disabled: boolean;
   priority: number | null;
   prefix: string;
   baseUrl: string;
@@ -67,6 +68,7 @@ const resolveAction = <T,>(action: SetStateAction<T>, prev: T): T =>
 
 const buildEmptyForm = (): OpenAIFormState => ({
   name: '',
+  disabled: false,
   prefix: '',
   baseUrl: '',
   headers: [],

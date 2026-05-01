@@ -43,6 +43,7 @@ export type OpenAIEditOutletContext = {
 
 const buildEmptyForm = (): OpenAIFormState => ({
   name: '',
+  disabled: false,
   priority: undefined,
   prefix: '',
   baseUrl: '',
@@ -106,6 +107,7 @@ const normalizeApiKeyEntries = (entries: ApiKeyEntry[]) =>
 
 const buildOpenAIBaseline = (form: OpenAIFormState, testModel: string): OpenAIEditBaseline => ({
   name: String(form.name ?? '').trim(),
+  disabled: form.disabled === true,
   priority:
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
@@ -297,6 +299,7 @@ export function AiProvidersOpenAIEditLayout() {
       const modelEntries = modelsToEntries(initialData.models);
       const seededForm: OpenAIFormState = {
         name: initialData.name,
+        disabled: initialData.disabled === true,
         priority: initialData.priority,
         prefix: initialData.prefix ?? '',
         baseUrl: initialData.baseUrl,
@@ -421,6 +424,7 @@ export function AiProvidersOpenAIEditLayout() {
     Boolean(draft?.initialized) &&
     baseline !== null &&
     (baseline.name !== form.name.trim() ||
+      baseline.disabled !== (form.disabled === true) ||
       baseline.priority !== normalizedPriority ||
       baseline.prefix !== form.prefix.trim() ||
       baseline.baseUrl !== form.baseUrl.trim() ||
@@ -466,6 +470,7 @@ export function AiProvidersOpenAIEditLayout() {
     try {
       const payload: OpenAIProviderConfig = {
         name,
+        disabled: form.disabled === true,
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
         headers: buildHeaderObject(form.headers),
@@ -477,9 +482,6 @@ export function AiProvidersOpenAIEditLayout() {
       };
       if (form.priority !== undefined && Number.isFinite(form.priority)) {
         payload.priority = Math.trunc(form.priority);
-      }
-      if (initialData?.disabled !== undefined) {
-        payload.disabled = initialData.disabled;
       }
       const resolvedTestModel = testModel.trim();
       if (resolvedTestModel) payload.testModel = resolvedTestModel;
@@ -522,7 +524,6 @@ export function AiProvidersOpenAIEditLayout() {
     editIndex,
     form,
     handleBack,
-    initialData?.disabled,
     providers,
     setDraftBaseline,
     showNotification,
