@@ -11,9 +11,9 @@ import type { UsagePayload } from './hooks/useUsageData';
 import styles from '@/pages/UsagePage.module.scss';
 
 const COLOR_STOPS = [
-  { r: 239, g: 68, b: 68 }, // #ef4444
-  { r: 250, g: 204, b: 21 }, // #facc15
-  { r: 34, g: 197, b: 94 }, // #22c55e
+  { r: 84, g: 101, b: 143 }, // #54658f
+  { r: 112, g: 132, b: 179 }, // #7084b3
+  { r: 149, g: 174, b: 222 }, // #95aede
 ] as const;
 
 const TOOLTIP_OFFSET = 8;
@@ -262,9 +262,9 @@ export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
         <span className={styles.healthLegendLabel}>{t('service_health.oldest')}</span>
         <div className={styles.healthLegendColors}>
           <div className={`${styles.healthLegendBlock} ${styles.healthBlockIdle}`} />
-          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#ef4444' }} />
-          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#facc15' }} />
-          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#22c55e' }} />
+          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#54658f' }} />
+          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#7084b3' }} />
+          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#95aede' }} />
         </div>
         <span className={styles.healthLegendLabel}>{t('service_health.newest')}</span>
       </div>

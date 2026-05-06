@@ -14,10 +14,10 @@ import type { UsagePayload } from './hooks/useUsageData';
 import styles from '@/pages/UsagePage.module.scss';
 
 const TOKEN_COLORS: Record<TokenCategory, string> = {
-  input: '#8CC21F',
-  output: '#FA6450',
-  cached: '#F5ED58',
-  reasoning: '#00ABA5',
+  input: '#6680bf',
+  output: '#8fa4d8',
+  cached: '#4f679f',
+  reasoning: '#7c95cd',
 };
 
 const CATEGORIES: TokenCategory[] = ['input', 'output', 'cached', 'reasoning'];

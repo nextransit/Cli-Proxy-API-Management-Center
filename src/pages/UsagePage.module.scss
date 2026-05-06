@@ -2,12 +2,60 @@
 @use '../styles/mixins' as *;
 
 .container {
+  --usage-accent: #6f87c7;
+  --usage-accent-soft: rgba(111, 135, 199, 0.14);
+  --usage-accent-border: rgba(111, 135, 199, 0.34);
+
   width: 100%;
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   position: relative;
+  padding: 6px 0 22px;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -120px -140px auto auto;
+    width: 560px;
+    height: 560px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(111, 135, 199, 0.16) 0%, rgba(111, 135, 199, 0.04) 46%, transparent 72%);
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(8px);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      linear-gradient(
+        165deg,
+        rgba(255, 255, 255, 0.022) 0%,
+        rgba(255, 255, 255, 0.005) 28%,
+        rgba(255, 255, 255, 0) 52%
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.012) 0px,
+        rgba(255, 255, 255, 0.012) 1px,
+        transparent 1px,
+        transparent 5px
+      );
+    opacity: 0.42;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
 }
 
 .header {
@@ -15,13 +63,13 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
 }
 
 .headerActions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -49,9 +97,11 @@
 }
 
 .pageTitle {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 30px;
+  font-weight: 760;
   color: var(--text-primary);
+  letter-spacing: -0.02em;
+  font-family: 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
   margin: 0;
 }
 
@@ -107,10 +157,58 @@
   color: var(--text-secondary);
 }
 
-// Stats Grid
+// Usage card shell
+.container :global(.card) {
+  --glass-blur: 10px;
+  position: relative;
+  padding: 22px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 74%, rgba(255, 255, 255, 0.08));
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 34%, rgba(255, 255, 255, 0) 74%),
+    color-mix(in srgb, var(--bg-primary) 86%, transparent);
+  backdrop-filter: var(--glass-backdrop-filter);
+  -webkit-backdrop-filter: var(--glass-backdrop-filter);
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.container :global(.card)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+}
+
+.container :global(.card)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 26%;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+}
+
+.container :global(.card-header) {
+  margin-bottom: 14px;
+}
+
+.container :global(.card-header .title) {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+// Stats grid
 .statsGrid {
   display: grid;
-  gap: 14px;
+  gap: 18px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 
   @include mobile {
@@ -119,23 +217,26 @@
 }
 
 .statCard {
-  --accent: var(--primary-color);
-  --accent-soft: rgba($primary-color, 0.18);
-  --accent-border: rgba($primary-color, 0.35);
+  --accent: var(--usage-accent);
+  --accent-soft: var(--usage-accent-soft);
+  --accent-border: var(--usage-accent-border);
 
   grid-column: span 4;
   position: relative;
-  padding: 18px;
+  padding: 24px;
   background:
-    radial-gradient(120% 140% at 12% 0%, var(--accent-soft) 0%, rgba(0, 0, 0, 0) 62%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)), var(--bg-primary);
-  border-radius: $radius-lg;
-  border: 1px solid var(--border-color);
+    radial-gradient(126% 140% at 4% 0%, var(--accent-soft) 0%, rgba(0, 0, 0, 0) 66%),
+    linear-gradient(175deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01) 34%, rgba(255, 255, 255, 0) 72%),
+    color-mix(in srgb, var(--bg-primary) 87%, transparent);
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, rgba(255, 255, 255, 0.06));
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-height: 176px;
-  box-shadow: var(--shadow-lg);
+  gap: 12px;
+  min-height: 196px;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
   transition:
     transform $transition-fast,
     box-shadow $transition-fast,
@@ -147,16 +248,29 @@
     position: absolute;
     top: 0;
     left: 0;
-    height: 3px;
+    height: 1px;
     width: 100%;
-    background: linear-gradient(90deg, var(--accent), rgba(0, 0, 0, 0));
-    opacity: 0.95;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0));
+    opacity: 0.85;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 72%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+    opacity: 0.78;
   }
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     border-color: var(--accent-border);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+    box-shadow:
+      0 24px 44px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   @include tablet {
@@ -165,7 +279,8 @@
 
   @include mobile {
     grid-column: auto;
-    min-height: 168px;
+    min-height: 178px;
+    padding: 20px;
   }
 }
 
@@ -173,7 +288,7 @@
   grid-column: span 6;
 
   .statValue {
-    font-size: 32px;
+    font-size: 36px;
   }
 }
 
@@ -197,24 +312,25 @@
 .statLabelGroup {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
 }
 
 .statIconBadge {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: $radius-md;
   display: grid;
   place-items: center;
-  color: #fff;
-  font-size: 13px;
-  background: var(--accent);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+  color: color-mix(in srgb, var(--text-secondary) 86%, #dce6ff);
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
 
   svg {
     display: block;
+    stroke-width: 1.7;
   }
 }
 
@@ -229,17 +345,20 @@
 }
 
 .statLabel {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: 620;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .statValue {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 30px;
+  font-weight: 780;
   color: var(--text-primary);
-  line-height: 1.2;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
   font-variant-numeric: tabular-nums;
 }
 
@@ -287,9 +406,9 @@
 .statMetaRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 10px;
-  font-size: 12px;
-  color: var(--text-secondary);
+  gap: 7px 10px;
+  font-size: 11px;
+  color: #6b7280;
 }
 
 .statMetaItem {
@@ -299,8 +418,8 @@
 }
 
 .statMetaDot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background-color: var(--text-secondary);
 }
@@ -311,17 +430,17 @@
 
 .statTrend {
   margin-top: auto;
-  background: var(--bg-tertiary);
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
   border-radius: $radius-md;
-  padding: 8px;
-  height: 58px;
-  border: 1px solid var(--border-color);
+  padding: 9px;
+  height: 62px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
 }
 
 .statTrendPlaceholder {
   width: 100%;
   height: 100%;
-  background: var(--bg-secondary);
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
   border-radius: $radius-md;
 }
 
@@ -335,19 +454,19 @@
   font-style: italic;
 }
 
-// API List (80%比例)
+// API list
 .apiSortBar {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .apiSortBtn {
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: $radius-full;
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--border-color) 74%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
   color: var(--text-secondary);
   font-size: 11px;
   font-weight: 500;
@@ -369,8 +488,8 @@
 }
 
 .apiSortBtnActive {
-  border-color: rgba($primary-color, 0.5);
-  background: rgba($primary-color, 0.1);
+  border-color: var(--usage-accent-border);
+  background: color-mix(in srgb, var(--usage-accent) 20%, transparent);
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -382,9 +501,9 @@
 }
 
 .apiItem {
-  background-color: var(--bg-secondary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
   border-radius: $radius-sm;
-  border: 1px solid var(--border-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
   overflow: hidden;
 }
 
@@ -393,7 +512,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
+  padding: 12px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -436,8 +555,8 @@
 .apiBadge {
   font-size: 11px;
   color: var(--text-secondary);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: color-mix(in srgb, var(--bg-primary) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   padding: 2px 8px;
   border-radius: $radius-full;
 }
@@ -453,19 +572,19 @@
   padding-top: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  border-top: 1px solid var(--border-color);
+  gap: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
   margin-top: 0;
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .modelRow {
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 10px;
-  padding: 8px 10px;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  padding: 9px 10px;
+  background-color: color-mix(in srgb, var(--bg-primary) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
   border-radius: $radius-md;
   font-size: 12px;
 
@@ -490,7 +609,7 @@
   }
 }
 
-// Fixed-height cards with internal scrolling (API details / model stats)
+// Fixed-height cards with internal scrolling
 .detailsFixedCard {
   display: flex;
   flex-direction: column;
@@ -516,28 +635,32 @@
   color: var(--text-secondary);
 }
 
-// Table (80%比例)
+// Table
 .tableWrapper {
   overflow-x: auto;
 }
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 12px;
 
   th,
   td {
-    padding: 10px 12px;
+    padding: 11px 12px;
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 66%, transparent);
   }
 
   th {
     font-weight: 600;
     color: var(--text-tertiary);
-    background-color: var(--bg-secondary);
+    background-color: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
   }
 
   th.sortableHeader {
@@ -553,8 +676,16 @@
     color: var(--text-primary);
   }
 
+  tbody tr:nth-child(odd) {
+    background-color: color-mix(in srgb, var(--bg-primary) 94%, transparent);
+  }
+
+  tbody tr:nth-child(even) {
+    background-color: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+  }
+
   tbody tr:hover {
-    background-color: var(--bg-tertiary);
+    background-color: color-mix(in srgb, var(--usage-accent) 12%, transparent);
   }
 }
 
@@ -591,8 +722,8 @@
   font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   vertical-align: middle;
 }
 
@@ -613,7 +744,7 @@
   white-space: nowrap;
 }
 
-// Pricing Section (80%比例)
+// Pricing section
 .pricingSection {
   display: flex;
   flex-direction: column;
@@ -621,10 +752,10 @@
 }
 
 .priceForm {
-  padding: 10px;
-  background-color: var(--bg-secondary);
+  padding: 12px;
+  background-color: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
   border-radius: $radius-sm;
-  border: 1px solid var(--border-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
 }
 
 .formRow {
@@ -652,12 +783,12 @@
     font-weight: 500;
   }
 
-  // 确保 Input 组件的 form-group 包装器不影响布局
+  // Keep Input form-group wrapper from affecting layout.
   :global(.form-group) {
     margin: 0;
 
     > label {
-      display: none; // 隐藏 Input 自带的 label，使用外层的
+      display: none; // Hide Input built-in label and use outer label.
     }
   }
 
@@ -741,7 +872,7 @@
   gap: 12px;
 }
 
-// Chart Section (80%比例)
+// Chart section
 .chartSection {
   display: flex;
   flex-direction: column;
@@ -761,13 +892,15 @@
 }
 
 .chartWrapper {
-  padding: 14px;
-  background-color: var(--bg-secondary);
+  padding: 16px;
+  background:
+    linear-gradient(175deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01) 36%, rgba(255, 255, 255, 0)),
+    color-mix(in srgb, var(--bg-secondary) 76%, transparent);
   border-radius: $radius-lg;
-  border: 1px solid var(--border-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 13px;
 }
 
 .chartLegend {
@@ -794,8 +927,8 @@
   max-width: 240px;
   padding: 4px 10px;
   border-radius: $radius-full;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
   font-size: 12px;
   color: var(--text-secondary);
 
@@ -832,7 +965,7 @@
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 
-  // Chart.js 默认会设置 canvas 的 touch-action: none，导致移动端无法横向滚动
+  // Chart.js sets canvas touch-action to none by default and blocks horizontal scrolling.
   :global(canvas) {
     touch-action: pan-x pan-y !important;
   }
@@ -927,8 +1060,9 @@
 .requestEventsTableWrapper {
   overflow: auto;
   max-height: 460px;
-  border: 1px solid var(--border-color);
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
   border-radius: $radius-md;
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
 }
 
 .requestEventsTimestamp {
@@ -949,13 +1083,13 @@
 .requestEventsResultSuccess {
   color: var(--success-badge-text, #065f46);
   background: var(--success-badge-bg, #d1fae5);
-  border: 1px solid var(--success-badge-border, #6ee7b7);
+  border: 1px solid color-mix(in srgb, var(--success-badge-border, #6ee7b7) 74%, transparent);
 }
 
 .requestEventsResultFailed {
   color: var(--failure-badge-text);
   background: var(--failure-badge-bg);
-  border: 1px solid var(--failure-badge-border);
+  border: 1px solid color-mix(in srgb, var(--failure-badge-border) 74%, transparent);
 }
 
 .requestEventsResultSuccess,
@@ -1015,9 +1149,9 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  padding: 14px;
+  background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
   border-radius: $radius-md;
 
   @include mobile {
@@ -1046,16 +1180,20 @@
   margin: 10px 0 0 0;
 }
 
-// Service Health Card
+// Service health card
 .healthCard {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01) 42%, rgba(255, 255, 255, 0)),
+    color-mix(in srgb, var(--bg-primary) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
   border-radius: $radius-lg;
-  padding: 18px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: var(--shadow-lg);
+  gap: 16px;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .healthHeader {
@@ -1090,24 +1228,25 @@
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
-  padding: 4px 8px;
+  padding: 4px 9px;
   border-radius: 6px;
-  background: var(--bg-tertiary);
+  background: color-mix(in srgb, var(--bg-tertiary) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
 }
 
 .healthRateHigh {
-  color: var(--success-badge-text, #065f46);
-  background: var(--success-badge-bg, #d1fae5);
+  color: #bbd3ff;
+  background: color-mix(in srgb, var(--usage-accent) 24%, transparent);
 }
 
 .healthRateMedium {
-  color: var(--warning-text, #92400e);
-  background: var(--warning-bg, #fef3c7);
+  color: #9bb3e5;
+  background: color-mix(in srgb, var(--usage-accent) 17%, transparent);
 }
 
 .healthRateLow {
-  color: var(--failure-badge-text);
-  background: var(--failure-badge-bg);
+  color: #849ccc;
+  background: color-mix(in srgb, var(--usage-accent) 11%, transparent);
 }
 
 .healthGridScroller {
@@ -1118,9 +1257,9 @@
 
 .healthGrid {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 10px);
+  grid-template-rows: repeat(7, 11px);
   width: fit-content;
   margin: 0 auto;
 }
@@ -1129,8 +1268,8 @@
   position: relative;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 
 .healthBlock {
@@ -1143,13 +1282,13 @@
 
   .healthBlockWrapper:hover &,
   .healthBlockWrapper.healthBlockActive & {
-    transform: scaleY(1.6);
-    opacity: 0.85;
+    transform: scale(1.18);
+    opacity: 0.94;
   }
 }
 
 .healthBlockIdle {
-  background-color: var(--border-secondary, #e5e7eb);
+  background-color: color-mix(in srgb, var(--border-secondary, #e5e7eb) 78%, transparent);
 }
 
 .healthTooltip {
@@ -1157,15 +1296,16 @@
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  background-color: var(--floating-surface, #ffffff);
-  background-image: none;
-  border: 1px solid var(--floating-border, #e5e7eb);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.01)),
+    color-mix(in srgb, var(--floating-surface, #ffffff) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--floating-border, #e5e7eb) 74%, transparent);
   border-radius: 6px;
   padding: 6px 10px;
   font-size: 11px;
   line-height: 1.5;
   white-space: nowrap;
-  box-shadow: var(--floating-shadow, 0 10px 24px rgba(0, 0, 0, 0.16));
+  box-shadow: var(--floating-shadow, 0 16px 26px rgba(0, 0, 0, 0.28));
   z-index: $z-dropdown;
   pointer-events: none;
   color: var(--text-primary);
@@ -1193,7 +1333,7 @@
   }
 }
 
-// When tooltip should appear below (for top rows)
+// Tooltip appears below for top rows.
 .healthTooltipBelow {
   bottom: auto;
   top: calc(100% + 8px);
@@ -1288,7 +1428,7 @@
 
 @include mobile {
   .healthCard {
-    padding: 14px;
+    padding: 16px;
     gap: 10px;
   }
 

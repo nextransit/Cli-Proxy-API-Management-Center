@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useMemo, type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Line } from 'react-chartjs-2';
 import {
@@ -33,6 +33,8 @@ interface StatCardData {
   accentSoft: string;
   accentBorder: string;
   value: string;
+  valueForAnimation?: number;
+  valueFormatter?: (value: number) => string;
   meta?: ReactNode;
   trend: SparklineBundle | null;
 }
@@ -49,6 +51,53 @@ export interface StatCardsProps {
     tpm: SparklineBundle | null;
     cost: SparklineBundle | null;
   };
+}
+
+interface CountUpProps {
+  value: number;
+  formatter: (value: number) => string;
+  durationMs?: number;
+}
+
+function CountUpValue({ value, formatter, durationMs = 850 }: CountUpProps) {
+  const previousValueRef = useRef(value);
+  const [display, setDisplay] = useState(value);
+
+  useEffect(() => {
+    const start = previousValueRef.current;
+    const end = value;
+    previousValueRef.current = value;
+
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      setDisplay(end);
+      return;
+    }
+
+    if (Math.abs(end - start) < 1) {
+      setDisplay(end);
+      return;
+    }
+
+    const startAt = performance.now();
+    let rafId = 0;
+
+    const tick = (timestamp: number) => {
+      const elapsed = timestamp - startAt;
+      const progress = Math.min(elapsed / durationMs, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = start + (end - start) * eased;
+      setDisplay(next);
+
+      if (progress < 1) {
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [durationMs, value]);
+
+  return <>{formatter(display)}</>;
 }
 
 export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: StatCardsProps) {
@@ -130,23 +179,29 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
     };
   }, [hasPrices, modelPrices, nowMs, usage]);
 
+  const baseAccent = '#6f87c7';
+  const baseAccentSoft = 'rgba(111, 135, 199, 0.14)';
+  const baseAccentBorder = 'rgba(111, 135, 199, 0.32)';
+
   const statsCards: StatCardData[] = [
     {
       key: 'requests',
       label: t('usage_stats.total_requests'),
       icon: <IconSatellite size={16} />,
-      accent: '#8b8680',
-      accentSoft: 'rgba(139, 134, 128, 0.18)',
-      accentBorder: 'rgba(139, 134, 128, 0.35)',
+      accent: baseAccent,
+      accentSoft: baseAccentSoft,
+      accentBorder: baseAccentBorder,
       value: loading ? '-' : (usage?.total_requests ?? 0).toLocaleString(),
+      valueForAnimation: usage?.total_requests ?? 0,
+      valueFormatter: (num) => Math.round(num).toLocaleString(),
       meta: (
         <>
           <span className={styles.statMetaItem}>
-            <span className={styles.statMetaDot} style={{ backgroundColor: '#10b981' }} />
+            <span className={styles.statMetaDot} style={{ backgroundColor: '#3fb28f' }} />
             {t('usage_stats.success_requests')}: {loading ? '-' : (usage?.success_count ?? 0)}
           </span>
           <span className={styles.statMetaItem}>
-            <span className={styles.statMetaDot} style={{ backgroundColor: '#c65746' }} />
+            <span className={styles.statMetaDot} style={{ backgroundColor: '#cd6f63' }} />
             {t('usage_stats.failed_requests')}: {loading ? '-' : (usage?.failure_count ?? 0)}
           </span>
           {latencyStats.sampleCount > 0 && (
@@ -163,10 +218,12 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       key: 'tokens',
       label: t('usage_stats.total_tokens'),
       icon: <IconDiamond size={16} />,
-      accent: '#8b5cf6',
-      accentSoft: 'rgba(139, 92, 246, 0.18)',
-      accentBorder: 'rgba(139, 92, 246, 0.35)',
+      accent: baseAccent,
+      accentSoft: baseAccentSoft,
+      accentBorder: baseAccentBorder,
       value: loading ? '-' : formatCompactNumber(usage?.total_tokens ?? 0),
+      valueForAnimation: usage?.total_tokens ?? 0,
+      valueFormatter: (num) => formatCompactNumber(Math.max(0, Math.round(num))),
       meta: (
         <>
           <span className={styles.statMetaItem}>
@@ -185,10 +242,12 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       key: 'rpm',
       label: t('usage_stats.rpm_30m'),
       icon: <IconTimer size={16} />,
-      accent: '#22c55e',
-      accentSoft: 'rgba(34, 197, 94, 0.18)',
-      accentBorder: 'rgba(34, 197, 94, 0.32)',
+      accent: baseAccent,
+      accentSoft: baseAccentSoft,
+      accentBorder: baseAccentBorder,
       value: loading ? '-' : formatPerMinuteValue(rateStats.rpm),
+      valueForAnimation: rateStats.rpm,
+      valueFormatter: (num) => formatPerMinuteValue(num),
       meta: (
         <span className={styles.statMetaItem}>
           {t('usage_stats.total_requests')}:{' '}
@@ -201,10 +260,12 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       key: 'tpm',
       label: t('usage_stats.tpm_30m'),
       icon: <IconTrendingUp size={16} />,
-      accent: '#f97316',
-      accentSoft: 'rgba(249, 115, 22, 0.18)',
-      accentBorder: 'rgba(249, 115, 22, 0.32)',
+      accent: baseAccent,
+      accentSoft: baseAccentSoft,
+      accentBorder: baseAccentBorder,
       value: loading ? '-' : formatPerMinuteValue(rateStats.tpm),
+      valueForAnimation: rateStats.tpm,
+      valueFormatter: (num) => formatPerMinuteValue(num),
       meta: (
         <span className={styles.statMetaItem}>
           {t('usage_stats.total_tokens')}:{' '}
@@ -217,10 +278,12 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       key: 'cost',
       label: t('usage_stats.total_cost'),
       icon: <IconDollarSign size={16} />,
-      accent: '#f59e0b',
-      accentSoft: 'rgba(245, 158, 11, 0.18)',
-      accentBorder: 'rgba(245, 158, 11, 0.32)',
+      accent: baseAccent,
+      accentSoft: baseAccentSoft,
+      accentBorder: baseAccentBorder,
       value: loading ? '-' : hasPrices ? formatUsd(totalCost) : '--',
+      valueForAnimation: hasPrices ? totalCost : undefined,
+      valueFormatter: (num) => formatUsd(Math.max(0, num)),
       meta: (
         <>
           <span className={styles.statMetaItem}>
@@ -258,17 +321,32 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
             </div>
             <span className={styles.statIconBadge}>{card.icon}</span>
           </div>
-          <div className={styles.statValue}>{card.value}</div>
+
+          <div className={styles.statValue}>
+            {loading || card.valueForAnimation === undefined || !card.valueFormatter ? (
+              card.value
+            ) : (
+              <CountUpValue value={card.valueForAnimation} formatter={card.valueFormatter} />
+            )}
+          </div>
+
           {card.meta && <div className={styles.statMetaRow}>{card.meta}</div>}
+
           <div className={styles.statTrend}>
             {card.trend ? (
               <Line
-                className={styles.sparkline}
                 data={card.trend.data}
-                options={sparklineOptions}
+                options={{
+                  ...sparklineOptions,
+                  elements: {
+                    line: { ...(sparklineOptions.elements?.line || {}), borderColor: card.accent },
+                    point: { ...(sparklineOptions.elements?.point || {}), radius: 0 },
+                  },
+                }}
+                className={styles.sparkline}
               />
             ) : (
-              <div className={styles.statTrendPlaceholder}></div>
+              <div className={styles.statTrendPlaceholder} />
             )}
           </div>
         </div>

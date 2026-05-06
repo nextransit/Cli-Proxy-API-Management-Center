@@ -1,6 +1,6 @@
 /**
- * 使用统计相关工具
- * 迁移自基线 modules/usage.js 的纯逻辑部分
+ * Usage statistics utilities.
+ * Pure logic migrated from baseline modules/usage.js.
  */
 
 import type { ScriptableContext } from 'chart.js';
@@ -419,7 +419,7 @@ export function buildCandidateUsageSourceIds(input: {
 }
 
 /**
- * 对使用数据中的敏感字段进行遮罩
+ * Mask sensitive fields in usage payloads.
  */
 export function maskUsageSensitiveValue(
   value: unknown,
@@ -474,7 +474,7 @@ export function maskUsageSensitiveValue(
 }
 
 /**
- * 格式化每分钟数值
+ * Format per-minute values.
  */
 export function formatPerMinuteValue(value: number): string {
   const num = Number(value);
@@ -495,7 +495,7 @@ export function formatPerMinuteValue(value: number): string {
 }
 
 /**
- * 格式化紧凑数字
+ * Format compact numbers.
  */
 export function formatCompactNumber(value: number): string {
   const num = Number(value);
@@ -513,7 +513,7 @@ export function formatCompactNumber(value: number): string {
 }
 
 /**
- * 格式化美元
+ * Format USD amounts.
  */
 export function formatUsd(value: number): string {
   const num = Number(value);
@@ -532,7 +532,7 @@ const usageDetailsCache = new WeakMap<object, UsageDetail[]>();
 const usageDetailsWithEndpointCache = new WeakMap<object, UsageDetailWithEndpoint[]>();
 
 /**
- * 从使用数据中收集所有请求明细
+ * Collect all request details from usage data.
  */
 export function collectUsageDetails(usageData: unknown): UsageDetail[] {
   const cacheKey = isRecord(usageData) ? (usageData as object) : null;
@@ -604,7 +604,7 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
 }
 
 /**
- * 从使用数据中收集包含 endpoint/method/path 的请求明细
+ * Collect request details enriched with endpoint/method/path.
  */
 export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetailWithEndpoint[] {
   const cacheKey = isRecord(usageData) ? (usageData as object) : null;
@@ -684,7 +684,7 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
 }
 
 /**
- * 从单条明细提取总 tokens
+ * Extract total token count from a single detail entry.
  */
 export function extractTotalTokens(detail: unknown): number {
   const record = isRecord(detail) ? detail : null;
@@ -705,14 +705,14 @@ export function extractTotalTokens(detail: unknown): number {
 }
 
 /**
- * 计算耗时统计
+ * Calculate latency statistics.
  */
 export function calculateLatencyStats(usageData: unknown): LatencyStats {
   return calculateLatencyStatsFromDetails(collectUsageDetails(usageData));
 }
 
 /**
- * 计算 token 分类统计
+ * Calculate token category breakdown.
  */
 export function calculateTokenBreakdown(usageData: unknown): TokenBreakdown {
   const details = collectUsageDetails(usageData);
@@ -738,7 +738,7 @@ export function calculateTokenBreakdown(usageData: unknown): TokenBreakdown {
 }
 
 /**
- * 计算最近 N 分钟的 RPM/TPM
+ * Calculate RPM/TPM over recent N minutes.
  */
 export function calculateRecentPerMinuteRates(
   windowMinutes: number = 30,
@@ -779,7 +779,7 @@ export function calculateRecentPerMinuteRates(
 }
 
 /**
- * 从使用数据获取模型名称列表
+ * Get model names from usage data.
  */
 export function getModelNamesFromUsage(usageData: unknown): string[] {
   const apis = getApisRecord(usageData);
@@ -800,7 +800,7 @@ export function getModelNamesFromUsage(usageData: unknown): string[] {
 }
 
 /**
- * 计算成本数据
+ * Calculate cost details.
  */
 export function calculateCost(
   detail: UsageDetail,
@@ -836,7 +836,7 @@ export function calculateCost(
 }
 
 /**
- * 计算总成本
+ * Calculate total cost.
  */
 export function calculateTotalCost(
   usageData: unknown,
@@ -850,7 +850,7 @@ export function calculateTotalCost(
 }
 
 /**
- * 从 localStorage 加载模型价格
+ * Load model pricing from localStorage.
  */
 export function loadModelPrices(): Record<string, ModelPrice> {
   try {
@@ -903,7 +903,7 @@ export function loadModelPrices(): Record<string, ModelPrice> {
 }
 
 /**
- * 保存模型价格到 localStorage
+ * Persist model pricing to localStorage.
  */
 export function saveModelPrices(prices: Record<string, ModelPrice>): void {
   try {
@@ -912,12 +912,12 @@ export function saveModelPrices(prices: Record<string, ModelPrice>): void {
     }
     localStorage.setItem(MODEL_PRICE_STORAGE_KEY, JSON.stringify(prices));
   } catch {
-    console.warn('保存模型价格失败');
+    console.warn('Failed to persist model prices');
   }
 }
 
 /**
- * 获取 API 统计数据
+ * Build API-level statistics.
  */
 export function getApiStats(
   usageData: unknown,
@@ -1006,7 +1006,7 @@ export function getApiStats(
 }
 
 /**
- * 获取模型统计数据
+ * Build model-level statistics.
  */
 export function getModelStats(
   usageData: unknown,
@@ -1101,7 +1101,7 @@ export function getModelStats(
 }
 
 /**
- * 格式化小时标签
+ * Format hour labels.
  */
 export function formatHourLabel(date: Date): string {
   if (!(date instanceof Date)) {
@@ -1114,7 +1114,7 @@ export function formatHourLabel(date: Date): string {
 }
 
 /**
- * 格式化日期标签
+ * Format date labels.
  */
 export function formatDayLabel(date: Date): string {
   if (!(date instanceof Date)) {
@@ -1127,7 +1127,7 @@ export function formatDayLabel(date: Date): string {
 }
 
 /**
- * 构建小时级别的数据序列
+ * Build hourly time series.
  */
 export function buildHourlySeriesByModel(
   usageData: unknown,
@@ -1205,7 +1205,7 @@ export function buildHourlySeriesByModel(
 }
 
 /**
- * 构建日级别的数据序列
+ * Build daily time series.
  */
 export function buildDailySeriesByModel(
   usageData: unknown,
@@ -1278,15 +1278,15 @@ export interface ChartData {
 }
 
 const CHART_COLORS = [
-  { borderColor: '#8b8680', backgroundColor: 'rgba(139, 134, 128, 0.15)' },
-  { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.15)' },
-  { borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.15)' },
-  { borderColor: '#c65746', backgroundColor: 'rgba(198, 87, 70, 0.15)' },
-  { borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.15)' },
-  { borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.15)' },
-  { borderColor: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.15)' },
-  { borderColor: '#84cc16', backgroundColor: 'rgba(132, 204, 22, 0.15)' },
-  { borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.15)' },
+  { borderColor: '#6f87c7', backgroundColor: 'rgba(111, 135, 199, 0.16)' },
+  { borderColor: '#8fa4d8', backgroundColor: 'rgba(143, 164, 216, 0.16)' },
+  { borderColor: '#5f76b1', backgroundColor: 'rgba(95, 118, 177, 0.16)' },
+  { borderColor: '#9db0df', backgroundColor: 'rgba(157, 176, 223, 0.15)' },
+  { borderColor: '#4e6398', backgroundColor: 'rgba(78, 99, 152, 0.16)' },
+  { borderColor: '#778dc4', backgroundColor: 'rgba(119, 141, 196, 0.16)' },
+  { borderColor: '#6b7aa8', backgroundColor: 'rgba(107, 122, 168, 0.15)' },
+  { borderColor: '#8ba0cf', backgroundColor: 'rgba(139, 160, 207, 0.15)' },
+  { borderColor: '#566a9f', backgroundColor: 'rgba(86, 106, 159, 0.16)' },
 ];
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -1335,7 +1335,7 @@ const buildAreaGradient = (
 };
 
 /**
- * 构建图表数据
+ * Build chart datasets for usage trends.
  */
 export function buildChartData(
   usageData: unknown,
@@ -1392,29 +1392,26 @@ export function buildChartData(
 }
 
 /**
- * 依据 usage 数据计算密钥使用统计
- */
-/**
- * 状态栏单个格子的状态
+ * Status of a single health block.
  */
 export type StatusBlockState = 'success' | 'failure' | 'mixed' | 'idle';
 
 /**
- * 状态栏单个格子的详细信息
+ * Detail payload for one health block.
  */
 export interface StatusBlockDetail {
   success: number;
   failure: number;
-  /** 该格子的成功率 (0–1)，无请求时为 -1 */
+  /** Success rate in this block (0-1), or -1 when no requests. */
   rate: number;
-  /** 格子起始时间戳 (ms) */
+  /** Block start timestamp in milliseconds. */
   startTime: number;
-  /** 格子结束时间戳 (ms) */
+  /** Block end timestamp in milliseconds. */
   endTime: number;
 }
 
 /**
- * 状态栏数据
+ * Aggregated health block payload.
  */
 export interface StatusBarData {
   blocks: StatusBlockState[];
@@ -1425,8 +1422,7 @@ export interface StatusBarData {
 }
 
 /**
- * 计算状态栏数据（最近200分钟，分为20个10分钟的时间块）
- * 每个时间块代表窗口内的一个等长区间，用于展示成功/失败趋势
+ * Compute health blocks for the recent 200 minutes as 20 buckets of 10 minutes each.
  */
 export function calculateStatusBarData(
   usageDetails: UsageDetail[],
@@ -1527,8 +1523,8 @@ export function calculateStatusBarData(
 }
 
 /**
- * 服务健康监测数据（最近168小时/7天，7×96网格）
- * 每个格子代表15分钟的健康度
+ * Service health data for the recent 168 hours (7x96 grid).
+ * Each cell represents a 15-minute health window.
  */
 export interface ServiceHealthData {
   blocks: StatusBlockState[];
@@ -1734,7 +1730,7 @@ export interface TokenBreakdownSeries {
 }
 
 /**
- * 按 token 类别构建小时级别的堆叠序列
+ * Build hourly stacked series grouped by token category.
  */
 export function buildHourlyTokenBreakdown(
   usageData: unknown,
@@ -1803,7 +1799,7 @@ export function buildHourlyTokenBreakdown(
 }
 
 /**
- * 按 token 类别构建日级别的堆叠序列
+ * Build daily stacked series grouped by token category.
  */
 export function buildDailyTokenBreakdown(usageData: unknown): TokenBreakdownSeries {
   const details = collectUsageDetails(usageData);
@@ -1858,7 +1854,7 @@ export interface CostSeries {
 }
 
 /**
- * 按小时构建费用时间序列
+ * Build hourly cost series.
  */
 export function buildHourlyCostSeries(
   usageData: unknown,
@@ -1912,7 +1908,7 @@ export function buildHourlyCostSeries(
 }
 
 /**
- * 按天构建费用时间序列
+ * Build daily cost series.
  */
 export function buildDailyCostSeries(
   usageData: unknown,

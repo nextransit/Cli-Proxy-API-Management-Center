@@ -35,13 +35,13 @@ export function buildChartOptions({
   const pointRadius = isMobile && period === 'hour' ? 0 : isMobile ? 2 : 4;
   const tickFontSize = isMobile ? 10 : 12;
   const maxTickLabelCount = isMobile ? (period === 'hour' ? 8 : 6) : period === 'hour' ? 12 : 10;
-  const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(17, 24, 39, 0.06)';
-  const axisBorderColor = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(17, 24, 39, 0.10)';
+  const gridColor = isDark ? 'rgba(143, 164, 216, 0.13)' : 'rgba(111, 135, 199, 0.12)';
+  const axisBorderColor = isDark ? 'rgba(143, 164, 216, 0.22)' : 'rgba(111, 135, 199, 0.2)';
   const tickColor = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(17, 24, 39, 0.72)';
-  const tooltipBg = isDark ? 'rgba(17, 24, 39, 0.92)' : 'rgba(255, 255, 255, 0.98)';
+  const tooltipBg = isDark ? 'rgba(21, 25, 34, 0.94)' : 'rgba(255, 255, 255, 0.98)';
   const tooltipTitle = isDark ? '#ffffff' : '#111827';
-  const tooltipBody = isDark ? 'rgba(255, 255, 255, 0.86)' : '#374151';
-  const tooltipBorder = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(17, 24, 39, 0.10)';
+  const tooltipBody = isDark ? 'rgba(226, 233, 248, 0.9)' : '#374151';
+  const tooltipBorder = isDark ? 'rgba(143, 164, 216, 0.34)' : 'rgba(17, 24, 39, 0.10)';
 
   return {
     responsive: true,
