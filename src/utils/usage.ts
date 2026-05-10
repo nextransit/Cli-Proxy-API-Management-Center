@@ -1278,15 +1278,15 @@ export interface ChartData {
 }
 
 const CHART_COLORS = [
-  { borderColor: '#6f87c7', backgroundColor: 'rgba(111, 135, 199, 0.16)' },
-  { borderColor: '#8fa4d8', backgroundColor: 'rgba(143, 164, 216, 0.16)' },
-  { borderColor: '#5f76b1', backgroundColor: 'rgba(95, 118, 177, 0.16)' },
-  { borderColor: '#9db0df', backgroundColor: 'rgba(157, 176, 223, 0.15)' },
-  { borderColor: '#4e6398', backgroundColor: 'rgba(78, 99, 152, 0.16)' },
-  { borderColor: '#778dc4', backgroundColor: 'rgba(119, 141, 196, 0.16)' },
-  { borderColor: '#6b7aa8', backgroundColor: 'rgba(107, 122, 168, 0.15)' },
-  { borderColor: '#8ba0cf', backgroundColor: 'rgba(139, 160, 207, 0.15)' },
-  { borderColor: '#566a9f', backgroundColor: 'rgba(86, 106, 159, 0.16)' },
+  { borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.16)' },
+  { borderColor: '#22d3ee', backgroundColor: 'rgba(34, 211, 238, 0.16)' },
+  { borderColor: '#0891b2', backgroundColor: 'rgba(8, 145, 178, 0.15)' },
+  { borderColor: '#67e8f9', backgroundColor: 'rgba(103, 232, 249, 0.14)' },
+  { borderColor: '#0891b2', backgroundColor: 'rgba(8, 145, 178, 0.16)' },
+  { borderColor: '#06b6d4', backgroundColor: 'rgba(6, 182, 212, 0.13)' },
+  { borderColor: '#22d3ee', backgroundColor: 'rgba(34, 211, 238, 0.14)' },
+  { borderColor: '#0891b2', backgroundColor: 'rgba(8, 145, 178, 0.12)' },
+  { borderColor: '#67e8f9', backgroundColor: 'rgba(103, 232, 249, 0.13)' },
 ];
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -1384,7 +1384,7 @@ export function buildChartData(
       pointBackgroundColor: style.borderColor,
       pointBorderColor: style.borderColor,
       fill: shouldFill,
-      tension: 0.35,
+      tension: 0.4,
     };
   });
 

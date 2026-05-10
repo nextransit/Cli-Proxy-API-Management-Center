@@ -35,13 +35,12 @@ export function buildChartOptions({
   const pointRadius = isMobile && period === 'hour' ? 0 : isMobile ? 2 : 4;
   const tickFontSize = isMobile ? 10 : 12;
   const maxTickLabelCount = isMobile ? (period === 'hour' ? 8 : 6) : period === 'hour' ? 12 : 10;
-  const gridColor = isDark ? 'rgba(143, 164, 216, 0.13)' : 'rgba(111, 135, 199, 0.12)';
-  const axisBorderColor = isDark ? 'rgba(143, 164, 216, 0.22)' : 'rgba(111, 135, 199, 0.2)';
+  const axisBorderColor = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(17, 24, 39, 0.14)';
   const tickColor = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(17, 24, 39, 0.72)';
-  const tooltipBg = isDark ? 'rgba(21, 25, 34, 0.94)' : 'rgba(255, 255, 255, 0.98)';
+  const tooltipBg = isDark ? 'rgba(18, 18, 18, 0.94)' : 'rgba(255, 255, 255, 0.98)';
   const tooltipTitle = isDark ? '#ffffff' : '#111827';
-  const tooltipBody = isDark ? 'rgba(226, 233, 248, 0.9)' : '#374151';
-  const tooltipBorder = isDark ? 'rgba(143, 164, 216, 0.34)' : 'rgba(17, 24, 39, 0.10)';
+  const tooltipBody = isDark ? 'rgba(238, 229, 255, 0.9)' : '#374151';
+  const tooltipBorder = isDark ? 'rgba(6, 182, 212, 0.34)' : 'rgba(17, 24, 39, 0.10)';
 
   return {
     responsive: true,
@@ -65,10 +64,7 @@ export function buildChartOptions({
     },
     scales: {
       x: {
-        grid: {
-          color: gridColor,
-          drawTicks: false
-        },
+        grid: { display: false, drawTicks: false },
         border: {
           color: axisBorderColor
         },
@@ -105,13 +101,10 @@ export function buildChartOptions({
       },
       y: {
         beginAtZero: true,
-        grid: {
-          color: gridColor
-        },
-        border: {
-          color: axisBorderColor
-        },
+        grid: { display: false },
+        border: { display: false },
         ticks: {
+          display: false,
           color: tickColor,
           font: { size: tickFontSize }
         }
@@ -119,7 +112,7 @@ export function buildChartOptions({
     },
     elements: {
       line: {
-        tension: 0.35,
+        tension: 0.4,
         borderWidth: isMobile ? 1.5 : 2
       },
       point: {

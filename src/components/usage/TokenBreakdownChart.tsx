@@ -14,10 +14,10 @@ import type { UsagePayload } from './hooks/useUsageData';
 import styles from '@/pages/UsagePage.module.scss';
 
 const TOKEN_COLORS: Record<TokenCategory, string> = {
-  input: '#6680bf',
-  output: '#8fa4d8',
-  cached: '#4f679f',
-  reasoning: '#7c95cd',
+  input: '#06b6d4',
+  output: '#22d3ee',
+  cached: '#0891b2',
+  reasoning: '#67e8f9',
 };
 
 const CATEGORIES: TokenCategory[] = ['input', 'output', 'cached', 'reasoning'];
@@ -64,7 +64,7 @@ export function TokenBreakdownChart({
         label: categoryLabels[cat],
         data: series.dataByCategory[cat],
         backgroundColor: TOKEN_COLORS[cat],
-        borderColor: isDark ? '#0f172a' : '#ffffff',
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ffffff',
         borderWidth: 1,
         borderSkipped: false,
         grouped: true,

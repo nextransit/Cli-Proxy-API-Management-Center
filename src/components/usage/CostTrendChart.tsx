@@ -23,17 +23,17 @@ export interface CostTrendChartProps {
   hourWindowHours?: number;
 }
 
-const COST_COLOR = '#6f87c7';
-const COST_BG = 'rgba(111, 135, 199, 0.16)';
+const COST_COLOR = '#06b6d4';
+const COST_BG = 'rgba(6, 182, 212, 0.16)';
 
 function buildGradient(ctx: ScriptableContext<'line'>) {
   const chart = ctx.chart;
   const area = chart.chartArea;
   if (!area) return COST_BG;
   const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, 'rgba(111, 135, 199, 0.32)');
-  gradient.addColorStop(0.6, 'rgba(111, 135, 199, 0.12)');
-  gradient.addColorStop(1, 'rgba(111, 135, 199, 0.02)');
+  gradient.addColorStop(0, 'rgba(6, 182, 212, 0.32)');
+  gradient.addColorStop(0.6, 'rgba(6, 182, 212, 0.12)');
+  gradient.addColorStop(1, 'rgba(6, 182, 212, 0.02)');
   return gradient;
 }
 
@@ -70,7 +70,7 @@ export function CostTrendChart({
           pointBackgroundColor: COST_COLOR,
           pointBorderColor: COST_COLOR,
           fill: true,
-          tension: 0.35
+          tension: 0.4
         }
       ]
     };

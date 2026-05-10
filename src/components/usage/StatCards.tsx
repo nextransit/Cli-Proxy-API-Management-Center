@@ -179,9 +179,9 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
     };
   }, [hasPrices, modelPrices, nowMs, usage]);
 
-  const baseAccent = '#6f87c7';
-  const baseAccentSoft = 'rgba(111, 135, 199, 0.14)';
-  const baseAccentBorder = 'rgba(111, 135, 199, 0.32)';
+  const baseAccent = '#06b6d4';
+  const baseAccentSoft = 'rgba(6, 182, 212, 0.13)';
+  const baseAccentBorder = 'rgba(6, 182, 212, 0.4)';
 
   const statsCards: StatCardData[] = [
     {

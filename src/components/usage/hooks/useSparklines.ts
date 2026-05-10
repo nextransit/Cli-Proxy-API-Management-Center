@@ -109,8 +109,8 @@ export function useSparklines({ usage, loading, nowMs }: UseSparklinesOptions): 
     () =>
       buildSparkline(
         { labels: lastHourSeries.labels, data: lastHourSeries.requests },
-        '#6f87c7',
-        'rgba(111, 135, 199, 0.18)'
+        '#06b6d4',
+        'rgba(6, 182, 212, 0.18)'
       ),
     [buildSparkline, lastHourSeries.labels, lastHourSeries.requests]
   );
@@ -119,8 +119,8 @@ export function useSparklines({ usage, loading, nowMs }: UseSparklinesOptions): 
     () =>
       buildSparkline(
         { labels: lastHourSeries.labels, data: lastHourSeries.tokens },
-        '#8fa4d8',
-        'rgba(143, 164, 216, 0.18)'
+        '#22d3ee',
+        'rgba(34, 211, 238, 0.18)'
       ),
     [buildSparkline, lastHourSeries.labels, lastHourSeries.tokens]
   );
@@ -129,8 +129,8 @@ export function useSparklines({ usage, loading, nowMs }: UseSparklinesOptions): 
     () =>
       buildSparkline(
         { labels: lastHourSeries.labels, data: lastHourSeries.requests },
-        '#5f76b1',
-        'rgba(95, 118, 177, 0.18)'
+        '#06b6d4',
+        'rgba(6, 182, 212, 0.18)'
       ),
     [buildSparkline, lastHourSeries.labels, lastHourSeries.requests]
   );
@@ -139,8 +139,8 @@ export function useSparklines({ usage, loading, nowMs }: UseSparklinesOptions): 
     () =>
       buildSparkline(
         { labels: lastHourSeries.labels, data: lastHourSeries.tokens },
-        '#9db0df',
-        'rgba(157, 176, 223, 0.18)'
+        '#22d3ee',
+        'rgba(34, 211, 238, 0.18)'
       ),
     [buildSparkline, lastHourSeries.labels, lastHourSeries.tokens]
   );
@@ -149,8 +149,8 @@ export function useSparklines({ usage, loading, nowMs }: UseSparklinesOptions): 
     () =>
       buildSparkline(
         { labels: lastHourSeries.labels, data: lastHourSeries.tokens },
-        '#4e6398',
-        'rgba(78, 99, 152, 0.18)'
+        '#06b6d4',
+        'rgba(6, 182, 212, 0.18)'
       ),
     [buildSparkline, lastHourSeries.labels, lastHourSeries.tokens]
   );
