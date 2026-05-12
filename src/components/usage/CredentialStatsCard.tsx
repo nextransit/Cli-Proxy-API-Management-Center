@@ -126,7 +126,7 @@ export function CredentialStatsCard({
   return (
     <Card title={t('usage_stats.credential_stats')} className={styles.detailsFixedCard}>
       {loading ? (
-        <div className={styles.hint}>{t('common.loading')}</div>
+        <div className={styles.hintLoading}></div>
       ) : rows.length > 0 ? (
         <div className={styles.detailsScroll}>
           <div className={styles.tableWrapper}>

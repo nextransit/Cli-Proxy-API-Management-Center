@@ -61,7 +61,7 @@ export function ApiDetailsCard({ apiStats, loading, hasPrices }: ApiDetailsCardP
   return (
     <Card title={t('usage_stats.api_details')} className={styles.detailsFixedCard}>
       {loading ? (
-        <div className={styles.hint}>{t('common.loading')}</div>
+        <div className={styles.hintLoading}></div>
       ) : sorted.length > 0 ? (
         <>
           <div className={styles.apiSortBar}>

@@ -497,7 +497,7 @@ export function RequestEventsDetailsCard({
       </div>
 
       {loading && rows.length === 0 ? (
-        <div className={styles.hint}>{t('common.loading')}</div>
+        <div className={styles.hintLoading}></div>
       ) : rows.length === 0 ? (
         <EmptyState
           title={t('usage_stats.request_events_empty_title')}

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useThemeStore } from '@/stores';
 import type { ChartOptions } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { Card } from '@/components/ui/Card';
@@ -8,6 +9,7 @@ import { getHourChartMinWidth } from '@/utils/usage/chartConfig';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface UsageChartProps {
+  isDark?: boolean;
   title: string;
   period: 'hour' | 'day';
   onPeriodChange: (period: 'hour' | 'day') => void;
@@ -26,9 +28,12 @@ export function UsageChart({
   chartOptions,
   loading,
   isMobile,
-  emptyText
+  emptyText,
+  isDark: isDarkProp,
 }: UsageChartProps) {
   const { t } = useTranslation();
+  const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
+  const isDark = isDarkProp ?? resolvedTheme === 'dark';
 
   return (
     <Card
@@ -55,7 +60,7 @@ export function UsageChart({
       {loading ? (
         <div className={styles.hint}>{t('common.loading')}</div>
       ) : chartData.labels.length > 0 ? (
-        <div className={styles.chartWrapper}>
+        <div className={`${styles.chartWrapper} ${isDark ? "" : "chart-light"}`}>
           <div className={styles.chartLegend} aria-label="Chart legend">
             {chartData.datasets.map((dataset, index) => (
               <div
