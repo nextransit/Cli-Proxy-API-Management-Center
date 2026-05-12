@@ -15,6 +15,22 @@ body {
   transition: background-color $transition-normal, color $transition-normal;
 }
 
+// 科技风背景网格
+[data-theme='dark'] body {
+  background-image: radial-gradient(circle, var(--tech-grid-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+// Monospace 字体用于数字
+.mono,
+.metricMainValue,
+.statValue,
+.summaryCardNumber,
+.version,
+.timestamp {
+  font-family: 'JetBrains Mono', 'Roboto Mono', 'SF Mono', monospace;
+}
+
 html.modal-open,
 body.modal-open {
   overflow: hidden;

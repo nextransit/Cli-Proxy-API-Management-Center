@@ -4826,26 +4826,26 @@ $navy-blue: #2A7B9B;
     
     // 状态点
     .status-dot {
-      width: 6px;
-      height: 6px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
-      
+
       &.success {
         background: #34d399;
-        box-shadow: 0 0 6px #34d399;
+        box-shadow: var(--status-glow-green), 0 0 12px rgba(52, 211, 153, 0.3);
         animation: pulse-green 2s ease-in-out infinite;
       }
-      
+
       &.warning {
         background: #fbbf24;
-        box-shadow: 0 0 6px #fbbf24;
+        box-shadow: var(--status-glow-amber), 0 0 12px rgba(251, 191, 36, 0.3);
         animation: pulse-amber 2s ease-in-out infinite;
       }
-      
+
       &.error {
         background: #fb7185;
-        box-shadow: 0 0 6px #fb7185;
+        box-shadow: var(--status-glow-red), 0 0 12px rgba(251, 113, 133, 0.3);
         animation: pulse-red 1s ease-in-out infinite;
       }
     }
@@ -5473,15 +5473,18 @@ $navy-blue: #2A7B9B;
   }
 }
 
-// 4. 统计卡片容器感 - 微发光描边
+// 4. 统计卡片容器感 - 微发光描边 + 玻璃拟态
 .statCard {
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: var(--inner-glow), 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition: all 0.2s ease;
-  
+
   &:hover {
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.3);
+    border-color: rgba(88, 166, 255, 0.3);
+    box-shadow: var(--inner-glow-strong), 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 20px rgba(88, 166, 255, 0.1);
+    transform: translateY(-2px);
   }
 }
 
@@ -6636,14 +6639,26 @@ $navy-blue: #2A7B9B;
   gap: 12px;
   padding: 20px;
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(120% 120% at 0% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 56%),
-    var(--bg-primary);
+    radial-gradient(120% 120% at 0% 0%, rgba(88, 166, 255, 0.08) 0%, transparent 56%),
+    rgba(22, 27, 34, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow:
     0 10px 28px rgba(0, 0, 0, 0.28),
-    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    var(--inner-glow);
   overflow: hidden;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba(88, 166, 255, 0.3);
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.35),
+      var(--inner-glow-strong),
+      0 0 20px rgba(88, 166, 255, 0.1);
+    transform: translateY(-2px);
+  }
 }
 
 .statsGrid > .metricCard {

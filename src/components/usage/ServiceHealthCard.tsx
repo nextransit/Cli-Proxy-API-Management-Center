@@ -53,7 +53,13 @@ function getHealthStatus(rate: number): 'good' | 'warning' | 'bad' {
 }
 
 function formatDateTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) {
+    return '--';
+  }
   const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return '--';
+  }
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
   const h = date.getHours().toString().padStart(2, '0');

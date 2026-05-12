@@ -290,18 +290,39 @@
   --accent-tertiary: var(--bg-tertiary);
 
   --glass-border: rgba(255, 255, 255, 0.06);
-  
+
   // ============================================
   // 7. 数据可视化专用色 (Data Viz Colors)
   // ============================================
-  
+
   --chart-glow-blue: rgba(88, 166, 255, 0.2);
   --chart-glow-green: rgba(52, 211, 153, 0.15);
   --chart-glow-amber: rgba(251, 191, 36, 0.15);
   --chart-glow-red: rgba(251, 113, 133, 0.15);
-  
+
   --chart-gradient-blue: linear-gradient(to bottom, rgba(88, 166, 255, 0.2), transparent);
   --chart-gradient-green: linear-gradient(to bottom, rgba(52, 211, 153, 0.15), transparent);
+
+  // ============================================
+  // 8. 科技风设计系统 (Tech Design System)
+  // ============================================
+
+  // 装饰性线条
+  --tech-line-color: rgba(88, 166, 255, 0.4);
+  --tech-dot-color: #58a6ff;
+
+  // 背景网格
+  --tech-grid-dot: rgba(255, 255, 255, 0.03);
+
+  // 状态指示器发光
+  --status-glow-green: 0 0 8px #34d399;
+  --status-glow-amber: 0 0 8px #fbbf24;
+  --status-glow-red: 0 0 8px #fb7185;
+  --status-glow-blue: 0 0 8px #58a6ff;
+
+  // 内发光边缘
+  --inner-glow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  --inner-glow-strong: inset 0 2px 4px rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 768px), (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {
