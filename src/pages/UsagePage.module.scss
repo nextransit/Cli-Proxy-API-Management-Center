@@ -1,3 +1,4 @@
+@use "sass:color";
 @use '../styles/variables' as *;
 @use '../styles/mixins' as *;
 
@@ -132,6 +133,86 @@
   min-width: 164px;
 }
 
+// Granularity toggle buttons (按小时/按天/全部)
+.globalGranularityGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+}
+
+.globalGranularityButton,
+.globalGranularityButtonActive {
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.globalGranularityButtonActive {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.globalGranularityButton:hover:not(.globalGranularityButtonActive) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+// Top key quick filter buttons
+.topKeyQuickGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.topKeyQuickLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.topKeyQuickButton,
+.topKeyQuickButtonActive {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topKeyQuickButtonActive {
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+  font-weight: 600;
+}
+
+.topKeyQuickButton:hover:not(.topKeyQuickButtonActive) {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: var(--border-hover);
+}
+
 .pageTitle {
   font-size: 30px;
   font-weight: 760;
@@ -191,6 +272,96 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.container :global(.card-summary) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+  padding-right: 28px;
+}
+
+.healthSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.healthSummaryRate {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+.healthSummaryDetail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.healthSummarySuccess,
+.healthSummaryFailure {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.healthSummarySuccess {
+  color: #34d399;
+}
+
+.healthSummaryFailure {
+  color: #fb7185;
+}
+
+.healthSummarySeparator {
+  color: var(--text-tertiary);
+}
+
+.statusIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+
+  &[data-status='good'] {
+    background: #34d399;
+    color: #fff;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.65);
+  }
+
+  &[data-status='warning'] {
+    background: #fbbf24;
+    color: #fff;
+    box-shadow: 0 0 6px rgba(251, 191, 36, 0.65);
+  }
+
+  &[data-status='bad'] {
+    background: #fb7185;
+    color: #fff;
+    box-shadow: 0 0 6px rgba(251, 113, 133, 0.65);
+    animation: pulse-red 1s ease-in-out infinite;
+  }
+
+  &[data-status='unknown'] {
+    background: rgba(139, 148, 158, 0.22);
+    color: var(--text-tertiary);
+    box-shadow: none;
+  }
 }
 
 // Usage card shell
@@ -1013,7 +1184,7 @@
   }
 
   @include desktop {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -1051,6 +1222,25 @@
   flex-direction: column;
   gap: 4px;
   min-width: 180px;
+}
+
+.requestEventsSearchItem {
+  flex: 1 1 260px;
+  min-width: min(100%, 260px);
+
+  :global(.form-group) {
+    margin: 0;
+  }
+
+  :global(.input) {
+    height: 40px;
+    width: 100%;
+    font-size: 12px;
+  }
+}
+
+.requestEventsSearchInput {
+  min-width: 0;
 }
 
 .requestEventsFilterLabel {
@@ -1190,9 +1380,17 @@
 }
 
 .chartLineCount {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
   font-size: 12px;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .chartLineHint {
@@ -1228,6 +1426,67 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+}
+
+// ============================================
+// 水平布局：模型曲线数量 + 服务健康
+// ============================================
+.healthRow {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  margin-bottom: 24px;
+
+  @include mobile {
+    flex-direction: column;
+  }
+
+  // 模型数量徽章靠左，服务健康卡片占剩余空间
+  > .modelCountBadge {
+    flex-shrink: 0;
+  }
+
+  > :global(.card) {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+}
+
+.modelCountBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 24px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  min-width: 100px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+.modelCountLabel {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.modelCountValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--usage-accent);
+  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  line-height: 1;
 }
 
 .healthMeta {
@@ -2133,28 +2392,30 @@
 }
 
 // ============================================
-// 顶部摘要卡片（4个并排）
+// 顶部摘要卡片（3个横向大卡片）
 // ============================================
 .summaryCards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-direction: row;
   gap: 16px;
   margin-bottom: 24px;
 
   @media (max-width: 900px) {
-    grid-template-columns: repeat(2, 1fr);
+    flex-wrap: wrap;
   }
 
-  @media (max-width: 500px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 600px) {
+    flex-direction: column;
   }
 }
 
 .summaryCard {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  padding: 16px 20px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -2180,25 +2441,42 @@
 .summaryCardContent {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .summaryCardLabel {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .summaryCardValue {
-  font-size: 22px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.summaryCardNumber {
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryCardUnit {
+  font-size: 18px;
+  font-weight: 600;
+  opacity: 0.6;
 }
 
 // 浅色模式
@@ -3065,7 +3343,7 @@ $navy-blue: #2A7B9B;
   .statMetaItem,
   .hint,
   .note {
-    color: darken($paper-text-light, 10%) !important;
+    color: color.adjust($paper-text-light, $lightness: -10%) !important;
   }
 
   // 3. 图表配置
@@ -3120,7 +3398,7 @@ $navy-blue: #2A7B9B;
     }
     
     &.medium {
-      color: darken(#D97706, 10%) !important;
+      color: color.adjust(#D97706, $lightness: -10%) !important;
     }
     
     &.low {
@@ -3164,15 +3442,15 @@ $navy-blue: #2A7B9B;
 
   // 6. 侧边栏活动项 - 暗金色
   .nav-item.active {
-    border-left: 3px solid darken(#C4A35A, 15%);
+    border-left: 3px solid color.adjust(#C4A35A, $lightness: -15%);
     background: rgba(196, 163, 90, 0.15) !important;
     
     .nav-icon {
-      color: darken(#C4A35A, 20%);
+      color: color.adjust(#C4A35A, $lightness: -20%);
     }
     
     .nav-label {
-      color: darken(#4A4238, 5%);
+      color: color.adjust(#4A4238, $lightness: -5%);
       font-weight: 600;
       letter-spacing: 0.3px;
     }
@@ -3185,12 +3463,12 @@ $navy-blue: #2A7B9B;
 
   // 7. 按钮样式
   .btn-primary {
-    background: darken($navy-blue, 5%);
+    background: color.adjust($navy-blue, $lightness: -5%);
     color: #ffffff;
     border: none;
     
     &:hover {
-      background: darken($navy-blue, 12%);
+      background: color.adjust($navy-blue, $lightness: -12%);
     }
   }
 
@@ -3201,7 +3479,7 @@ $navy-blue: #2A7B9B;
     
     &:hover {
       background: rgba(255, 255, 255, 0.9);
-      border-color: darken($paper-border, 10%);
+      border-color: color.adjust($paper-border, $lightness: -10%);
     }
   }
 
@@ -3249,14 +3527,14 @@ $navy-blue: #2A7B9B;
     color: $paper-text !important;
     
     &:focus {
-      border-color: darken($navy-blue, 10%) !important;
+      border-color: color.adjust($navy-blue, $lightness: -10%) !important;
       box-shadow: 0 0 0 3px rgba(42, 123, 155, 0.15) !important;
     }
   }
 
   // 14. 延迟列高亮
   .latencyCell {
-    color: darken(#D97706, 15%) !important;
+    color: color.adjust(#D97706, $lightness: -15%) !important;
     font-weight: 600;
   }
 
@@ -3599,5 +3877,2915 @@ $navy-blue: #2A7B9B;
   .tokenCell {
     color: #2A7B9B !important;
     font-weight: 600 !important;
+  }
+}
+
+// ============================================
+// 深度优化：暗色模式精致感增强 v2
+// ============================================
+[data-theme='dark'] {
+  // ============================================
+  // 1. 图表区域发光渐变效果
+  // ============================================
+  
+  .chartWrapper {
+    position: relative;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40%;
+      background: var(--chart-gradient-blue);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: -20px;
+      right: -20px;
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle, rgba(88, 166, 255, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    
+    canvas {
+      position: relative;
+      z-index: 1;
+    }
+  }
+  
+  // ============================================
+  // 2. 核心数字发光效果
+  // ============================================
+  
+  .statValue {
+    color: #ffffff;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.12);
+    letter-spacing: -0.5px;
+  }
+  
+  .summaryCardValue {
+    color: #ffffff;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  }
+  
+  // ============================================
+  // 3. 统计卡片精致化
+  // ============================================
+  
+  .statCard {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease;
+    
+    &:hover {
+      border-color: rgba(88, 166, 255, 0.25);
+      transform: translateY(-2px);
+    }
+  }
+  
+  // ============================================
+  // 4. 高性能标签
+  // ============================================
+  
+  .tier-high {
+    background: rgba(139, 92, 246, 0.12);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #a78bfa;
+  }
+  
+  .tier-xhigh {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15));
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: #c4b5fd;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+  }
+  
+  // ============================================
+  // 5. 健康率标签精致化
+  // ============================================
+  
+  .healthRate {
+    transition: all 0.3s ease;
+    
+    &.healthRateHigh {
+      color: #34d399;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      box-shadow: 0 0 12px rgba(52, 211, 153, 0.15);
+      animation: healthPulseGreen 2.5s ease-in-out infinite;
+    }
+    
+    &.healthRateMedium {
+      color: #fbbf24;
+      background: rgba(251, 191, 36, 0.12);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+      animation: healthPulseAmber 2.5s ease-in-out infinite;
+    }
+    
+    &.healthRateLow {
+      color: #fb7185;
+      background: rgba(251, 113, 133, 0.12);
+      border: 1px solid rgba(251, 113, 133, 0.3);
+      box-shadow: 0 0 12px rgba(251, 113, 133, 0.15);
+      animation: healthPulseRed 1.5s ease-in-out infinite;
+    }
+  }
+  
+  @keyframes healthPulseGreen {
+    0%, 100% { box-shadow: 0 0 12px rgba(52, 211, 153, 0.15); }
+    50% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.25); }
+  }
+  
+  @keyframes healthPulseAmber {
+    0%, 100% { box-shadow: 0 0 12px rgba(251, 191, 36, 0.15); }
+    50% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.25); }
+  }
+  
+  @keyframes healthPulseRed {
+    0%, 100% { box-shadow: 0 0 12px rgba(251, 113, 133, 0.15); opacity: 1; }
+    50% { box-shadow: 0 0 24px rgba(251, 113, 133, 0.3); opacity: 0.85; }
+  }
+  
+  // ============================================
+  // 6. 表格精致化
+  // ============================================
+  
+  .table, table, .requestEventTable {
+    .col-model {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    
+    .col-auth-index {
+      color: var(--text-secondary);
+      opacity: 0.75;
+    }
+    
+    tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.15s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.02);
+      }
+    }
+  }
+  
+  // ============================================
+  // 7. 卡片内顶部渐变线条
+  // ============================================
+  
+  .card {
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(88, 166, 255, 0.4) 30%, rgba(139, 92, 246, 0.3) 70%, transparent 100%);
+    }
+  }
+  
+  // ============================================
+  // 8. 滚动条精致化
+  // ============================================
+  
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+  }
+  
+  // ============================================
+  // 9. 选中效果
+  // ============================================
+  
+  ::selection {
+    background: rgba(88, 166, 255, 0.3);
+    color: #ffffff;
+  }
+  
+  // ============================================
+  // 10. 健康区块精致化
+  // ============================================
+  
+  .healthBlock {
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 8px currentColor;
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：图表玻璃拟态优化
+// ============================================
+[data-theme='dark'] {
+  // 图表区域 - 玻璃拟态效果
+  .chartWrapper {
+    position: relative;
+    background: rgba(22, 27, 34, 0.8);
+    border-radius: 12px;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    
+    // 底部发光渐变
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(to top, rgba(88, 166, 255, 0.06), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    // 右上角装饰光点
+    &::after {
+      content: '';
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 150px;
+      height: 150px;
+      background: radial-gradient(circle, rgba(88, 166, 255, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    
+    canvas {
+      position: relative;
+      z-index: 1;
+    }
+  }
+  
+  // 图表区域 - 成功/绿色
+  .chartWrapperSuccess::before {
+    background: linear-gradient(to top, rgba(52, 211, 153, 0.08), transparent);
+  }
+  
+  // 图表区域 - 警告/琥珀
+  .chartWrapperWarning::before {
+    background: linear-gradient(to top, rgba(251, 191, 36, 0.08), transparent);
+  }
+  
+  // ============================================
+  // 数据卡片呼吸感增强
+  // ============================================
+  
+  .statCard {
+    position: relative;
+    background: linear-gradient(
+      145deg,
+      rgba(22, 27, 34, 0.95) 0%,
+      rgba(28, 28, 30, 0.9) 100%
+    ) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 14px;
+    backdrop-filter: blur(16px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    
+    // 中心光源效果
+    &::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(
+        circle at center,
+        rgba(88, 166, 255, 0.03) 0%,
+        transparent 50%
+      );
+      pointer-events: none;
+    }
+    
+    // 内阴影描边
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 14px;
+      box-shadow: 
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+    
+    &:hover {
+      border-color: rgba(88, 166, 255, 0.25) !important;
+      transform: translateY(-3px);
+      box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(88, 166, 255, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    }
+  }
+  
+  // ============================================
+  // 核心数字发光效果
+  // ============================================
+  
+  .statValue {
+    color: #ffffff !important;
+    text-shadow: 
+      0 0 20px rgba(255, 255, 255, 0.15),
+      0 0 40px rgba(88, 166, 255, 0.1);
+    letter-spacing: -0.5px;
+    font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+    font-weight: 600;
+  }
+  
+  .statLabel {
+    color: rgba(139, 148, 158, 0.9) !important;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .statMetaItem {
+    color: rgba(139, 148, 158, 0.7) !important;
+    font-size: 11px;
+  }
+  
+  // ============================================
+  // 图表网格线淡化
+  // ============================================
+  
+  .chartArea canvas,
+  .chartWrapper canvas {
+    // Chart.js 会生成 grid 线的 canvas 元素
+  }
+  
+  // 图表图例
+  .chartLegend {
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    
+    .legendItem {
+      padding: 4px 8px;
+      border-radius: 4px;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+    
+    .legendDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+    
+    .legendLabel {
+      font-size: 12px;
+      color: rgba(201, 209, 217, 0.9);
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：统计表格重构
+// ============================================
+[data-theme='dark'] {
+  // 通用表格样式
+  .table, table, .custom-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    
+    th {
+      color: rgba(139, 148, 158, 0.8) !important;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+      transition: all 0.15s ease;
+    }
+    
+    tbody tr {
+      transition: all 0.15s ease;
+      transform: translateZ(0);
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.04) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        
+        td {
+          border-bottom-color: rgba(88, 166, 255, 0.1);
+        }
+      }
+      
+      &:last-child td {
+        border-bottom: none;
+      }
+    }
+  }
+  
+  // 模型名称列 - 高亮
+  .col-model, td:first-child {
+    color: #ffffff !important;
+    font-weight: 500;
+  }
+  
+  // 认证索引列 - 次要
+  .col-auth-index {
+    color: rgba(139, 148, 158, 0.7) !important;
+    font-size: 12px;
+  }
+  
+  // 成功/失败计数 - 次要显示
+  .stat-count {
+    font-size: 11px;
+    color: rgba(139, 148, 158, 0.6);
+    margin-left: 4px;
+    
+    .success-count {
+      color: rgba(52, 211, 153, 0.7);
+    }
+    
+    .failure-count {
+      color: rgba(251, 113, 133, 0.7);
+    }
+  }
+  
+  // ============================================
+  // 延迟微型色条 (Bullet Chart)
+  // ============================================
+  
+  .latencyCell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .latency-bar {
+      width: 60px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      
+      .latency-fill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.3s ease;
+        
+        &.latency-good {
+          background: linear-gradient(90deg, #34d399, #10b981);
+          box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+        }
+        
+        &.latency-medium {
+          background: linear-gradient(90deg, #fbbf24, #f59e0b);
+          box-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+        }
+        
+        &.latency-bad {
+          background: linear-gradient(90deg, #fb7185, #f43f5e);
+          box-shadow: 0 0 8px rgba(251, 113, 133, 0.5);
+        }
+      }
+    }
+    
+    .latency-value {
+      font-size: 12px;
+      font-weight: 500;
+      min-width: 45px;
+    }
+  }
+  
+  // Token 列
+  .tokenCell {
+    color: rgba(88, 166, 255, 0.9) !important;
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+  }
+  
+  // ============================================
+  // API 详情表格
+  // ============================================
+  
+  .apiEndpoint {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    color: rgba(139, 148, 158, 0.8);
+    word-break: break-all;
+  }
+  
+  .modelName {
+    color: #ffffff !important;
+    font-weight: 500;
+    
+    .model-tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      margin-left: 6px;
+      font-weight: 500;
+      
+      &.tag-xhigh {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        color: #a78bfa;
+      }
+      
+      &.tag-high {
+        background: rgba(139, 92, 246, 0.15);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        color: #8b5cf6;
+      }
+    }
+  }
+  
+  // ============================================
+  // 请求详情表格
+  // ============================================
+  
+  .requestEventTable {
+    .request-row {
+      &:hover {
+        background: rgba(88, 166, 255, 0.05) !important;
+        
+        .expandIcon {
+          color: #58a6ff;
+        }
+      }
+    }
+    
+    .expandIcon {
+      color: rgba(139, 148, 158, 0.5);
+      transition: color 0.15s ease;
+    }
+  }
+  
+  // ============================================
+  // 凭证类型标签
+  // ============================================
+  
+  .credentialType {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: rgba(139, 148, 158, 0.9) !important;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+}
+
+// ============================================
+// 暗色模式：分栏视窗布局 (Bento Grid)
+// ============================================
+[data-theme='dark'] {
+  // 图表网格 - 改为双列布局
+  .chartsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 0;
+
+    // 每个图表卡片
+    > * {
+      background: rgba(22, 27, 34, 0.6);
+      margin: 0;
+      border: none;
+      border-radius: 0;
+    }
+
+    > *:first-child { border-radius: 12px 0 0 0; }
+    > *:nth-child(2),
+    > *:nth-child(3) { border-radius: 0; }
+    > *:last-child { border-radius: 0 12px 0 0; }
+  }
+  
+  // 详情网格 - 也采用双列
+  .detailsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    
+    > * {
+      background: rgba(22, 27, 34, 0.6);
+      margin: 0;
+      border: none;
+      border-radius: 0;
+      
+      &:first-child {
+        border-radius: 12px 0 0 0;
+      }
+      
+      &:nth-child(2) {
+        border-radius: 0 12px 0 0;
+      }
+      
+      &:last-child {
+        border-radius: 0 0 12px 12px;
+      }
+      
+      &:nth-last-child(2):nth-child(odd) {
+        border-radius: 0 0 0 12px;
+      }
+    }
+  }
+  
+  // 移动端适配
+  @media (max-width: 768px) {
+    .chartsGrid, .detailsGrid {
+      grid-template-columns: 1fr;
+      
+      > * {
+        border-radius: 0 !important;
+        
+        &:first-child {
+          border-radius: 12px 12px 0 0 !important;
+        }
+        
+        &:last-child {
+          border-radius: 0 0 12px 12px !important;
+        }
+      }
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：表格降噪与对齐
+// ============================================
+[data-theme='dark'] {
+  // 整体容器增加空气感
+  .container {
+    padding: 24px 0;
+    gap: 20px;
+  }
+  
+  // 表格样式优化
+  .table, table, .custom-table, .requestEventTable {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    
+    // 移除所有竖线
+    th, td {
+      border-right: none !important;
+      border-left: none !important;
+    }
+    
+    // 只保留底部水平分隔线
+    th {
+      background: transparent;
+      color: rgba(139, 148, 158, 0.7) !important;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      white-space: nowrap;
+    }
+    
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+    
+    tbody tr {
+      transition: all 0.15s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.03) !important;
+        
+        td {
+          border-bottom-color: rgba(88, 166, 255, 0.15);
+        }
+      }
+      
+      &:last-child td {
+        border-bottom: none;
+      }
+    }
+  }
+  
+  // 模型名称 - 最亮
+  .modelName, .col-model {
+    color: #ffffff !important;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  
+  // 请求次数 - 品牌蓝
+  .requestCount, .col-requests {
+    color: #58a6ff !important;
+    font-weight: 500;
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+  }
+  
+  // 平均延迟 - 暗灰
+  .avgLatency, .col-latency {
+    color: rgba(139, 148, 158, 0.85) !important;
+    font-size: 12px;
+  }
+  
+  // Token数量 - 青色
+  .tokenCount, .col-tokens {
+    color: #22d3ee !important;
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+  }
+  
+  // 成功/失败计数 - 次要显示
+  .countSubtext {
+    font-size: 10px;
+    color: rgba(139, 148, 158, 0.5);
+    margin-left: 4px;
+    
+    &.success { color: rgba(52, 211, 153, 0.6); }
+    &.failure { color: rgba(251, 113, 133, 0.6); }
+  }
+  
+  // API端点 - 等宽暗色
+  .apiEndpoint {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    color: rgba(139, 148, 158, 0.7);
+    word-break: break-all;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  // 延迟色条
+  .latencyBar {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    
+    .barTrack {
+      width: 40px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      
+      .barFill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.3s ease;
+        
+        &.good {
+          background: linear-gradient(90deg, #34d399, #10b981);
+        }
+        &.medium {
+          background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        }
+        &.bad {
+          background: linear-gradient(90deg, #fb7185, #f43f5e);
+        }
+      }
+    }
+    
+    .latencyValue {
+      font-size: 11px;
+      color: rgba(139, 148, 158, 0.8);
+      min-width: 35px;
+    }
+  }
+  
+  // 凭证类型标签
+  .credentialType {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(139, 148, 158, 0.8);
+  }
+  
+  // 模型标签
+  .modelTag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    margin-left: 6px;
+    
+    &.tag-xhigh {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      color: #a78bfa;
+    }
+    
+    &.tag-high {
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #8b5cf6;
+    }
+  }
+  
+  // ============================================
+  // 空气感增强
+  // ============================================
+  
+  // 页面头部
+  .header {
+    margin-bottom: 8px;
+  }
+  
+  // 页面标题
+  .pageTitle {
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  
+  // 统计卡片组
+  .statsGrid {
+    gap: 16px;
+    
+    @media (min-width: 640px) {
+      grid-template-columns: repeat(5, 1fr);
+    }
+    
+    @media (max-width: 639px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  // 操作按钮区域
+  .headerActions {
+    gap: 8px;
+  }
+  
+  // 统计卡片 - 增加间距
+  .statCard {
+    padding: 16px;
+    margin: 0;
+    
+    .statValue {
+      font-size: 20px;
+      margin: 8px 0;
+    }
+    
+    .statLabel {
+      font-size: 11px;
+      letter-spacing: 0.3px;
+    }
+    
+    .statMetaRow {
+      margin-top: 6px;
+      gap: 4px;
+    }
+  }
+  
+  // 摘要卡片
+  .summaryCard {
+    padding: 16px 20px;
+    
+    .summaryCardTitle {
+      font-size: 12px;
+      color: rgba(139, 148, 158, 0.8);
+    }
+    
+    .summaryCardValue {
+      font-size: 18px;
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：微摘要栏样式
+// ============================================
+[data-theme='dark'] {
+  // 卡片微摘要 - 显示在标题栏右侧
+  .card-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    padding-right: 28px; // 为折叠箭头留空间
+    font-family: 'SF Mono', 'JetBrains Mono', monospace;
+    font-size: 12px;
+    
+    // 状态点
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      
+      &.success {
+        background: #34d399;
+        box-shadow: 0 0 6px #34d399;
+        animation: pulse-green 2s ease-in-out infinite;
+      }
+      
+      &.warning {
+        background: #fbbf24;
+        box-shadow: 0 0 6px #fbbf24;
+        animation: pulse-amber 2s ease-in-out infinite;
+      }
+      
+      &.error {
+        background: #fb7185;
+        box-shadow: 0 0 6px #fb7185;
+        animation: pulse-red 1s ease-in-out infinite;
+      }
+    }
+    
+    // 数值
+    .summary-value {
+      color: #58a6ff;
+      font-weight: 500;
+    }
+    
+    // 标签
+    .summary-label {
+      color: rgba(139, 148, 158, 0.7);
+    }
+    
+    // 迷你趋势箭头
+    .trend-up {
+      color: #34d399;
+    }
+    
+    .trend-down {
+      color: #fb7185;
+    }
+  }
+  
+  @keyframes pulse-green {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px #34d399; }
+    50% { opacity: 0.7; box-shadow: 0 0 10px #34d399; }
+  }
+  
+  @keyframes pulse-amber {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px #fbbf24; }
+    50% { opacity: 0.7; box-shadow: 0 0 10px #fbbf24; }
+  }
+  
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; box-shadow: 0 0 6px #fb7185; }
+    50% { opacity: 0.6; box-shadow: 0 0 12px #fb7185; }
+  }
+}
+
+// ============================================
+// 暗色模式：统计卡片2行布局优化
+// ============================================
+[data-theme='dark'] {
+  // 统计卡片网格 - 改为自适应
+  .statsGrid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(6, 1fr);  // 6列，方便分配
+    
+    // 第一行：总请求数 + 总Token数 (各占3列)
+    // 第二行：rpm + tpm + 总花费 (各占2列)
+    
+    @media (max-width: 768px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  .statCard {
+    padding: 16px;
+    min-height: auto;  // 降低高度
+    gap: 8px;
+    border-radius: 12px;
+    
+    .statValue {
+      font-size: 20px;  // 减小数字字号
+    }
+    
+    .statLabel {
+      font-size: 11px;
+    }
+    
+    .statMetaRow {
+      margin-top: 4px;
+      gap: 2px;
+    }
+    
+    .statMetaItem {
+      font-size: 10px;
+    }
+    
+    .statIconBadge {
+      width: 24px;
+      height: 24px;
+      
+      svg {
+        width: 14px;
+        height: 14px;
+      }
+    }
+    
+    .statTrend {
+      height: 28px;
+      margin-top: 4px;
+    }
+  }
+  
+  // 前两个卡片（总请求数 + 总Token数）- 第一行，各占3列
+  .statCard:nth-child(1),
+  .statCard:nth-child(2) {
+    grid-column: span 3;
+    
+    .statValue {
+      font-size: 24px;  // 大卡片稍大一点
+    }
+    
+    @media (max-width: 768px) {
+      grid-column: span 1;
+      
+      .statValue {
+        font-size: 20px;
+      }
+    }
+  }
+  
+  // 后三个卡片（rpm + tpm + 总花费）- 第二行，各占2列
+  .statCard:nth-child(3),
+  .statCard:nth-child(4),
+  .statCard:nth-child(5) {
+    grid-column: span 2;
+    
+    .statValue {
+      font-size: 18px;
+    }
+    
+    @media (max-width: 768px) {
+      grid-column: span 1;
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：消除黑砖感 - 完全透明化
+// ============================================
+[data-theme='dark'] {
+  // 全局容器背景
+  .container {
+    background: transparent;
+    padding: 20px 0;
+    gap: 16px;
+  }
+  
+  // 所有卡片 - 透明化处理
+  .card {
+    background: transparent !important;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+  }
+  
+  // 折叠卡片标题栏 - 完全透明，只有底边线
+  .card .card-header {
+    background: transparent !important;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 14px 0;
+    margin: 0;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.02) !important;
+      border-bottom-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+  
+  // 展开时的内容区 - 淡背景
+  .card .card-content:not(.collapsed) {
+    background: rgba(22, 27, 34, 0.5);
+    border-radius: 0 0 12px 12px;
+    margin-top: -1px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: none;
+  }
+  
+  // 折叠时的内容区 - 隐藏
+  .card .card-content.collapsed {
+    display: none;
+  }
+  
+  // 标题文字 - 60%透明白
+  .card .card-title {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  
+  // 核心数据 - 100%亮白
+  .card-summary {
+    .summary-value {
+      color: #ffffff;
+      font-weight: 600;
+    }
+  }
+  
+  // ============================================
+  // 呼吸感 - Hover发光效果
+  // ============================================
+  
+  // 卡片Hover发光
+  .card:has(.card-content:not(.collapsed)) {
+    .card-header {
+      border-bottom-color: rgba(88, 166, 255, 0.3);
+      background: rgba(88, 166, 255, 0.03) !important;
+    }
+  }
+  
+  // 展开的卡片整体发光
+  .card:has(.card-content:not(.collapsed)) {
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      z-index: -1;
+    }
+  }
+  
+  // ============================================
+  // 图表网格 - Bento Grid布局
+  // ============================================
+  
+  .chartsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0;
+    
+    > * {
+      background: rgba(22, 27, 34, 0.4) !important;
+      margin: 0;
+      border-radius: 0;
+    }
+    
+    > *:first-child { border-radius: 12px 0 0 0; }
+    > *:nth-child(2),
+    > *:nth-child(3) { border-radius: 0; }
+    > *:last-child { border-radius: 0 12px 0 0; }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  // ============================================
+  // 详情网格 - 也采用Bento布局
+  // ============================================
+  
+  .detailsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0;
+    
+    > * {
+      background: rgba(22, 27, 34, 0.4) !important;
+      margin: 0;
+      border-radius: 0;
+    }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+// ============================================
+// Token分布 + 花费统计 并排布局
+// ============================================
+[data-theme='dark'] {
+  // Token 和 Cost 卡片并排 - 独立于 chartsGrid
+  .chartsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    
+    &:has(> :nth-child(2):not(.card)) {
+      // 确保子元素都是卡片时应用样式
+    }
+  }
+  
+  // 在 TokenBreakdownChart 和 CostTrendChart 周围的并排容器
+  > div:has(> .card) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0;
+    
+    > .card, > div[class*="card"] {
+      background: rgba(22, 27, 34, 0.4) !important;
+      margin: 0;
+      border-radius: 0;
+    }
+    
+    > *:first-child { border-radius: 12px 0 0 12px; }
+    > *:last-child { border-radius: 0 12px 12px 0; }
+  }
+}
+
+// ============================================
+// 统计卡片删除 sparkline 曲线图
+// ============================================
+[data-theme='dark'] {
+  .statCard {
+    .statTrend {
+      display: none !important;
+    }
+  }
+}
+
+// ============================================
+// 曲线选择 + 服务健康 并排布局
+// ============================================
+[data-theme='dark'] {
+  .dualCardsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0;
+    
+    > * {
+      background: rgba(22, 27, 34, 0.4) !important;
+      margin: 0;
+      border-radius: 0;
+    }
+    
+    > *:first-child { border-radius: 12px 0 0 12px; }
+    > *:last-child { border-radius: 0 12px 12px 0; }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      
+      > *:first-child { border-radius: 12px 12px 0 0; }
+      > *:last-child { border-radius: 0 0 12px 12px; }
+    }
+  }
+}
+
+// ============================================
+// 只显示：总请求数 + 总Token数 + 总花费
+// ============================================
+[data-theme='dark'] {
+  // StatCards uses .metricCard class
+  .metricCard {
+    // 三个卡片并排显示
+    &:nth-child(1),
+    &:nth-child(2),
+    &:nth-child(3) {
+      flex: 1;
+    }
+  }
+
+  .statsGrid {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
+  }
+  
+  .metricCard {
+    flex: 1 !important;
+    min-width: 0;
+  }
+}
+
+// ============================================
+// 确保绿灯可见
+// ============================================
+[data-theme='dark'] {
+  .card-summary {
+    .status-dot {
+      &.success {
+        background: #34d399 !important;
+        box-shadow: 0 0 8px #34d399, 0 0 16px rgba(52, 211, 153, 0.5) !important;
+        animation: pulse-green 1.5s ease-in-out infinite !important;
+      }
+    }
+  }
+  
+  @keyframes pulse-green {
+    0%, 100% { 
+      opacity: 1; 
+      box-shadow: 0 0 8px #34d399, 0 0 16px rgba(52, 211, 153, 0.5);
+    }
+    50% { 
+      opacity: 0.8; 
+      box-shadow: 0 0 12px #34d399, 0 0 24px rgba(52, 211, 153, 0.6);
+    }
+  }
+}
+
+// ============================================
+// 统计卡片简要信息样式
+// ============================================
+[data-theme='dark'] {
+  .statBrief {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    
+    .statBriefItem {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      
+      .text-success { color: #34d399; font-weight: 600; }
+      .text-error { color: #fb7185; font-weight: 600; }
+      .text-info { color: #58a6ff; font-weight: 600; }
+      .text-muted { color: rgba(139, 148, 158, 0.7); }
+    }
+  }
+  
+  // 统计网格 - 3列布局
+  .statsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    overflow: hidden;
+    
+    > * {
+      background: rgba(22, 27, 34, 0.5) !important;
+    }
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+// ============================================
+// StatCards Summary Styles
+// ============================================
+:global([data-theme='dark']) {
+  .container {
+    // 详细摘要文字
+    .summary-detail {
+      color: rgba(139, 148, 158, 0.8);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    // 状态指示器（红绿灯）
+    .statusIndicator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: bold;
+
+      &[data-status="good"] {
+        background: #34d399;
+        color: #fff;
+        box-shadow: 0 0 6px #34d399;
+      }
+
+      &[data-status="warning"] {
+        background: #fbbf24;
+        color: #fff;
+        box-shadow: 0 0 6px #fbbf24;
+      }
+
+      &[data-status="bad"] {
+        background: #fb7185;
+        color: #fff;
+        box-shadow: 0 0 6px #fb7185;
+        animation: pulse-red 1s ease-in-out infinite;
+      }
+
+      &[data-status="unknown"] {
+        background: rgba(139, 148, 158, 0.3);
+        color: rgba(139, 148, 158, 0.7);
+      }
+    }
+  }
+}
+
+// ============================================
+// StatCards Expand Button
+// ============================================
+.expandButton {
+  width: 100%;
+  padding: 8px;
+  margin-top: 8px;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 6px;
+  color: #06b6d4;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(6, 182, 212, 0.2);
+    border-color: rgba(6, 182, 212, 0.5);
+  }
+}
+
+// StatCards expand button
+.expandButton {
+  width: 100%;
+  padding: 8px;
+  margin-top: 8px;
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 6px;
+  color: #06b6d4;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(6, 182, 212, 0.2);
+    border-color: rgba(6, 182, 212, 0.5);
+  }
+}
+
+// Health and Stats horizontal row
+.healthAndStatsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+  
+  > :global(.card) {
+    margin: 0;
+  }
+}
+
+// ============================================
+// 视觉优化 - 用户体验增强
+// ============================================
+
+// 1. 滚动条优化
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+// 2. 文字层级体系
+.text-dimmed {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.text-normal {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.text-bright {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+// 3. 表格行高与边框优化
+.tableWrapper {
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    
+    tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      transition: background 0.15s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.02);
+      }
+      
+      td {
+        padding: 10px 12px;
+        vertical-align: middle;
+      }
+    }
+    
+    thead th {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-weight: 500;
+    }
+  }
+}
+
+// 4. 统计卡片容器感 - 微发光描边
+.statCard {
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.2s ease;
+  
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// 5. Card 折叠交互优化
+.card-header-clickable {
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+// 展开状态标记 - 左侧蓝色呼吸条
+.card-header[aria-expanded="true"] {
+  border-left: 2px solid #06b6d4;
+  padding-left: calc(var(--spacing-sm, 12px) - 2px);
+}
+
+// 6. 成功/失败标签优化
+.success-label {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.failure-label {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+// 7. 思考强度标签 - 毛玻璃效果
+.thinking-label {
+  background: rgba(139, 92, 246, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+// 8. 延迟数据色彩分级
+.latency-fast {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.latency-normal {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.latency-slow {
+  color: #fbbf24;
+}
+
+.latency-critical {
+  color: #fb7185;
+}
+
+// 9. TOKEN/花费数据高亮
+.token-highlight {
+  color: #a5f3fc;
+  font-weight: 500;
+}
+
+.cost-highlight {
+  color: #34d399;
+  font-weight: 500;
+}
+
+// 10. 模型名称高亮
+.model-name {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+// 11. 次要信息调暗
+.time-dimmed {
+  color: #666666;
+  font-size: 11px;
+}
+
+// 12. 展开卡片微深度感
+.is-expanded {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+}
+
+// 13. 图标点缀样式
+.icon-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.7;
+  
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+// 14. 数字统计增强
+.stat-number {
+  font-family: 'JetBrains Mono', 'SF Mono', 'Roboto Mono', monospace;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.02em;
+}
+
+// ============================================
+// 缺失的样式类名 - 供 ModelStatsCard 使用
+// ============================================
+
+// TOKEN 高亮样式
+.tokenHighlight {
+  color: #a5f3fc;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+// 成本高亮样式
+.costHighlight {
+  color: #34d399;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+// 模型名称样式
+.modelName {
+  color: #ffffff;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+// 请求数单元格
+.requestCountCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.requestBreakdown {
+  display: flex;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.statSuccess {
+  color: #34d399;
+}
+
+.statFailure {
+  color: #fb7185;
+}
+
+.statNeutral {
+  color: #8b949e;
+}
+
+// 模型统计表格行
+.tableRow {
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+// 可排序列头
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.sortHeaderButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// 详情固定卡片
+.detailsFixedCard {
+  overflow: hidden;
+}
+
+.detailsNote {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: rgba(139, 148, 158, 0.8);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.detailsScroll {
+  max-height: 400px;
+  overflow: auto;
+}
+
+.tableWrapper {
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+}
+
+.table {
+  width: 100%;
+}
+
+// ============================================
+// 新增暗色模式样式 (Dark Mode)
+// ============================================
+[data-theme='dark'] {
+  // 延迟数据色彩分级
+  .latency-fast {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .latency-normal {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .latency-slow {
+    color: #fbbf24;
+  }
+
+  .latency-critical {
+    color: #fb7185;
+  }
+
+  // TOKEN/花费高亮
+  .token-highlight {
+    color: #a5f3fc;
+    font-weight: 500;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  .cost-highlight {
+    color: #34d399;
+    font-weight: 500;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  // 模型名称
+  .model-name {
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  // 成功/失败标签
+  .success-label {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  .failure-label {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  // 思考强度标签 - 毛玻璃效果
+  .thinking-label {
+    background: rgba(139, 92, 246, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: #a78bfa;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  // 次要信息调暗
+  .time-dimmed {
+    color: #666666;
+    font-size: 11px;
+  }
+
+  // 图标点缀
+  .icon-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.7;
+    
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  // 数字统计增强
+  .stat-number {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Roboto Mono', monospace;
+    font-feature-settings: 'tnum' 1;
+    letter-spacing: -0.02em;
+  }
+
+  // Rim Light 效果 (供全局使用)
+  .rim-light {
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
+
+  // 展开状态微深度感
+  .is-expanded {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  }
+
+  // 文字层级
+  .text-dimmed {
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .text-normal {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .text-bright {
+    color: #ffffff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  }
+}
+
+// ============================================
+// Usage page interaction upgrades
+// ============================================
+
+.topStatusRow,
+.chartControlsRow,
+.modelPanel {
+  min-width: 0;
+}
+
+.topStatusRow {
+  margin-bottom: -8px;
+
+  :global(.card) {
+    padding: 18px 20px;
+    border-radius: 10px;
+  }
+}
+
+.chartControlsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+
+  :global(.card) {
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.018);
+    border-color: rgba(255, 255, 255, 0.045);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.035);
+  }
+}
+
+.chartLineSelectorCard {
+  :global(.card-header) {
+    margin-bottom: 10px;
+  }
+
+  :global(.card-title) {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+  }
+}
+
+:global([data-theme='white']) .chartControlsRow,
+:global([data-theme='light']) .chartControlsRow,
+:root:not([data-theme]) .chartControlsRow {
+  :global(.card) {
+    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+.metricCard {
+  :global(.card-header) {
+    align-items: center;
+    min-height: 0;
+    margin-bottom: 10px;
+  }
+
+  :global(.card-header-left) {
+    padding-top: 2px;
+  }
+
+  :global(.card-title) {
+    color: rgba(255, 255, 255, 0.46);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  :global(.card-header-right) {
+    flex: 1;
+    min-width: 0;
+    align-items: stretch;
+  }
+
+  :global(.card-summary) {
+    width: 100%;
+    padding-right: 18px;
+    align-items: stretch;
+  }
+
+  :global(.card-content.collapsed) {
+    display: block;
+  }
+}
+
+.metricCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.statsGrid {
+  gap: 18px;
+  background: transparent;
+  overflow: visible;
+}
+
+:global([data-theme='dark']) .statsGrid {
+  gap: 18px;
+  background: transparent;
+  overflow: visible;
+}
+
+:global([data-theme='white']) .statsGrid,
+:global([data-theme='light']) .statsGrid,
+:root:not([data-theme]) .statsGrid {
+  gap: 18px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  overflow: visible !important;
+}
+
+:global([data-theme='white']) .metricCard,
+:global([data-theme='light']) .metricCard,
+:root:not([data-theme]) .metricCard {
+  margin: 0;
+  border-radius: 12px;
+}
+
+:global([data-theme='white']) .metricMainValue,
+:global([data-theme='light']) .metricMainValue,
+:root:not([data-theme]) .metricMainValue {
+  color: var(--text-primary);
+  text-shadow: none;
+}
+
+:global([data-theme='white']) .metricSubLine,
+:global([data-theme='light']) .metricSubLine,
+:root:not([data-theme]) .metricSubLine {
+  color: var(--text-secondary);
+}
+
+.metricSummary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: 10px;
+}
+
+.metricMainValue {
+  color: #ffffff;
+  font-family: 'JetBrains Mono', 'Roboto Mono', 'SF Mono', 'Cascadia Mono', monospace;
+  font-size: clamp(28px, 3.1vw, 38px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.12);
+}
+
+.metricCostValue {
+  color: #2ecc71;
+  text-shadow: 0 0 16px rgba(46, 204, 113, 0.2);
+}
+
+.metricSubDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.metricSubLine {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12.5px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataCapsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-family: 'JetBrains Mono', 'Roboto Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.dataCapsuleSuccess {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.18);
+}
+
+.dataCapsuleFailure {
+  color: #fb7185;
+  background: rgba(251, 113, 133, 0.1);
+  border-color: rgba(251, 113, 133, 0.18);
+}
+
+.dataCapsuleInput {
+  color: #a5f3fc;
+  background: rgba(165, 243, 252, 0.1);
+  border-color: rgba(165, 243, 252, 0.2);
+}
+
+.dataCapsuleOutput {
+  color: #c4b5fd;
+  background: rgba(196, 181, 253, 0.1);
+  border-color: rgba(196, 181, 253, 0.2);
+}
+
+.tokenRatioTrack {
+  display: flex;
+  width: 100%;
+  max-width: 340px;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.tokenRatioInput,
+.tokenRatioOutput,
+.tokenRatioCached,
+.tokenRatioReasoning {
+  display: block;
+  min-width: 0;
+  height: 100%;
+}
+
+.tokenRatioInput {
+  background: #a5f3fc;
+}
+
+.tokenRatioOutput {
+  background: #c4b5fd;
+}
+
+.tokenRatioCached {
+  background: rgba(16, 185, 129, 0.72);
+}
+
+.tokenRatioReasoning {
+  background: rgba(251, 191, 36, 0.78);
+}
+
+.metricExpandedContent {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.metricExpandedContent .metricSummary {
+  padding: 0 2px 2px;
+}
+
+.summaryCardTrend {
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.summaryCardTrendUp {
+  color: #34d399;
+}
+
+.summaryCardTrendDown {
+  color: #fbbf24;
+}
+
+.summaryCardTrendFlat {
+  color: var(--text-tertiary);
+}
+
+.healthStatusBar {
+  display: grid;
+  grid-template-columns: minmax(180px, auto) minmax(180px, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.healthStatusBarMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.healthStatusBarLabel {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.healthStatusBarValue {
+  font-size: 18px;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.healthProgressTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.healthProgressFill {
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}
+
+.healthProgressFill.healthRateHigh {
+  background: #10b981;
+}
+
+.healthProgressFill.healthRateMedium {
+  background: #fbbf24;
+}
+
+.healthProgressFill.healthRateLow {
+  background: #fb7185;
+}
+
+.requestEventsToolbar {
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.requestEventsClearButton {
+  align-self: flex-end;
+  min-height: 40px;
+}
+
+.exportMenu {
+  position: relative;
+  display: inline-flex;
+
+  &:hover .exportMenuContent,
+  &:focus-within .exportMenuContent {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
+
+.exportMenuContent {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 132px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--floating-surface, var(--bg-primary));
+  box-shadow: var(--floating-shadow, var(--shadow-lg));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+
+  button {
+    width: 100%;
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: transparent;
+    color: var(--text-primary);
+    text-align: left;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.resultGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.requestEventsResultSuccess .resultGlyph {
+  background: #10b981;
+}
+
+.requestEventsResultFailed .resultGlyph {
+  width: 14px;
+  height: 14px;
+  color: #ffffff;
+  background: #ef4444;
+}
+
+.resultText {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.requestEventsResultSuccess,
+.requestEventsResultFailed {
+  gap: 6px;
+}
+
+.requestEventsResultSuccess:hover .resultText,
+.requestEventsResultFailed:hover .resultText {
+  max-width: 72px;
+  opacity: 1;
+}
+
+.tokenSummaryCell {
+  min-width: 142px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tokenSummaryTotal {
+  display: block;
+  color: #a5f3fc;
+  font-weight: 700;
+}
+
+.tokenSummaryParts {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.latencyFast {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.latencyNormal {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.latencySlow {
+  color: #fbbf24;
+}
+
+.latencyCritical {
+  color: #fb923c;
+}
+
+.thinkingXHigh,
+.thinkingHigh {
+  color: #c4b5fd;
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.32);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.thinkingMedium {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.thinkingLow {
+  color: var(--text-secondary);
+}
+
+.modelPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modelPanelTabs {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.modelPanelTab,
+.modelPanelTabActive {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.modelPanelTabActive {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.credentialRowCritical {
+  background:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.16), rgba(239, 68, 68, 0.02) 42%, transparent 100%) !important;
+  box-shadow: inset 2px 0 0 #ef4444;
+
+  &:hover {
+    background:
+      linear-gradient(90deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.04) 48%, rgba(255, 255, 255, 0.02) 100%) !important;
+  }
+}
+
+.credentialRowWarning {
+  background:
+    linear-gradient(90deg, rgba(251, 191, 36, 0.12), rgba(251, 191, 36, 0.02) 42%, transparent 100%) !important;
+  box-shadow: inset 2px 0 0 #fbbf24;
+}
+
+@media (max-width: 900px) {
+  .healthStatusBar {
+    grid-template-columns: 1fr;
+  }
+
+  .metricCard {
+    :global(.card-header) {
+      min-height: auto;
+    }
+
+    :global(.card-header) {
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    :global(.card-summary) {
+      padding-right: 0;
+    }
+  }
+
+  .tokenSummaryParts {
+    display: none;
+  }
+
+  .requestEventsSearchItem,
+  .requestEventsFilterItem,
+  .requestEventsSelect {
+    min-width: min(100%, 160px);
+  }
+}
+
+.credentialFilterSelectControl {
+  min-width: 220px;
+}
+
+.chartCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chartLineDock {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+.chartLineDockMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chartLineDockTitle {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chartConfigButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chartConfigButton:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.curveDrawerLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.curveDrawerBackdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+.curveDrawer {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 92vw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--border-color) 74%, transparent);
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: curveDrawerIn 0.18s ease-out;
+}
+
+@keyframes curveDrawerIn {
+  from {
+    transform: translateX(22px);
+    opacity: 0.75;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.curveDrawerHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+
+  h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 760;
+  }
+
+  p {
+    margin: 5px 0 0;
+    color: var(--text-tertiary);
+    font-size: 12px;
+  }
+}
+
+.curveDrawerClose {
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 74%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  color: var(--text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.curveModeTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+}
+
+.curveModeButton,
+.curveModeButtonActive {
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.curveModeButtonActive {
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06);
+}
+
+.curveModeButton:hover:not(.curveModeButtonActive) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.curveDrawerBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.curveDrawer .chartLineList {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.curveDrawer .chartLineItem {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+}
+
+.curveDrawerFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+}
+
+.credentialStatusActive,
+.credentialStatusWarning,
+.credentialStatusCritical {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.credentialStatusActive {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+}
+
+.credentialStatusWarning {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+}
+
+.credentialStatusCritical {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.18);
+}
+
+.metricCard {
+  grid-column: span 4 !important;
+  min-width: 0;
+  min-height: 164px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 56%),
+    var(--bg-primary);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.statsGrid > .metricCard {
+  grid-column: span 4 !important;
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 56%),
+    var(--bg-primary) !important;
+}
+
+.metricCardHeader {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.metricCardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  flex-shrink: 0;
+}
+
+.metricCardTitle {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+}
+
+.metricCardBody {
+  min-width: 0;
+}
+
+.metricUnit {
+  margin-left: 2px;
+  font-size: 0.52em;
+  opacity: 0.58;
+  letter-spacing: -0.02em;
+}
+
+.metricMiniProgress {
+  display: flex;
+  width: 100%;
+  max-width: 340px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.metricMiniProgressSuccess,
+.metricMiniProgressFailure {
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.metricMiniProgressSuccess {
+  background: #10b981;
+}
+
+.metricMiniProgressFailure {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+:global([data-theme='white']) .statsGrid,
+:global([data-theme='light']) .statsGrid,
+:root:not([data-theme]) .statsGrid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+}
+
+:global([data-theme='white']) .metricCard,
+:global([data-theme='light']) .metricCard,
+:root:not([data-theme]) .metricCard {
+  grid-column: auto !important;
+  min-width: 0 !important;
+  min-height: 164px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+}
+
+:global([data-theme='white']) .statsGrid > .metricCard,
+:global([data-theme='light']) .statsGrid > .metricCard,
+:root:not([data-theme]) .statsGrid > .metricCard {
+  grid-column: auto !important;
+  background: #ffffff !important;
+}
+
+:global([data-theme='white']) .metricCardTitle,
+:global([data-theme='light']) .metricCardTitle,
+:root:not([data-theme]) .metricCardTitle {
+  color: #6b7280 !important;
+}
+
+:global([data-theme='white']) .metricCardIcon,
+:global([data-theme='light']) .metricCardIcon,
+:root:not([data-theme]) .metricCardIcon {
+  background: rgba(99, 102, 241, 0.1) !important;
+  color: #6366f1 !important;
+}
+
+:global([data-theme='white']) .metricMainValue,
+:global([data-theme='light']) .metricMainValue,
+:root:not([data-theme]) .metricMainValue {
+  max-width: 100%;
+  overflow: visible;
+  color: #111827 !important;
+  font-size: clamp(28px, 3vw, 38px);
+  text-shadow: none !important;
+}
+
+:global([data-theme='white']) .metricCostValue,
+:global([data-theme='light']) .metricCostValue,
+:root:not([data-theme]) .metricCostValue {
+  color: #047857 !important;
+}
+
+:global([data-theme='white']) .chartLineDock,
+:global([data-theme='light']) .chartLineDock,
+:root:not([data-theme]) .chartLineDock {
+  background: rgba(248, 250, 252, 0.7);
+}
+
+:global([data-theme='white']) .curveDrawer,
+:global([data-theme='light']) .curveDrawer,
+:root:not([data-theme]) .curveDrawer {
+  background: rgba(255, 255, 255, 0.92);
+  border-left-color: #e5e7eb;
+  box-shadow: -20px 0 48px rgba(15, 23, 42, 0.16);
+}
+
+:global([data-theme='white']) .credentialRowCritical,
+:global([data-theme='light']) .credentialRowCritical,
+:root:not([data-theme]) .credentialRowCritical {
+  background: rgba(239, 68, 68, 0.055) !important;
+  box-shadow: inset 2px 0 0 #ef4444;
+}
+
+@media (max-width: 900px) {
+  .chartCardActions {
+    justify-content: flex-start;
+  }
+
+  .curveDrawer .chartLineItem {
+    grid-template-columns: 1fr;
+  }
+
+  .credentialFilterSelectControl {
+    min-width: min(100%, 220px);
   }
 }

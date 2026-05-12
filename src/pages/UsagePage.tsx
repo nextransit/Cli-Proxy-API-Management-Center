@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -17,33 +17,38 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Select } from '@/components/ui/Select';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
-import { providersApi } from '@/services/api';
+import { apiKeysApi, providersApi, type APIKeyEntry } from '@/services/api';
 import { useThemeStore, useConfigStore } from '@/stores';
 import type { OpenAIProviderConfig } from '@/types';
 import {
   SummaryCards,
   StatCards,
-  UsageChart,
   ChartLineSelector,
-  ApiDetailsCard,
+  UsageChart,
   ModelStatsCard,
   PriceSettingsCard,
   CredentialStatsCard,
   RequestEventsDetailsCard,
-  TokenBreakdownChart,
-  CostTrendChart,
   ServiceHealthCard,
   useUsageData,
-  useSparklines,
-  useChartData,
 } from '@/components/usage';
 import {
+  calculateCost,
+  type ChartData,
   getModelNamesFromUsage,
-  getApiStats,
   getModelStats,
   filterUsageByTimeRange,
+  collectUsageDetails,
+  extractTotalTokens,
+  filterUsageDetails,
+  formatDayLabel,
+  formatHourLabel,
+  formatUsd,
   type UsageTimeRange,
 } from '@/utils/usage';
+import { maskApiKey } from '@/utils/format';
+import type { ChartOptions } from 'chart.js';
+import { buildChartOptions } from '@/utils/usage/chartConfig';
 import styles from './UsagePage.module.scss';
 
 // Register Chart.js components
@@ -59,37 +64,42 @@ ChartJS.register(
   Filler
 );
 
-const CHART_LINES_STORAGE_KEY = 'cli-proxy-usage-chart-lines-v1';
 const TIME_RANGE_STORAGE_KEY = 'cli-proxy-usage-time-range-v1';
 const DEFAULT_CHART_LINES = ['all'];
-const DEFAULT_TIME_RANGE: UsageTimeRange = '24h';
 const MAX_CHART_LINES = 9;
+const DEFAULT_TIME_RANGE: UsageTimeRange = '24h';
 const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: UsageTimeRange; labelKey: string }> = [
   { value: 'all', labelKey: 'usage_stats.range_all' },
   { value: '7h', labelKey: 'usage_stats.range_7h' },
   { value: '24h', labelKey: 'usage_stats.range_24h' },
   { value: '7d', labelKey: 'usage_stats.range_7d' },
+  { value: '30d', labelKey: 'usage_stats.range_30d' },
 ];
 const HOUR_WINDOW_BY_TIME_RANGE: Record<Exclude<UsageTimeRange, 'all'>, number> = {
   '7h': 7,
   '24h': 24,
   '7d': 7 * 24,
+  '30d': 30 * 24,
 };
 
+const CHART_LINES_STORAGE_KEY = 'cli-proxy-usage-chart-lines-v1';
+type ChartCompareMode = 'model' | 'credential';
+const CHART_COMPARE_MODE_STORAGE_KEY = 'cli-proxy-usage-chart-compare-mode-v1';
+const CREDENTIAL_FILTER_STORAGE_KEY = 'cli-proxy-usage-client-api-key-filter-v1';
+const ALL_FILTER = 'all';
+
 const isUsageTimeRange = (value: unknown): value is UsageTimeRange =>
-  value === '7h' || value === '24h' || value === '7d' || value === 'all';
+  value === '7h' || value === '24h' || value === '7d' || value === '30d' || value === 'all';
 
 const normalizeChartLines = (value: unknown, maxLines = MAX_CHART_LINES): string[] => {
   if (!Array.isArray(value)) {
     return DEFAULT_CHART_LINES;
   }
-
   const filtered = value
     .filter((item): item is string => typeof item === 'string')
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, maxLines);
-
   return filtered.length ? filtered : DEFAULT_CHART_LINES;
 };
 
@@ -108,6 +118,30 @@ const loadChartLines = (): string[] => {
   }
 };
 
+const loadChartCompareMode = (): ChartCompareMode => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return 'model';
+    }
+    return localStorage.getItem(CHART_COMPARE_MODE_STORAGE_KEY) === 'credential'
+      ? 'credential'
+      : 'model';
+  } catch {
+    return 'model';
+  }
+};
+
+const loadCredentialFilter = (): string => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return ALL_FILTER;
+    }
+    return localStorage.getItem(CREDENTIAL_FILTER_STORAGE_KEY) || ALL_FILTER;
+  } catch {
+    return ALL_FILTER;
+  }
+};
+
 const loadTimeRange = (): UsageTimeRange => {
   try {
     if (typeof localStorage === 'undefined') {
@@ -118,6 +152,117 @@ const loadTimeRange = (): UsageTimeRange => {
   } catch {
     return DEFAULT_TIME_RANGE;
   }
+};
+
+const formatCredentialShortName = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '-';
+  return maskApiKey(trimmed) || trimmed;
+};
+
+const withAlpha = (hex: string, alpha: number): string => {
+  const normalized = hex.replace('#', '');
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  if (![r, g, b].every((channel) => Number.isFinite(channel))) {
+    return hex;
+  }
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(alpha, 1))})`;
+};
+
+const CHART_COLORS = [
+  '#06b6d4',
+  '#22d3ee',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#6366f1',
+  '#14b8a6',
+  '#f472b6',
+];
+
+type TrendMetric = 'requests' | 'tokens' | 'cost';
+type TrendPeriod = 'hour' | 'day';
+type TrendGranularity = TrendPeriod | 'all';
+
+interface ClientApiKeyInfo {
+  key: string;
+  label: string;
+  masked: string;
+  description?: string;
+  super?: boolean;
+  models?: string[];
+}
+
+const buildClientApiKeyInfo = (entry: APIKeyEntry): ClientApiKeyInfo => {
+  const key = String(entry.key ?? '').trim();
+  const masked = formatCredentialShortName(key);
+  const name = String(entry.name ?? '').trim();
+  const description = String(entry.description ?? '').trim();
+  return {
+    key,
+    label: name || description || masked,
+    masked,
+    description: name && description ? description : undefined,
+    super: entry.super,
+    models: entry.models,
+  };
+};
+
+const mergeClientApiKeyEntries = (
+  entries: APIKeyEntry[],
+  configKeys: string[] | undefined
+): APIKeyEntry[] => {
+  const result: APIKeyEntry[] = [];
+  const seen = new Set<string>();
+
+  entries.forEach((entry) => {
+    const key = String(entry.key ?? '').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    result.push(entry);
+  });
+
+  (configKeys ?? []).forEach((keyValue) => {
+    const key = String(keyValue ?? '').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    result.push({ key });
+  });
+
+  return result;
+};
+
+const getTrendValue = (
+  metric: TrendMetric,
+  detail: ReturnType<typeof collectUsageDetails>[number],
+  modelPrices: Parameters<typeof calculateCost>[1]
+) => {
+  if (metric === 'tokens') {
+    return extractTotalTokens(detail);
+  }
+  if (metric === 'cost') {
+    return calculateCost(detail, modelPrices);
+  }
+  return 1;
+};
+
+const buildHourlyLabels = (hourWindowHours: number | undefined): string[] => {
+  const hourMs = 60 * 60 * 1000;
+  const resolvedHourWindow =
+    Number.isFinite(hourWindowHours) && hourWindowHours && hourWindowHours > 0
+      ? Math.min(Math.max(Math.floor(hourWindowHours), 1), 24 * 31)
+      : 24;
+  const currentHour = new Date();
+  currentHour.setMinutes(0, 0, 0);
+  const earliest = new Date(currentHour);
+  earliest.setHours(earliest.getHours() - (resolvedHourWindow - 1));
+  const earliestTime = earliest.getTime();
+  return Array.from({ length: resolvedHourWindow }, (_, index) =>
+    formatHourLabel(new Date(earliestTime + index * hourMs))
+  );
 };
 
 export function UsagePage() {
@@ -151,9 +296,14 @@ export function UsagePage() {
 
   useHeaderRefresh(loadUsage);
 
-  // Chart lines state
-  const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
   const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
+  const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
+  const [chartCompareMode, setChartCompareMode] =
+    useState<ChartCompareMode>(loadChartCompareMode);
+  const [credentialFilter, setCredentialFilter] = useState<string>(loadCredentialFilter);
+  const [modelPanelTab, setModelPanelTab] = useState<'stats' | 'credentials' | 'prices'>('stats');
+  const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
+  const [chartGranularity, setChartGranularity] = useState<TrendGranularity>('hour');
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +331,41 @@ export function UsagePage() {
       ? openaiProviderState.providers
       : (openaiCompatibilityConfig ?? []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    apiKeysApi
+      .listEntries()
+      .then((entries) => {
+        if (cancelled) return;
+        setClientApiKeyEntries(entries);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setClientApiKeyEntries([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const clientApiKeys = useMemo(
+    () => mergeClientApiKeyEntries(clientApiKeyEntries, config?.apiKeys),
+    [clientApiKeyEntries, config?.apiKeys]
+  );
+
+  const clientApiKeyInfoMap = useMemo(() => {
+    const map = new Map<string, ClientApiKeyInfo>();
+    clientApiKeys.forEach((entry) => {
+      const info = buildClientApiKeyInfo(entry);
+      if (info.key) {
+        map.set(info.key, info);
+      }
+    });
+    return map;
+  }, [clientApiKeys]);
+
   const timeRangeOptions = useMemo(
     () =>
       TIME_RANGE_OPTIONS.map((opt) => ({
@@ -194,22 +379,113 @@ export function UsagePage() {
     () => (usage ? filterUsageByTimeRange(usage, timeRange) : null),
     [usage, timeRange]
   );
-  const hourWindowHours = timeRange === 'all' ? undefined : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
 
-  const handleChartLinesChange = useCallback((lines: string[]) => {
-    setChartLines(normalizeChartLines(lines));
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (typeof localStorage === 'undefined') {
-        return;
-      }
-      localStorage.setItem(CHART_LINES_STORAGE_KEY, JSON.stringify(chartLines));
-    } catch {
-      // Ignore storage errors.
+  const credentialRows = useMemo(() => {
+    if (!filteredUsage) {
+      return [];
     }
-  }, [chartLines]);
+
+    const rowMap = new Map<
+      string,
+      {
+        value: string;
+        label: string;
+        type: string;
+        requests: number;
+        success: number;
+        failure: number;
+        tokens: number;
+        cost: number;
+      }
+    >();
+
+    collectUsageDetails(filteredUsage).forEach((detail) => {
+      const value = String(detail.__apiKey ?? '').trim() || 'unknown';
+      const keyInfo = clientApiKeyInfoMap.get(value);
+      const row =
+        rowMap.get(value) ??
+        {
+          value,
+          label: keyInfo?.label || formatCredentialShortName(value),
+          type: keyInfo?.super
+            ? t('system_info.api_key_policy_super_badge')
+            : keyInfo?.models?.length
+              ? t('system_info.api_key_policy_limited_badge')
+              : t('system_info.api_key_policy_models_all'),
+          requests: 0,
+          success: 0,
+          failure: 0,
+          tokens: 0,
+          cost: 0,
+        };
+
+      row.requests += 1;
+      if (detail.failed === true) {
+        row.failure += 1;
+      } else {
+        row.success += 1;
+      }
+      row.tokens += extractTotalTokens(detail);
+      row.cost += calculateCost(detail, modelPrices);
+      rowMap.set(value, row);
+    });
+
+    return Array.from(rowMap.values()).sort((a, b) => b.requests - a.requests);
+  }, [clientApiKeyInfoMap, filteredUsage, modelPrices, t]);
+
+  const credentialOptions = useMemo(
+    () => {
+      const options = new Map<string, { value: string; label: string }>();
+      clientApiKeys.forEach((entry) => {
+        const info = buildClientApiKeyInfo(entry);
+        if (!info.key) return;
+        const suffix = info.label === info.masked ? '' : ` · ${info.masked}`;
+        options.set(info.key, {
+          value: info.key,
+          label: `${info.label}${suffix}`,
+        });
+      });
+      credentialRows.forEach((row) => {
+        if (options.has(row.value)) return;
+        options.set(row.value, {
+          value: row.value,
+          label: row.label,
+        });
+      });
+      return Array.from(options.values());
+    },
+    [clientApiKeys, credentialRows]
+  );
+
+  const credentialFilterOptions = useMemo(
+    () => [
+      { value: ALL_FILTER, label: t('usage_stats.credential_filter_all') },
+      ...credentialOptions,
+    ],
+    [credentialOptions, t]
+  );
+
+  const effectiveCredentialFilter = useMemo(() => {
+    if (credentialFilter === ALL_FILTER) {
+      return ALL_FILTER;
+    }
+    return credentialOptions.some((option) => option.value === credentialFilter)
+      ? credentialFilter
+      : ALL_FILTER;
+  }, [credentialFilter, credentialOptions]);
+
+  const scopedUsage = useMemo(() => {
+    if (!filteredUsage || effectiveCredentialFilter === ALL_FILTER) {
+      return filteredUsage;
+    }
+
+    return filterUsageDetails(
+      filteredUsage,
+      (_detail, context) => context.apiName === effectiveCredentialFilter
+    );
+  }, [effectiveCredentialFilter, filteredUsage]);
+
+  const hourWindowHours = timeRange === 'all' ? undefined : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
 
   useEffect(() => {
     try {
@@ -222,35 +498,220 @@ export function UsagePage() {
     }
   }, [timeRange]);
 
-  const nowMs = lastRefreshedAt?.getTime() ?? 0;
+  // Chart lines handler
+  const handleChartLinesChange = useCallback((lines: string[]) => {
+    setChartLines(normalizeChartLines(lines));
+  }, []);
 
-  // Sparklines hook
-  const { requestsSparkline, tokensSparkline, rpmSparkline, tpmSparkline, costSparkline } =
-    useSparklines({ usage: filteredUsage, loading, nowMs });
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CHART_LINES_STORAGE_KEY, JSON.stringify(chartLines));
+      }
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [chartLines]);
 
-  // Chart data hook
-  const {
-    requestsPeriod,
-    setRequestsPeriod,
-    tokensPeriod,
-    setTokensPeriod,
-    requestsChartData,
-    tokensChartData,
-    requestsChartOptions,
-    tokensChartOptions,
-  } = useChartData({ usage: filteredUsage, chartLines, isDark, isMobile, hourWindowHours });
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CHART_COMPARE_MODE_STORAGE_KEY, chartCompareMode);
+      }
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [chartCompareMode]);
+
+  useEffect(() => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(CREDENTIAL_FILTER_STORAGE_KEY, effectiveCredentialFilter);
+      }
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [effectiveCredentialFilter]);
+
+  const buildTrendChartData = useCallback(
+    (metric: TrendMetric, period: TrendPeriod): ChartData => {
+      if (metric === 'cost' && Object.keys(modelPrices).length === 0) {
+        return { labels: [], datasets: [] };
+      }
+
+      const details = collectUsageDetails(scopedUsage);
+      const labels =
+        period === 'hour'
+          ? buildHourlyLabels(hourWindowHours)
+          : Array.from(
+              new Set(
+                details
+                  .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
+                  .filter(Boolean)
+              )
+            ).sort();
+      const dataByKey = new Map<string, number[]>();
+      const labelIndex = new Map(labels.map((label, index) => [label, index]));
+      const lineLabels = new Map<string, string>();
+
+      details.forEach((detail) => {
+        const timestamp = detail.__timestampMs || 0;
+        if (!Number.isFinite(timestamp) || timestamp <= 0) return;
+
+        const label =
+          period === 'hour'
+            ? (() => {
+                const date = new Date(timestamp);
+                date.setMinutes(0, 0, 0);
+                return formatHourLabel(date);
+              })()
+            : formatDayLabel(new Date(timestamp));
+        const index = labelIndex.get(label);
+        if (index === undefined) return;
+
+        const credentialKey = String(detail.__apiKey ?? '').trim() || 'unknown';
+        const keyInfo = clientApiKeyInfoMap.get(credentialKey);
+        const key = chartCompareMode === 'credential' ? credentialKey : detail.__modelName || 'Unknown';
+        const displayLabel =
+          chartCompareMode === 'credential' ? keyInfo?.label || formatCredentialShortName(key) : key;
+
+        if (!dataByKey.has(key)) {
+          dataByKey.set(key, new Array(labels.length).fill(0));
+          lineLabels.set(key, displayLabel);
+        }
+        dataByKey.get(key)![index] += getTrendValue(metric, detail, modelPrices);
+      });
+
+      const selectedLines = chartLines.length > 0 ? chartLines : DEFAULT_CHART_LINES;
+      const datasets = selectedLines.map((line, index) => {
+        const isAll = line === ALL_FILTER;
+        const data = isAll
+          ? labels.map((_, labelIndexValue) =>
+              Array.from(dataByKey.values()).reduce(
+                (sum, values) => sum + (values[labelIndexValue] || 0),
+                0
+              )
+            )
+          : dataByKey.get(line) || new Array(labels.length).fill(0);
+        const color = CHART_COLORS[index % CHART_COLORS.length];
+
+        return {
+          label: isAll
+            ? chartCompareMode === 'credential'
+              ? t('usage_stats.chart_line_all_credentials')
+              : t('usage_stats.chart_line_all')
+            : lineLabels.get(line) || formatCredentialShortName(line),
+          data,
+          borderColor: color,
+          backgroundColor: withAlpha(color, 0.16),
+          pointBackgroundColor: color,
+          pointBorderColor: color,
+          fill: selectedLines.length === 1 || isAll,
+          tension: 0.4,
+        };
+      });
+
+      return { labels, datasets };
+    },
+    [
+      chartCompareMode,
+      chartLines,
+      clientApiKeyInfoMap,
+      hourWindowHours,
+      modelPrices,
+      scopedUsage,
+      t,
+    ]
+  );
+
+  const chartPeriod: TrendPeriod = chartGranularity === 'hour' ? 'hour' : 'day';
+  const handleChartGranularityChange = useCallback((next: TrendGranularity) => {
+    setChartGranularity(next);
+    if (next === 'all') {
+      setTimeRange('all');
+    }
+  }, []);
+
+  const requestsChartData = useMemo(
+    () => buildTrendChartData('requests', chartPeriod),
+    [buildTrendChartData, chartPeriod]
+  );
+  const tokensChartData = useMemo(
+    () => buildTrendChartData('tokens', chartPeriod),
+    [buildTrendChartData, chartPeriod]
+  );
+  const costChartData = useMemo(
+    () => buildTrendChartData('cost', chartPeriod),
+    [buildTrendChartData, chartPeriod]
+  );
+  const requestsChartOptions = useMemo(
+    () =>
+      buildChartOptions({
+        period: chartPeriod,
+        labels: requestsChartData.labels,
+        isDark,
+        isMobile,
+      }),
+    [chartPeriod, isDark, isMobile, requestsChartData.labels]
+  );
+  const tokensChartOptions = useMemo(
+    () =>
+      buildChartOptions({
+        period: chartPeriod,
+        labels: tokensChartData.labels,
+        isDark,
+        isMobile,
+      }),
+    [chartPeriod, isDark, isMobile, tokensChartData.labels]
+  );
+  const costChartOptions = useMemo(() => {
+    const baseOptions = buildChartOptions({
+      period: chartPeriod,
+      labels: costChartData.labels,
+      isDark,
+      isMobile,
+    });
+
+    return {
+      ...baseOptions,
+      scales: {
+        ...baseOptions.scales,
+        y: {
+          ...((baseOptions.scales?.y as object) || {}),
+          ticks: {
+            ...(((baseOptions.scales?.y as { ticks?: object } | undefined)?.ticks as object) || {}),
+            callback: (value: string | number) => formatUsd(Number(value)),
+          },
+        },
+      },
+    } as ChartOptions<'line'>;
+  }, [chartPeriod, costChartData.labels, isDark, isMobile]);
 
   // Derived data
-  const modelNames = useMemo(() => getModelNamesFromUsage(usage), [usage]);
-  const apiStats = useMemo(
-    () => getApiStats(filteredUsage, modelPrices),
-    [filteredUsage, modelPrices]
-  );
+  const modelNames = useMemo(() => getModelNamesFromUsage(scopedUsage), [scopedUsage]);
   const modelStats = useMemo(
-    () => getModelStats(filteredUsage, modelPrices),
-    [filteredUsage, modelPrices]
+    () => getModelStats(scopedUsage, modelPrices),
+    [modelPrices, scopedUsage]
   );
+
+  // Auto-select top 4 models when usage data loads and chartLines is still 'all'
+  useEffect(() => {
+    if (!loading && usage && chartLines.length === 1 && chartLines[0] === 'all') {
+      const topModels = [...modelStats]
+        .sort((a, b) => b.requests - a.requests)
+        .slice(0, 4)
+        .map((s) => s.model);
+      if (topModels.length > 0) {
+        setChartLines(topModels);
+      }
+    }
+  }, [loading, usage, chartLines, modelStats]);
+
   const hasPrices = Object.keys(modelPrices).length > 0;
+  const topCredentialRows = useMemo(
+    () => credentialRows.filter((row) => row.requests > 0).slice(0, 3),
+    [credentialRows]
+  );
 
   return (
     <div className={loading ? (usage ? `${styles.container} ${styles.isFetching}` : `${styles.container}`) : styles.container}>
@@ -278,6 +739,63 @@ export function UsagePage() {
               fullWidth={false}
             />
           </div>
+          <div className={styles.timeRangeGroup}>
+            <span className={styles.timeRangeLabel}>{t('usage_stats.chart_granularity')}</span>
+            <div className={styles.globalGranularityGroup} role="group" aria-label={t('usage_stats.chart_granularity')}>
+              <button
+                type="button"
+                className={chartGranularity === 'hour' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                onClick={() => handleChartGranularityChange('hour')}
+              >
+                {t('usage_stats.by_hour')}
+              </button>
+              <button
+                type="button"
+                className={chartGranularity === 'day' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                onClick={() => handleChartGranularityChange('day')}
+              >
+                {t('usage_stats.by_day')}
+              </button>
+              <button
+                type="button"
+                className={chartGranularity === 'all' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                onClick={() => handleChartGranularityChange('all')}
+              >
+                {t('usage_stats.chart_granularity_all')}
+              </button>
+            </div>
+          </div>
+          <div className={styles.timeRangeGroup}>
+            <span className={styles.timeRangeLabel}>{t('usage_stats.credential_filter')}</span>
+            <Select
+              value={effectiveCredentialFilter}
+              options={credentialFilterOptions}
+              onChange={(value) => setCredentialFilter(value)}
+              className={styles.credentialFilterSelectControl}
+              ariaLabel={t('usage_stats.credential_filter')}
+              fullWidth={false}
+            />
+          </div>
+          {topCredentialRows.length > 0 && (
+            <div className={styles.topKeyQuickGroup} aria-label={t('usage_stats.top_key_quick_filter')}>
+              <span className={styles.topKeyQuickLabel}>{t('usage_stats.top_key')}</span>
+              {topCredentialRows.map((row) => (
+                <button
+                  key={row.value}
+                  type="button"
+                  className={
+                    effectiveCredentialFilter === row.value
+                      ? styles.topKeyQuickButtonActive
+                      : styles.topKeyQuickButton
+                  }
+                  onClick={() => setCredentialFilter(row.value)}
+                  title={`${row.label}: ${row.requests.toLocaleString()}`}
+                >
+                  {row.label}
+                </button>
+              ))}
+            </div>
+          )}
           <Button
             variant="secondary"
             size="sm"
@@ -300,9 +818,10 @@ export function UsagePage() {
             variant="secondary"
             size="sm"
             onClick={() => void loadUsage().catch(() => {})}
+            loading={loading}
             disabled={loading || exporting || importing}
           >
-            {loading ? '' : t('usage_stats.refresh')}
+            {t('usage_stats.refresh')}
           </Button>
           <input
             ref={importInputRef}
@@ -321,117 +840,145 @@ export function UsagePage() {
 
       {error && <div className={styles.errorBox}>{error}</div>}
 
+      <div className={styles.topStatusRow}>
+        <ServiceHealthCard
+          usage={usage}
+          loading={loading}
+          collapsible={true}
+          defaultCollapsed={true}
+        />
+      </div>
+
       {/* Summary Cards - Top 4 KPIs */}
       <SummaryCards
-        usage={filteredUsage}
+        usage={scopedUsage}
         loading={loading}
         modelPrices={modelPrices}
       />
 
-      {/* Stats Overview Cards */}
+      {/* Stats Overview Cards - Collapsible */}
       <StatCards
-        usage={filteredUsage}
-        loading={loading}
+        usage={scopedUsage}
         modelPrices={modelPrices}
-        nowMs={nowMs}
-        sparklines={{
-          requests: requestsSparkline,
-          tokens: tokensSparkline,
-          rpm: rpmSparkline,
-          tpm: tpmSparkline,
-          cost: costSparkline,
-        }}
+        requestsChartData={requestsChartData}
+        requestsChartOptions={requestsChartOptions}
+        tokensChartData={tokensChartData}
+        tokensChartOptions={tokensChartOptions}
       />
 
-      {/* Chart Line Selection */}
-      <ChartLineSelector
-        chartLines={chartLines}
-        modelNames={modelNames}
-        maxLines={MAX_CHART_LINES}
-        onChange={handleChartLinesChange}
-      />
-
-      {/* Service Health */}
-      <ServiceHealthCard usage={usage} loading={loading} />
-
-      {/* Charts Grid */}
       <div className={styles.chartsGrid}>
         <UsageChart
           title={t('usage_stats.requests_trend')}
-          period={requestsPeriod}
-          onPeriodChange={setRequestsPeriod}
+          period={chartPeriod}
+          onPeriodChange={setChartGranularity}
+          showPeriodControls={false}
           chartData={requestsChartData}
           chartOptions={requestsChartOptions}
           loading={loading}
           isMobile={isMobile}
-          emptyText={t('usage_stats.no_data')}
           isDark={isDark}
+          emptyText={t('usage_stats.no_data')}
+          extra={
+            <ChartLineSelector
+              chartLines={chartLines}
+              modelNames={modelNames}
+              credentialOptions={credentialOptions}
+              compareMode={chartCompareMode}
+              onCompareModeChange={setChartCompareMode}
+              maxLines={MAX_CHART_LINES}
+              onChange={handleChartLinesChange}
+            />
+          }
         />
         <UsageChart
           title={t('usage_stats.tokens_trend')}
-          period={tokensPeriod}
-          onPeriodChange={setTokensPeriod}
+          period={chartPeriod}
+          onPeriodChange={setChartGranularity}
+          showPeriodControls={false}
           chartData={tokensChartData}
           chartOptions={tokensChartOptions}
           loading={loading}
           isMobile={isMobile}
-          emptyText={t('usage_stats.no_data')}
           isDark={isDark}
+          emptyText={t('usage_stats.no_data')}
+        />
+        <UsageChart
+          title={t('usage_stats.cost_trend')}
+          period={chartPeriod}
+          onPeriodChange={setChartGranularity}
+          showPeriodControls={false}
+          chartData={costChartData}
+          chartOptions={costChartOptions}
+          loading={loading}
+          isMobile={isMobile}
+          isDark={isDark}
+          emptyText={hasPrices ? t('usage_stats.cost_no_data') : t('usage_stats.cost_need_price')}
         />
       </div>
 
-      {/* Token Breakdown Chart */}
-      <TokenBreakdownChart
-        usage={filteredUsage}
+      {/* Request Events Details */}
+      <RequestEventsDetailsCard
+        usage={scopedUsage}
         loading={loading}
-        isDark={isDark}
-        isMobile={isMobile}
-        hourWindowHours={hourWindowHours}
+        geminiKeys={config?.geminiApiKeys || []}
+        claudeConfigs={config?.claudeApiKeys || []}
+        codexConfigs={config?.codexApiKeys || []}
+        vertexConfigs={config?.vertexApiKeys || []}
+        openaiProviders={openaiProvidersForUsage}
       />
 
-      {/* Cost Trend Chart */}
-      <CostTrendChart
-        usage={filteredUsage}
-        loading={loading}
-        isDark={isDark}
-        isMobile={isMobile}
-        modelPrices={modelPrices}
-        hourWindowHours={hourWindowHours}
-      />
-
-      {/* Details Grid */}
-      <div className={styles.detailsGrid}>
-        <ApiDetailsCard apiStats={apiStats} loading={loading} hasPrices={hasPrices} />
-        <ModelStatsCard modelStats={modelStats} loading={loading} hasPrices={hasPrices} />
+      <div className={styles.modelPanel}>
+        <div className={styles.modelPanelTabs} role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={modelPanelTab === 'stats'}
+            className={modelPanelTab === 'stats' ? styles.modelPanelTabActive : styles.modelPanelTab}
+            onClick={() => setModelPanelTab('stats')}
+          >
+            {t('usage_stats.models')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={modelPanelTab === 'credentials'}
+            className={modelPanelTab === 'credentials' ? styles.modelPanelTabActive : styles.modelPanelTab}
+            onClick={() => setModelPanelTab('credentials')}
+          >
+            {t('usage_stats.credential_stats')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={modelPanelTab === 'prices'}
+            className={modelPanelTab === 'prices' ? styles.modelPanelTabActive : styles.modelPanelTab}
+            onClick={() => setModelPanelTab('prices')}
+          >
+            {t('usage_stats.model_price_settings')}
+          </button>
+        </div>
+        {modelPanelTab === 'stats' ? (
+          <ModelStatsCard modelStats={modelStats} loading={loading} hasPrices={hasPrices} />
+        ) : modelPanelTab === 'credentials' ? (
+          <CredentialStatsCard
+            usage={scopedUsage}
+            loading={loading}
+            geminiKeys={config?.geminiApiKeys || []}
+            claudeConfigs={config?.claudeApiKeys || []}
+            codexConfigs={config?.codexApiKeys || []}
+            vertexConfigs={config?.vertexApiKeys || []}
+            openaiProviders={openaiProvidersForUsage}
+            modelPrices={modelPrices}
+          />
+        ) : (
+          <PriceSettingsCard
+            modelNames={modelNames}
+            modelPrices={modelPrices}
+            onPricesChange={setModelPrices}
+          />
+        )}
       </div>
 
-      <RequestEventsDetailsCard
-        usage={filteredUsage}
-        loading={loading}
-        geminiKeys={config?.geminiApiKeys || []}
-        claudeConfigs={config?.claudeApiKeys || []}
-        codexConfigs={config?.codexApiKeys || []}
-        vertexConfigs={config?.vertexApiKeys || []}
-        openaiProviders={openaiProvidersForUsage}
-      />
-
-      {/* Credential Stats */}
-      <CredentialStatsCard
-        usage={filteredUsage}
-        loading={loading}
-        geminiKeys={config?.geminiApiKeys || []}
-        claudeConfigs={config?.claudeApiKeys || []}
-        codexConfigs={config?.codexApiKeys || []}
-        vertexConfigs={config?.vertexApiKeys || []}
-        openaiProviders={openaiProvidersForUsage}
-      />
-
-      {/* Price Settings */}
-      <PriceSettingsCard
-        modelNames={modelNames}
-        modelPrices={modelPrices}
-        onPricesChange={setModelPrices}
-      />
     </div>
   );
 }
