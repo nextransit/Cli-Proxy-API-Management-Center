@@ -125,6 +125,82 @@
   --accent-tertiary: var(--bg-tertiary);
 }
 
+
+
+// 羊毛纸主题 (Light/Parchment)
+[data-theme='light'] {
+  // 主背景 - 羊毛纸色
+  --bg-secondary: #F4F1EA;
+  --bg-primary: rgba(255, 252, 245, 0.9);
+  --bg-tertiary: rgba(0, 0, 0, 0.03);
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-quinary: #FFFCF5;
+  --bg-error-light: rgba(165, 42, 42, 0.08);
+  
+  // 浮层
+  --floating-surface: #FFFEF9;
+  --floating-border: #E2DED0;
+  --floating-shadow: 0 4px 16px rgba(74, 66, 56, 0.08);
+
+  // 文字 - 深褐色系
+  --text-primary: #4A4238;
+  --text-secondary: #6B6358;
+  --text-tertiary: #8C8578;
+  --text-quaternary: #A9A299;
+  --text-muted: var(--text-tertiary);
+
+  // 边框
+  --border-color: #E2DED0;
+  --border-secondary: #D4D0C5;
+  --border-primary: #C9C5BA;
+  --border-hover: #B5B1A6;
+
+  // 主色 - 海军蓝
+  --primary-color: #2A7B9B;
+  --primary-hover: #236B85;
+  --primary-active: #1D5A70;
+  --primary-contrast: #ffffff;
+
+  // 状态色 - 低饱和度
+  --success-color: #2D5A27;
+  --quota-medium-color: #8B6914;
+  --warning-color: #A52A2A;
+  --error-color: #A52A2A;
+  --danger-color: var(--error-color);
+  --info-color: var(--primary-color);
+
+  --warning-bg: rgba(165, 42, 42, 0.08);
+  --warning-border: rgba(165, 42, 42, 0.25);
+  --warning-text: #8B2500;
+
+  // 徽章色
+  --success-badge-bg: rgba(45, 90, 39, 0.12);
+  --success-badge-text: #2D5A27;
+  --success-badge-border: rgba(45, 90, 39, 0.3);
+
+  --failure-badge-bg: rgba(165, 42, 42, 0.1);
+  --failure-badge-text: #A52A2A;
+  --failure-badge-border: rgba(165, 42, 42, 0.25);
+
+  --count-badge-bg: rgba(74, 66, 56, 0.1);
+  --count-badge-text: #4A4238;
+
+  // 阴影 - 轻盈自然
+  --shadow: 0 1px 3px rgba(74, 66, 56, 0.06);
+  --shadow-lg: 0 4px 12px rgba(74, 66, 56, 0.1);
+
+  --radius-md: 8px;
+  --accent-tertiary: var(--bg-tertiary);
+  
+  // 玻璃效果
+  --glass-blur: 8px;
+  --glass-backdrop-filter: blur(var(--glass-blur));
+  --glass-filter: blur(var(--glass-blur));
+  --glass-bg: rgba(255, 252, 245, 0.85);
+  --glass-bg-secondary: rgba(244, 241, 234, 0.85);
+  --glass-border: rgba(226, 222, 208, 0.6);
+}
+
 // 深色主题（#191919）
 [data-theme='dark'] {
   // 极简暖灰：深色模式（提升对比度与层级）
