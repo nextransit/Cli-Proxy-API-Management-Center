@@ -1,3 +1,4 @@
+import { useThemeStore } from '@/stores';
 import { useMemo, type CSSProperties, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Line } from 'react-chartjs-2';
@@ -100,7 +101,23 @@ function CountUpValue({ value, formatter, durationMs = 850 }: CountUpProps) {
   return <>{formatter(display)}</>;
 }
 
+
+function formatTokenCount(tokens: number): string {
+  if (tokens >= 1_000_000_000) {
+    return (tokens / 1_000_000_000).toFixed(2) + 'B';
+  } else if (tokens >= 1_000_000) {
+    const inMillions = tokens / 1_000_000;
+    if (inMillions >= 1000) {
+      return (tokens / 1_000_000_000).toFixed(2) + 'B';
+    }
+    return inMillions.toFixed(2) + 'M';
+  }
+  return formatCompactNumber(tokens);
+}
+
 export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: StatCardsProps) {
+  const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
+  const isDark = resolvedTheme === 'dark';
   const { t } = useTranslation();
   const latencyHint = t('usage_stats.latency_unit_hint', {
     field: LATENCY_SOURCE_FIELD,
@@ -191,23 +208,23 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       accent: baseAccent,
       accentSoft: baseAccentSoft,
       accentBorder: baseAccentBorder,
-      value: loading ? '-' : (usage?.total_requests ?? 0).toLocaleString(),
+      value: (usage?.total_requests ?? 0).toLocaleString(),
       valueForAnimation: usage?.total_requests ?? 0,
       valueFormatter: (num) => Math.round(num).toLocaleString(),
       meta: (
         <>
           <span className={styles.statMetaItem}>
             <span className={styles.statMetaDot} style={{ backgroundColor: '#3fb28f' }} />
-            {t('usage_stats.success_requests')}: {loading ? '-' : (usage?.success_count ?? 0)}
+            {t('usage_stats.success_requests')}: {(usage?.success_count ?? 0)}
           </span>
           <span className={styles.statMetaItem}>
             <span className={styles.statMetaDot} style={{ backgroundColor: '#cd6f63' }} />
-            {t('usage_stats.failed_requests')}: {loading ? '-' : (usage?.failure_count ?? 0)}
+            {t('usage_stats.failed_requests')}: {(usage?.failure_count ?? 0)}
           </span>
           {latencyStats.sampleCount > 0 && (
             <span className={styles.statMetaItem} title={latencyHint}>
               {t('usage_stats.avg_time')}:{' '}
-              {loading ? '-' : formatDurationMs(latencyStats.averageMs)}
+              {formatDurationMs(latencyStats.averageMs)}
             </span>
           )}
         </>
@@ -221,18 +238,18 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       accent: baseAccent,
       accentSoft: baseAccentSoft,
       accentBorder: baseAccentBorder,
-      value: loading ? '-' : formatCompactNumber(usage?.total_tokens ?? 0),
+      value: formatTokenCount(usage?.total_tokens ?? 0),
       valueForAnimation: usage?.total_tokens ?? 0,
-      valueFormatter: (num) => formatCompactNumber(Math.max(0, Math.round(num))),
+      valueFormatter: (num) => formatTokenCount(Math.max(0, Math.round(num))),
       meta: (
         <>
           <span className={styles.statMetaItem}>
             {t('usage_stats.cached_tokens')}:{' '}
-            {loading ? '-' : formatCompactNumber(tokenBreakdown.cachedTokens)}
+            {formatTokenCount(tokenBreakdown.cachedTokens)}
           </span>
           <span className={styles.statMetaItem}>
             {t('usage_stats.reasoning_tokens')}:{' '}
-            {loading ? '-' : formatCompactNumber(tokenBreakdown.reasoningTokens)}
+            {formatTokenCount(tokenBreakdown.reasoningTokens)}
           </span>
         </>
       ),
@@ -245,13 +262,13 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       accent: baseAccent,
       accentSoft: baseAccentSoft,
       accentBorder: baseAccentBorder,
-      value: loading ? '-' : formatPerMinuteValue(rateStats.rpm),
+      value: formatPerMinuteValue(rateStats.rpm),
       valueForAnimation: rateStats.rpm,
       valueFormatter: (num) => formatPerMinuteValue(num),
       meta: (
         <span className={styles.statMetaItem}>
           {t('usage_stats.total_requests')}:{' '}
-          {loading ? '-' : rateStats.requestCount.toLocaleString()}
+          {rateStats.requestCount.toLocaleString()}
         </span>
       ),
       trend: sparklines.rpm,
@@ -263,13 +280,13 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       accent: baseAccent,
       accentSoft: baseAccentSoft,
       accentBorder: baseAccentBorder,
-      value: loading ? '-' : formatPerMinuteValue(rateStats.tpm),
+      value: formatPerMinuteValue(rateStats.tpm),
       valueForAnimation: rateStats.tpm,
       valueFormatter: (num) => formatPerMinuteValue(num),
       meta: (
         <span className={styles.statMetaItem}>
           {t('usage_stats.total_tokens')}:{' '}
-          {loading ? '-' : formatCompactNumber(rateStats.tokenCount)}
+          {formatTokenCount(rateStats.tokenCount)}
         </span>
       ),
       trend: sparklines.tpm,
@@ -281,14 +298,14 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
       accent: baseAccent,
       accentSoft: baseAccentSoft,
       accentBorder: baseAccentBorder,
-      value: loading ? '-' : hasPrices ? formatUsd(totalCost) : '--',
+      value: hasPrices ? formatUsd(totalCost) : '--',
       valueForAnimation: hasPrices ? totalCost : undefined,
       valueFormatter: (num) => formatUsd(Math.max(0, num)),
       meta: (
         <>
           <span className={styles.statMetaItem}>
             {t('usage_stats.total_tokens')}:{' '}
-            {loading ? '-' : formatCompactNumber(usage?.total_tokens ?? 0)}
+            {formatCompactNumber(usage?.total_tokens ?? 0)}
           </span>
           {!hasPrices && (
             <span className={`${styles.statMetaItem} ${styles.statSubtle}`}>
@@ -338,12 +355,17 @@ export function StatCards({ usage, loading, modelPrices, nowMs, sparklines }: St
                 data={card.trend.data}
                 options={{
                   ...sparklineOptions,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false },
+                  },
+                  animation: { duration: 0 },
                   elements: {
                     line: { ...(sparklineOptions.elements?.line || {}), borderColor: card.accent },
                     point: { ...(sparklineOptions.elements?.point || {}), radius: 0 },
                   },
                 }}
-                className={styles.sparkline}
+                className={`${styles.sparkline} ${isDark ? '' : 'sparkline-light'}`}
               />
             ) : (
               <div className={styles.statTrendPlaceholder} />
