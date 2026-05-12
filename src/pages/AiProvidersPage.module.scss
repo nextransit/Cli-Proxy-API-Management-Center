@@ -173,6 +173,34 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
+.cardExtraActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.collapseToggleButton:global(.btn.btn-secondary) {
+  height: $openai-toolbar-control-height;
+  padding: 0 10px;
+  border-color: var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  gap: 6px;
+
+  &:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-tertiary);
+  }
+}
+
+.collapseToggleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
 .openaiToolbarAnchorHidden {
   visibility: hidden;
   pointer-events: none;
@@ -970,6 +998,13 @@ $openai-toolbar-control-height: 36px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-secondary);
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-xs 0;
 }
 
 .openaiModelsContent {

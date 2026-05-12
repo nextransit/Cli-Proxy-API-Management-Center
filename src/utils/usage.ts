@@ -75,6 +75,7 @@ export interface UsageDetail {
   };
   thinking?: UsageThinking | null;
   failed: boolean;
+  __apiKey?: string;
   __modelName?: string;
   __timestampMs?: number;
 }
@@ -110,7 +111,7 @@ export interface ModelStatsSummary {
   latencySampleCount: number;
 }
 
-export type UsageTimeRange = '7h' | '24h' | '7d' | 'all';
+export type UsageTimeRange = '7h' | '24h' | '7d' | '30d' | 'all';
 
 const TOKENS_PER_PRICE_UNIT = 1_000_000;
 const MODEL_PRICE_STORAGE_KEY = 'cli-proxy-model-prices-v2';
@@ -119,6 +120,7 @@ const USAGE_TIME_RANGE_MS: Record<Exclude<UsageTimeRange, 'all'>, number> = {
   '7h': 7 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
   '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -173,6 +175,106 @@ const toUsageSummaryFields = (summary: UsageSummary) => ({
   failure_count: summary.failureCount,
   total_tokens: summary.totalTokens,
 });
+
+export interface UsageDetailFilterContext {
+  apiName: string;
+  modelName: string;
+}
+
+export function filterUsageDetails<T>(
+  usageData: T,
+  shouldInclude: (
+    detail: Record<string, unknown>,
+    context: UsageDetailFilterContext
+  ) => boolean
+): T {
+  const usageRecord = isRecord(usageData) ? usageData : null;
+  const apis = getApisRecord(usageData);
+  if (!usageRecord || !apis) {
+    return usageData;
+  }
+
+  const filteredApis: Record<string, unknown> = {};
+  const totalSummary = createUsageSummary();
+
+  Object.entries(apis).forEach(([apiName, apiEntry]) => {
+    if (!isRecord(apiEntry)) {
+      return;
+    }
+
+    const models = isRecord(apiEntry.models) ? apiEntry.models : null;
+    if (!models) {
+      return;
+    }
+
+    const filteredModels: Record<string, unknown> = {};
+    const apiSummary = createUsageSummary();
+    let hasModelData = false;
+
+    Object.entries(models).forEach(([modelName, modelEntry]) => {
+      if (!isRecord(modelEntry)) {
+        return;
+      }
+
+      const detailsRaw = Array.isArray(modelEntry.details) ? modelEntry.details : [];
+      const modelSummary = createUsageSummary();
+      const filteredDetails: unknown[] = [];
+
+      detailsRaw.forEach((detail) => {
+        const detailRecord = isRecord(detail) ? detail : null;
+        if (!detailRecord || !shouldInclude(detailRecord, { apiName, modelName })) {
+          return;
+        }
+
+        filteredDetails.push(detail);
+        modelSummary.totalRequests += 1;
+        if (detailRecord.failed === true) {
+          modelSummary.failureCount += 1;
+        } else {
+          modelSummary.successCount += 1;
+        }
+        modelSummary.totalTokens += extractTotalTokens(detailRecord);
+      });
+
+      if (!filteredDetails.length) {
+        return;
+      }
+
+      filteredModels[modelName] = {
+        ...modelEntry,
+        ...toUsageSummaryFields(modelSummary),
+        details: filteredDetails,
+      };
+      hasModelData = true;
+
+      apiSummary.totalRequests += modelSummary.totalRequests;
+      apiSummary.successCount += modelSummary.successCount;
+      apiSummary.failureCount += modelSummary.failureCount;
+      apiSummary.totalTokens += modelSummary.totalTokens;
+    });
+
+    if (!hasModelData) {
+      return;
+    }
+
+    filteredApis[apiName] = {
+      ...apiEntry,
+      ...toUsageSummaryFields(apiSummary),
+      models: filteredModels,
+    };
+
+    totalSummary.totalRequests += apiSummary.totalRequests;
+    totalSummary.successCount += apiSummary.successCount;
+    totalSummary.failureCount += apiSummary.failureCount;
+    totalSummary.totalTokens += apiSummary.totalTokens;
+  });
+
+  return {
+    ...usageRecord,
+    ...toUsageSummaryFields(totalSummary),
+    apis: filteredApis,
+  } as T;
+}
 
 export function filterUsageByTimeRange<T>(
   usageData: T,
@@ -562,7 +664,7 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
     return normalized;
   };
 
-  Object.values(apis).forEach((apiEntry) => {
+  Object.entries(apis).forEach(([apiKey, apiEntry]) => {
     if (!isRecord(apiEntry)) return;
     const modelsRaw = apiEntry.models;
     const models = isRecord(modelsRaw) ? modelsRaw : null;
@@ -590,6 +692,7 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           thinking: normalizeUsageThinking(detailRaw.thinking),
           failed: detailRaw.failed === true,
+          __apiKey: apiKey,
           __modelName: modelName,
           __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
         });

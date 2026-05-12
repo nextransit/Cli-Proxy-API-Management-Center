@@ -5,7 +5,6 @@ import {
   LATENCY_SOURCE_FIELD,
   formatCompactNumber,
   formatDurationMs,
-  formatUsd,
   type ModelStatsSummary,
 } from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
@@ -29,6 +28,17 @@ type SortDir = 'asc' | 'desc';
 
 interface ModelStatWithRate extends ModelStat {
   successRate: number;
+}
+
+function formatUsd4(value: number): string {
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return '$0.0000';
+  }
+  return `$${num.toLocaleString(undefined, {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  })}`;
 }
 
 export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCardProps) {
@@ -77,9 +87,7 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
 
   return (
     <Card title={t('usage_stats.models')} className={styles.detailsFixedCard}>
-      {loading ? (
-        <div className={styles.hint}>{t('common.loading')}</div>
-      ) : sorted.length > 0 ? (
+      {loading ? null : sorted.length > 0 ? (
         <>
           {hasLatencyData && <div className={styles.detailsNote}>{latencyHint}</div>}
           <div className={styles.detailsScroll}>
@@ -154,8 +162,8 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                 </thead>
                 <tbody>
                   {sorted.map((stat) => (
-                    <tr key={stat.model}>
-                      <td className={styles.modelCell}>{stat.model}</td>
+                    <tr key={stat.model} className={styles.tableRow}>
+                      <td className={`${styles.modelCell} ${styles.modelName}`}>{stat.model}</td>
                       <td>
                         <span className={styles.requestCountCell}>
                           <span>{stat.requests.toLocaleString()}</span>
@@ -171,7 +179,7 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                           </span>
                         </span>
                       </td>
-                      <td>{formatCompactNumber(stat.tokens)}</td>
+                      <td className={styles.tokenHighlight}>{formatCompactNumber(stat.tokens)}</td>
                       <td className={styles.durationCell}>
                         {formatDurationMs(stat.averageLatencyMs)}
                       </td>
@@ -188,7 +196,7 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                           {stat.successRate.toFixed(1)}%
                         </span>
                       </td>
-                      {hasPrices && <td>{stat.cost > 0 ? formatUsd(stat.cost) : '--'}</td>}
+                      {hasPrices && <td>{stat.cost > 0 ? <span className={styles.costHighlight}>{formatUsd4(stat.cost)}</span> : '$0.0000'}</td>}
                     </tr>
                   ))}
                 </tbody>

@@ -26,8 +26,8 @@ body.modal-open .content {
 
 // 滚动条样式
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -76,4 +76,32 @@ body.modal-open .content {
 .fade-exit-active {
   opacity: 0;
   transition: opacity $transition-normal;
+}
+
+// ============================================
+// 暗色模式滚动条优化
+// ============================================
+[data-theme='dark'] {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }

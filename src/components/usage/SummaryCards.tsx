@@ -13,10 +13,8 @@ interface SummaryCardsProps {
 
 function formatTokenCount(tokens: number): string {
   if (tokens >= 1_000_000_000) {
-    // >= 1B (10亿), 显示为 B
     return (tokens / 1_000_000_000).toFixed(2) + 'B';
   } else if (tokens >= 1_000_000) {
-    // >= 1M (100万), 如果 >= 1000M 则显示为 B
     const inMillions = tokens / 1_000_000;
     if (inMillions >= 1000) {
       return (tokens / 1_000_000_000).toFixed(2) + 'B';
@@ -25,6 +23,42 @@ function formatTokenCount(tokens: number): string {
   }
   return formatCompactNumber(tokens);
 }
+
+type TrendDirection = 'up' | 'down' | 'flat';
+
+interface SummaryTrend {
+  label: string;
+  direction: TrendDirection;
+}
+
+interface PeriodStats {
+  cost: number;
+  tokens: number;
+  requests: number;
+}
+
+const EMPTY_PERIOD_STATS: PeriodStats = {
+  cost: 0,
+  tokens: 0,
+  requests: 0,
+};
+
+const buildTrend = (current: number, previous: number, compareLabel: string): SummaryTrend => {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous <= 0) {
+    return { label: `-- ${compareLabel}`, direction: 'flat' };
+  }
+
+  const percent = ((current - previous) / previous) * 100;
+  const direction: TrendDirection = percent > 0 ? 'up' : percent < 0 ? 'down' : 'flat';
+  const prefix = direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→';
+  return { label: `${prefix} ${Math.abs(percent).toFixed(1)}% ${compareLabel}`, direction };
+};
+
+const getTrendClassName = (direction: TrendDirection): string => {
+  if (direction === 'up') return styles.summaryCardTrendUp;
+  if (direction === 'down') return styles.summaryCardTrendDown;
+  return styles.summaryCardTrendFlat;
+};
 
 const IconDollar = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -48,34 +82,32 @@ const IconCount = () => (
   </svg>
 );
 
-const IconMonth = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
-);
-
 export function SummaryCards({ usage, modelPrices }: SummaryCardsProps) {
   const { t } = useTranslation();
 
   const stats = useMemo(() => {
     if (!usage) {
-      return { todayCost: 0, todayTokens: 0, todayRequests: 0, monthCost: 0 };
+      return {
+        today: EMPTY_PERIOD_STATS,
+        yesterday: EMPTY_PERIOD_STATS,
+        month: EMPTY_PERIOD_STATS,
+        previousMonth: EMPTY_PERIOD_STATS,
+      };
     }
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+    const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).getTime();
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0).getTime();
 
-    let todayCost = 0;
-    let todayTokens = 0;
-    let todayRequests = 0;
-    let monthCost = 0;
+    const today: PeriodStats = { ...EMPTY_PERIOD_STATS };
+    const yesterday: PeriodStats = { ...EMPTY_PERIOD_STATS };
+    const month: PeriodStats = { ...EMPTY_PERIOD_STATS };
+    const previousMonth: PeriodStats = { ...EMPTY_PERIOD_STATS };
 
     const details = collectUsageDetails(usage);
-    
+
     for (const detail of details) {
       const timestampMs = detail.__timestampMs || 0;
       if (timestampMs === 0) continue;
@@ -84,47 +116,58 @@ export function SummaryCards({ usage, modelPrices }: SummaryCardsProps) {
       const cost = calculateCost(detail, modelPrices);
 
       if (timestampMs >= todayStart) {
-        todayCost += cost;
-        todayTokens += totalTokens;
-        todayRequests += 1;
+        today.cost += cost;
+        today.tokens += totalTokens;
+        today.requests += 1;
+      } else if (timestampMs >= yesterdayStart && timestampMs < todayStart) {
+        yesterday.cost += cost;
+        yesterday.tokens += totalTokens;
+        yesterday.requests += 1;
       }
 
       if (timestampMs >= monthStart) {
-        monthCost += cost;
+        month.cost += cost;
+        month.tokens += totalTokens;
+        month.requests += 1;
+      } else if (timestampMs >= previousMonthStart && timestampMs < monthStart) {
+        previousMonth.cost += cost;
+        previousMonth.tokens += totalTokens;
+        previousMonth.requests += 1;
       }
     }
 
-    return { todayCost, todayTokens, todayRequests, monthCost };
+    return { today, yesterday, month, previousMonth };
   }, [usage, modelPrices]);
+
+  const compareYesterday = t('usage_stats.vs_yesterday', 'vs 昨日');
 
   const cards = [
     {
-      key: 'todayCost',
-      label: t('usage_stats.today_cost') || '今日花费',
-      value: formatUsd(stats.todayCost),
-      icon: <IconDollar />,
-      accent: '#10b981',
+      key: 'todayRequests',
+      label: t('usage_stats.today_requests') || '今日请求',
+      num: stats.today.requests.toLocaleString(),
+      unit: '',
+      icon: <IconCount />,
+      accent: '#f59e0b',
+      trend: buildTrend(stats.today.requests, stats.yesterday.requests, compareYesterday),
     },
     {
       key: 'todayTokens',
       label: t('usage_stats.today_tokens') || '今日 Token',
-      value: formatTokenCount(stats.todayTokens),
+      num: formatTokenCount(stats.today.tokens),
+      unit: '',
       icon: <IconToken />,
       accent: '#6366f1',
+      trend: buildTrend(stats.today.tokens, stats.yesterday.tokens, compareYesterday),
     },
     {
-      key: 'todayRequests',
-      label: t('usage_stats.today_requests') || '今日请求',
-      value: stats.todayRequests.toLocaleString(),
-      icon: <IconCount />,
-      accent: '#f59e0b',
-    },
-    {
-      key: 'monthCost',
-      label: t('usage_stats.month_cost') || '本月花费',
-      value: formatUsd(stats.monthCost),
-      icon: <IconMonth />,
-      accent: '#8b5cf6',
+      key: 'todayCost',
+      label: t('usage_stats.today_cost') || '今日花费',
+      num: formatUsd(stats.today.cost),
+      unit: '',
+      icon: <IconDollar />,
+      accent: '#10b981',
+      trend: buildTrend(stats.today.cost, stats.yesterday.cost, compareYesterday),
     },
   ];
 
@@ -137,7 +180,12 @@ export function SummaryCards({ usage, modelPrices }: SummaryCardsProps) {
           </div>
           <div className={styles.summaryCardContent}>
             <div className={styles.summaryCardLabel}>{card.label}</div>
-            <div className={styles.summaryCardValue}>{card.value}</div>
+            <div className={styles.summaryCardValue}>
+              <span className={styles.summaryCardNumber}>{card.num}</span>
+            </div>
+            <div className={`${styles.summaryCardTrend} ${getTrendClassName(card.trend.direction)}`}>
+              {card.trend.label}
+            </div>
           </div>
         </div>
       ))}

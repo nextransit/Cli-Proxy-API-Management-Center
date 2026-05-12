@@ -347,7 +347,398 @@
   text-overflow: ellipsis;
 }
 
+.cardActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.apiKeyList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.apiKeyItem {
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  padding: $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.apiKeyItemHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.apiKeyPrimary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.apiKeyValue {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.apiKeyName {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.apiKeyBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  border: 1px solid var(--border-color);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.apiKeyBadgeSuper {
+  color: $success-color;
+  border-color: rgba($success-color, 0.4);
+  background: rgba($success-color, 0.12);
+}
+
+.apiKeyBadgeLimited {
+  color: $warning-color;
+  border-color: rgba($warning-color, 0.35);
+  background: rgba($warning-color, 0.12);
+}
+
+.apiKeyActions {
+  display: inline-flex;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.apiKeyDescription {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.apiKeyMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: $spacing-sm;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--bg-primary) 74%, transparent);
+  border: 1px solid var(--border-color);
+}
+
+.metaLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.metaValue {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.apiKeyModels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.apiKeyModelTag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-full;
+  background: var(--bg-primary);
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+}
+
+.runtimeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: $spacing-md;
+}
+
+.runtimeItem {
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  padding: $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.runtimeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.runtimeKey {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+}
+
+.runtimeStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-sm;
+}
+
+.runtimeStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+  border: 1px solid var(--border-color);
+
+  span {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  strong {
+    font-size: 13px;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
+}
+
+.apiKeyPolicyModal {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.apiKeyFormSectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: $spacing-xs;
+}
+
+.apiKeyFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-md;
+}
+
+.modelWhitelistPicker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $spacing-md;
+}
+
+.modelWhitelistPickerDisabled {
+  opacity: 0.62;
+}
+
+.modelWhitelistColumn {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.modelWhitelistHeader {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.modelWhitelistCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: $radius-full;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.modelWhitelistList {
+  min-height: 220px;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-primary);
+  padding: $spacing-xs;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.modelWhitelistEmpty {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: $spacing-md;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.modelWhitelistOption,
+.modelWhitelistSelectedItem {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  text-align: left;
+  min-width: 0;
+}
+
+.modelWhitelistOption {
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.modelWhitelistOptionSelected {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-secondary) 70%, transparent);
+}
+
+.modelWhitelistSelectedItem {
+  justify-content: space-between;
+}
+
+.modelWhitelistName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.modelWhitelistAlias {
+  flex-shrink: 0;
+  max-width: 36%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.modelWhitelistRemove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-md;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    color: var(--error-color);
+    background: rgba($error-color, 0.12);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+.modelWhitelistCustomRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: $spacing-xs;
+  align-items: end;
+}
+
 @media (max-width: 768px) {
+  .apiKeyItemHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .apiKeyActions {
+    justify-content: flex-end;
+  }
+
+  .apiKeyFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .modelWhitelistPicker {
+    grid-template-columns: 1fr;
+  }
+
+  .runtimeStats {
+    grid-template-columns: 1fr;
+  }
+
   .aboutLogo {
     width: 92px;
     height: 92px;

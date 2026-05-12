@@ -4,7 +4,9 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { IconGithub, IconBookOpen, IconExternalLink, IconCode } from '@/components/ui/icons';
+import { Input } from '@/components/ui/Input';
+import { Select, type SelectOption } from '@/components/ui/Select';
+import { IconGithub, IconBookOpen, IconExternalLink, IconCode, IconX } from '@/components/ui/icons';
 import {
   useAuthStore,
   useConfigStore,
@@ -13,7 +15,7 @@ import {
   useThemeStore,
 } from '@/stores';
 import { configApi, versionApi } from '@/services/api';
-import { apiKeysApi } from '@/services/api/apiKeys';
+import { apiKeysApi, type APIKeyEntry, type APIKeyRuntimeEntry } from '@/services/api/apiKeys';
 import { classifyModels } from '@/utils/models';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
@@ -68,6 +70,185 @@ const compareVersions = (latest?: string | null, current?: string | null) => {
   return 0;
 };
 
+interface APIKeyPolicyFormState {
+  key: string;
+  name: string;
+  description: string;
+  superKey: boolean;
+  modelsText: string;
+  rpm: string;
+  qps: string;
+  burst: string;
+  concurrencyMax: string;
+  queueMax: string;
+  queueTimeoutMs: string;
+  lifetimeLimit: string;
+  periodicLimit: string;
+  periodicWindow: '' | 'day' | 'month';
+}
+
+const DEFAULT_API_KEY_FORM: APIKeyPolicyFormState = {
+  key: '',
+  name: '',
+  description: '',
+  superKey: false,
+  modelsText: '',
+  rpm: '',
+  qps: '',
+  burst: '',
+  concurrencyMax: '',
+  queueMax: '',
+  queueTimeoutMs: '',
+  lifetimeLimit: '',
+  periodicLimit: '',
+  periodicWindow: '',
+};
+
+const parseIntegerField = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(parsed)) return undefined;
+  return parsed < 0 ? 0 : parsed;
+};
+
+const splitModelsText = (text: string): string[] | undefined => {
+  const seen = new Set<string>();
+  const models = text
+    .split(/[\n,]/)
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => {
+      if (!item || seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+  return models.length ? models : undefined;
+};
+
+const normalizeModelPattern = (value: string): string => value.trim().toLowerCase();
+
+const trimUndefined = (value: string): string | undefined => {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const normalizeAPIKeyEntryForSubmit = (entry: APIKeyEntry): APIKeyEntry => {
+  const normalized: APIKeyEntry = {
+    key: entry.key.trim(),
+    name: trimUndefined(entry.name ?? ''),
+    description: trimUndefined(entry.description ?? ''),
+    super: Boolean(entry.super),
+    models: entry.models?.length ? entry.models : undefined,
+  };
+
+  const rate = entry.limits?.rate;
+  const concurrency = entry.limits?.concurrency;
+  const tokens = entry.limits?.tokens;
+
+  const normalizedRate = {
+    rpm: rate?.rpm,
+    qps: rate?.qps,
+    burst: rate?.burst,
+  };
+  const normalizedConcurrency = {
+    max: concurrency?.max,
+    'queue-max': concurrency?.['queue-max'],
+    'queue-timeout-ms': concurrency?.['queue-timeout-ms'],
+  };
+  const normalizedTokens = {
+    lifetime: tokens?.lifetime?.limit !== undefined ? { limit: tokens.lifetime.limit } : undefined,
+    periodic:
+      tokens?.periodic?.limit !== undefined || tokens?.periodic?.window
+        ? {
+            limit: tokens?.periodic?.limit,
+            window: tokens?.periodic?.window,
+          }
+        : undefined,
+  };
+
+  const hasRate =
+    normalizedRate.rpm !== undefined ||
+    normalizedRate.qps !== undefined ||
+    normalizedRate.burst !== undefined;
+  const hasConcurrency =
+    normalizedConcurrency.max !== undefined ||
+    normalizedConcurrency['queue-max'] !== undefined ||
+    normalizedConcurrency['queue-timeout-ms'] !== undefined;
+  const hasTokens = normalizedTokens.lifetime || normalizedTokens.periodic;
+
+  if (hasRate || hasConcurrency || hasTokens) {
+    normalized.limits = {};
+    if (hasRate) normalized.limits.rate = normalizedRate;
+    if (hasConcurrency) normalized.limits.concurrency = normalizedConcurrency;
+    if (hasTokens) normalized.limits.tokens = normalizedTokens;
+  }
+  return normalized;
+};
+
+const formToAPIKeyEntry = (form: APIKeyPolicyFormState): APIKeyEntry => {
+  const entry: APIKeyEntry = {
+    key: form.key.trim(),
+    name: trimUndefined(form.name),
+    description: trimUndefined(form.description),
+    super: form.superKey,
+    models: splitModelsText(form.modelsText),
+    limits: {
+      rate: {
+        rpm: parseIntegerField(form.rpm),
+        qps: parseIntegerField(form.qps),
+        burst: parseIntegerField(form.burst),
+      },
+      concurrency: {
+        max: parseIntegerField(form.concurrencyMax),
+        'queue-max': parseIntegerField(form.queueMax),
+        'queue-timeout-ms': parseIntegerField(form.queueTimeoutMs),
+      },
+      tokens: {
+        lifetime: { limit: parseIntegerField(form.lifetimeLimit) },
+        periodic: {
+          limit: parseIntegerField(form.periodicLimit),
+          window: form.periodicWindow || undefined,
+        },
+      },
+    },
+  };
+  return normalizeAPIKeyEntryForSubmit(entry);
+};
+
+const entryToForm = (entry: APIKeyEntry): APIKeyPolicyFormState => ({
+  key: entry.key ?? '',
+  name: entry.name ?? '',
+  description: entry.description ?? '',
+  superKey: Boolean(entry.super),
+  modelsText: Array.isArray(entry.models) ? entry.models.join('\n') : '',
+  rpm: entry.limits?.rate?.rpm !== undefined ? String(entry.limits.rate.rpm) : '',
+  qps: entry.limits?.rate?.qps !== undefined ? String(entry.limits.rate.qps) : '',
+  burst: entry.limits?.rate?.burst !== undefined ? String(entry.limits.rate.burst) : '',
+  concurrencyMax:
+    entry.limits?.concurrency?.max !== undefined ? String(entry.limits.concurrency.max) : '',
+  queueMax:
+    entry.limits?.concurrency?.['queue-max'] !== undefined
+      ? String(entry.limits.concurrency['queue-max'])
+      : '',
+  queueTimeoutMs:
+    entry.limits?.concurrency?.['queue-timeout-ms'] !== undefined
+      ? String(entry.limits.concurrency['queue-timeout-ms'])
+      : '',
+  lifetimeLimit:
+    entry.limits?.tokens?.lifetime?.limit !== undefined
+      ? String(entry.limits.tokens.lifetime.limit)
+      : '',
+  periodicLimit:
+    entry.limits?.tokens?.periodic?.limit !== undefined
+      ? String(entry.limits.tokens.periodic.limit)
+      : '',
+  periodicWindow:
+    entry.limits?.tokens?.periodic?.window === 'day' ||
+    entry.limits?.tokens?.periodic?.window === 'month'
+      ? entry.limits.tokens.periodic.window
+      : '',
+});
+
 export function SystemPage() {
   const { t, i18n } = useTranslation();
   const { showNotification, showConfirmation } = useNotificationStore();
@@ -92,6 +273,21 @@ export function SystemPage() {
   const [requestLogTouched, setRequestLogTouched] = useState(false);
   const [requestLogSaving, setRequestLogSaving] = useState(false);
   const [checkingVersion, setCheckingVersion] = useState(false);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [apiKeysLoaded, setApiKeysLoaded] = useState(false);
+  const [apiKeysError, setApiKeysError] = useState('');
+  const [apiKeyEntries, setApiKeyEntries] = useState<APIKeyEntry[]>([]);
+  const [apiKeyRuntimeLoading, setApiKeyRuntimeLoading] = useState(false);
+  const [apiKeyRuntimeError, setApiKeyRuntimeError] = useState('');
+  const [apiKeyRuntimeEntries, setApiKeyRuntimeEntries] = useState<APIKeyRuntimeEntry[]>([]);
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
+  const [apiKeyModalSaving, setApiKeyModalSaving] = useState(false);
+  const [apiKeyModalIndex, setApiKeyModalIndex] = useState<number | null>(null);
+  const [apiKeyForm, setApiKeyForm] = useState<APIKeyPolicyFormState>(DEFAULT_API_KEY_FORM);
+  const [modelWhitelistSearch, setModelWhitelistSearch] = useState('');
+  const [customModelPattern, setCustomModelPattern] = useState('');
+  const [resettingTokenKey, setResettingTokenKey] = useState('');
+  const [resettingAllTokens, setResettingAllTokens] = useState(false);
 
   const apiKeysCache = useRef<string[]>([]);
   const versionTapCount = useRef(0);
@@ -105,6 +301,54 @@ export function SystemPage() {
   const requestLogEnabled = config?.requestLog ?? false;
   const requestLogDirty = requestLogDraft !== requestLogEnabled;
   const canEditRequestLog = auth.connectionStatus === 'connected' && Boolean(config);
+  const canManageApiKeyPolicies = auth.connectionStatus === 'connected';
+  const isEditingApiKey = apiKeyModalIndex !== null;
+  const apiKeyRuntimeMap = useMemo(() => {
+    const map = new Map<string, APIKeyRuntimeEntry>();
+    apiKeyRuntimeEntries.forEach((item) => {
+      map.set(item.key, item);
+    });
+    return map;
+  }, [apiKeyRuntimeEntries]);
+  const periodicWindowOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: '', label: t('system_info.api_key_field_periodic_window_none') },
+      { value: 'day', label: t('system_info.api_key_runtime_window_day') },
+      { value: 'month', label: t('system_info.api_key_runtime_window_month') },
+    ],
+    [t]
+  );
+  const policyLimitsDisabled = apiKeyForm.superKey;
+  const selectedModelPatterns = useMemo(
+    () => splitModelsText(apiKeyForm.modelsText) ?? [],
+    [apiKeyForm.modelsText]
+  );
+  const selectedModelPatternSet = useMemo(
+    () => new Set(selectedModelPatterns),
+    [selectedModelPatterns]
+  );
+  const availableModelOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return models
+      .map((model) => ({
+        ...model,
+        normalizedName: normalizeModelPattern(model.name),
+      }))
+      .filter((model) => {
+        if (!model.normalizedName || seen.has(model.normalizedName)) return false;
+        seen.add(model.normalizedName);
+        return true;
+      })
+      .sort((a, b) => a.normalizedName.localeCompare(b.normalizedName));
+  }, [models]);
+  const filteredAvailableModelOptions = useMemo(() => {
+    const keyword = modelWhitelistSearch.trim().toLowerCase();
+    if (!keyword) return availableModelOptions;
+    return availableModelOptions.filter((model) => {
+      const haystack = `${model.name} ${model.alias ?? ''} ${model.description ?? ''}`.toLowerCase();
+      return haystack.includes(keyword);
+    });
+  }, [availableModelOptions, modelWhitelistSearch]);
 
   const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
   const apiVersion = auth.serverVersion || t('system_info.version_unknown');
@@ -119,7 +363,7 @@ export function SystemPage() {
     return resolvedTheme === 'dark' ? iconEntry.dark : iconEntry.light;
   };
 
-  const normalizeApiKeyList = (input: unknown): string[] => {
+  const normalizeApiKeyList = useCallback((input: unknown): string[] => {
     if (!Array.isArray(input)) return [];
     const seen = new Set<string>();
     const keys: string[] = [];
@@ -142,7 +386,7 @@ export function SystemPage() {
     });
 
     return keys;
-  };
+  }, []);
 
   const resolveApiKeysForModels = useCallback(async () => {
     if (apiKeysCache.current.length) {
@@ -166,7 +410,262 @@ export function SystemPage() {
       console.warn('Auto loading API keys for models failed:', err);
       return [];
     }
-  }, [config?.apiKeys]);
+  }, [config?.apiKeys, normalizeApiKeyList]);
+
+  const syncApiKeysCache = useCallback(
+    (entries: APIKeyEntry[]) => {
+      apiKeysCache.current = normalizeApiKeyList(entries);
+    },
+    [normalizeApiKeyList]
+  );
+
+  const fetchAPIKeyEntries = useCallback(async () => {
+    if (!canManageApiKeyPolicies) {
+      setApiKeysLoaded(false);
+      setApiKeysError('');
+      setApiKeyEntries([]);
+      return;
+    }
+    setApiKeysLoading(true);
+    setApiKeysLoaded(false);
+    setApiKeysError('');
+    try {
+      const entries = await apiKeysApi.listEntries();
+      setApiKeyEntries(entries);
+      syncApiKeysCache(entries);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      setApiKeysError(`${t('notification.refresh_failed')}${message ? `: ${message}` : ''}`);
+    } finally {
+      setApiKeysLoading(false);
+      setApiKeysLoaded(true);
+    }
+  }, [canManageApiKeyPolicies, syncApiKeysCache, t]);
+
+  const fetchAPIKeyRuntime = useCallback(async () => {
+    if (!canManageApiKeyPolicies) {
+      setApiKeyRuntimeError('');
+      setApiKeyRuntimeEntries([]);
+      return;
+    }
+    setApiKeyRuntimeLoading(true);
+    setApiKeyRuntimeError('');
+    try {
+      const runtime = await apiKeysApi.runtime();
+      setApiKeyRuntimeEntries(runtime);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      setApiKeyRuntimeError(`${t('notification.refresh_failed')}${message ? `: ${message}` : ''}`);
+    } finally {
+      setApiKeyRuntimeLoading(false);
+    }
+  }, [canManageApiKeyPolicies, t]);
+
+  const openAPIKeyCreateModal = useCallback(() => {
+    setApiKeyModalIndex(null);
+    setApiKeyForm({ ...DEFAULT_API_KEY_FORM });
+    setModelWhitelistSearch('');
+    setCustomModelPattern('');
+    setApiKeyModalOpen(true);
+  }, []);
+
+  const openAPIKeyEditModal = useCallback((entry: APIKeyEntry, index: number) => {
+    setApiKeyModalIndex(index);
+    setApiKeyForm(entryToForm(entry));
+    setModelWhitelistSearch('');
+    setCustomModelPattern('');
+    setApiKeyModalOpen(true);
+  }, []);
+
+  const closeAPIKeyModal = useCallback(() => {
+    if (apiKeyModalSaving) return;
+    setApiKeyModalOpen(false);
+    setApiKeyModalIndex(null);
+    setApiKeyForm({ ...DEFAULT_API_KEY_FORM });
+    setModelWhitelistSearch('');
+    setCustomModelPattern('');
+  }, [apiKeyModalSaving]);
+
+  const addModelToWhitelist = useCallback((value: string) => {
+    const normalized = normalizeModelPattern(value);
+    if (!normalized) return;
+    setApiKeyForm((prev) => {
+      const current = splitModelsText(prev.modelsText) ?? [];
+      if (current.includes(normalized)) return prev;
+      return {
+        ...prev,
+        modelsText: [...current, normalized].join('\n'),
+      };
+    });
+  }, []);
+
+  const removeModelFromWhitelist = useCallback((value: string) => {
+    const normalized = normalizeModelPattern(value);
+    if (!normalized) return;
+    setApiKeyForm((prev) => {
+      const current = splitModelsText(prev.modelsText) ?? [];
+      return {
+        ...prev,
+        modelsText: current.filter((item) => item !== normalized).join('\n'),
+      };
+    });
+  }, []);
+
+  const addCustomModelPattern = useCallback(() => {
+    const normalized = normalizeModelPattern(customModelPattern);
+    if (!normalized) return;
+    addModelToWhitelist(normalized);
+    setCustomModelPattern('');
+  }, [addModelToWhitelist, customModelPattern]);
+
+  const formatRuntimeDate = useCallback(
+    (value?: string) => {
+      if (!value) return '-';
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return value;
+      return parsed.toLocaleString(i18n.language);
+    },
+    [i18n.language]
+  );
+
+  const formatPeriodicWindow = useCallback(
+    (windowValue?: string) => {
+      if (windowValue === 'day') return t('system_info.api_key_runtime_window_day');
+      if (windowValue === 'month') return t('system_info.api_key_runtime_window_month');
+      return t('system_info.api_key_runtime_not_configured');
+    },
+    [t]
+  );
+
+  const handleSaveAPIKeyPolicy = useCallback(async () => {
+    if (!canManageApiKeyPolicies) return;
+    const nextEntry = formToAPIKeyEntry(apiKeyForm);
+    if (!nextEntry.key) {
+      showNotification(`${t('notification.please_enter')} ${t('notification.api_key')}`, 'warning');
+      return;
+    }
+
+    const duplicateIndex = apiKeyEntries.findIndex(
+      (entry, index) => index !== apiKeyModalIndex && entry.key === nextEntry.key
+    );
+    if (duplicateIndex >= 0) {
+      showNotification(t('system_info.api_key_policy_duplicate'), 'warning');
+      return;
+    }
+
+    const nextEntries = [...apiKeyEntries];
+    if (apiKeyModalIndex !== null) {
+      nextEntries[apiKeyModalIndex] = nextEntry;
+    } else {
+      nextEntries.push(nextEntry);
+    }
+
+    setApiKeyModalSaving(true);
+    try {
+      await apiKeysApi.replaceEntries(nextEntries);
+      setApiKeyEntries(nextEntries);
+      syncApiKeysCache(nextEntries);
+      showNotification(
+        apiKeyModalIndex !== null
+          ? t('notification.api_key_updated')
+          : t('notification.api_key_added'),
+        'success'
+      );
+      closeAPIKeyModal();
+      void fetchAPIKeyRuntime();
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+      showNotification(
+        `${apiKeyModalIndex !== null ? t('notification.update_failed') : t('notification.add_failed')}${
+          message ? `: ${message}` : ''
+        }`,
+        'error'
+      );
+    } finally {
+      setApiKeyModalSaving(false);
+    }
+  }, [
+    apiKeyEntries,
+    apiKeyForm,
+    apiKeyModalIndex,
+    canManageApiKeyPolicies,
+    closeAPIKeyModal,
+    fetchAPIKeyRuntime,
+    showNotification,
+    syncApiKeysCache,
+    t,
+  ]);
+
+  const handleDeleteAPIKeyPolicy = useCallback(
+    (entry: APIKeyEntry, index: number) => {
+      showConfirmation({
+        title: t('system_info.api_key_policy_title'),
+        message: t('api_keys.delete_confirm'),
+        variant: 'danger',
+        confirmText: t('common.delete'),
+        onConfirm: async () => {
+          try {
+            await apiKeysApi.deleteByKey(entry.key);
+            const nextEntries = apiKeyEntries.filter((_, itemIndex) => itemIndex !== index);
+            setApiKeyEntries(nextEntries);
+            syncApiKeysCache(nextEntries);
+            showNotification(t('notification.api_key_deleted'), 'success');
+            void fetchAPIKeyRuntime();
+          } catch (error: unknown) {
+            const message =
+              error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+            showNotification(
+              `${t('notification.delete_failed')}${message ? `: ${message}` : ''}`,
+              'error'
+            );
+          }
+        },
+      });
+    },
+    [apiKeyEntries, fetchAPIKeyRuntime, showConfirmation, showNotification, syncApiKeysCache, t]
+  );
+
+  const handleResetAPIKeyTokens = useCallback(
+    async (apiKey?: string) => {
+      if (!canManageApiKeyPolicies) return;
+      if (apiKey) {
+        setResettingTokenKey(apiKey);
+      } else {
+        setResettingAllTokens(true);
+      }
+      try {
+        await apiKeysApi.resetTokens(apiKey);
+        showNotification(t('system_info.api_key_runtime_tokens_reset_success'), 'success');
+        await fetchAPIKeyRuntime();
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+        showNotification(
+          `${t('notification.update_failed')}${message ? `: ${message}` : ''}`,
+          'error'
+        );
+      } finally {
+        setResettingTokenKey('');
+        setResettingAllTokens(false);
+      }
+    },
+    [canManageApiKeyPolicies, fetchAPIKeyRuntime, showNotification, t]
+  );
+
+  const handleResetAllTokens = useCallback(() => {
+    showConfirmation({
+      title: t('system_info.api_key_runtime_reset_all'),
+      message: t('system_info.api_key_runtime_reset_all_confirm'),
+      variant: 'danger',
+      confirmText: t('common.confirm'),
+      onConfirm: async () => {
+        await handleResetAPIKeyTokens();
+      },
+    });
+  }, [handleResetAPIKeyTokens, showConfirmation, t]);
 
   const fetchModels = async ({ forceRefresh = false }: { forceRefresh?: boolean } = {}) => {
     if (auth.connectionStatus !== 'connected') {
@@ -189,8 +688,28 @@ export function SystemPage() {
     setModelStatus({ type: 'muted', message: t('system_info.models_loading') });
     try {
       const apiKeys = await resolveApiKeysForModels();
-      const primaryKey = apiKeys[0];
-      const list = await fetchModelsFromStore(auth.apiBase, primaryKey, forceRefresh);
+      const candidateKeys = apiKeys.length ? apiKeys : [''];
+      let list: Awaited<ReturnType<typeof fetchModelsFromStore>> = [];
+      let lastError: unknown;
+
+      for (let index = 0; index < candidateKeys.length; index += 1) {
+        try {
+          list = await fetchModelsFromStore(
+            auth.apiBase,
+            candidateKeys[index] || undefined,
+            forceRefresh
+          );
+          lastError = undefined;
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (lastError) {
+        throw lastError;
+      }
+
       const hasModels = list.length > 0;
       setModelStatus({
         type: hasModels ? 'success' : 'warning',
@@ -335,9 +854,30 @@ export function SystemPage() {
   }, []);
 
   useEffect(() => {
+    if (!canManageApiKeyPolicies) {
+      setApiKeysLoaded(false);
+      setApiKeysError('');
+      setApiKeyEntries([]);
+      setApiKeyRuntimeError('');
+      setApiKeyRuntimeEntries([]);
+      return;
+    }
+    void fetchAPIKeyEntries();
+    void fetchAPIKeyRuntime();
+  }, [auth.apiBase, canManageApiKeyPolicies, fetchAPIKeyEntries, fetchAPIKeyRuntime]);
+
+  useEffect(() => {
+    if (canManageApiKeyPolicies && (!apiKeysLoaded || apiKeysLoading)) return;
     fetchModels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.connectionStatus, auth.apiBase]);
+  }, [
+    auth.connectionStatus,
+    auth.apiBase,
+    canManageApiKeyPolicies,
+    apiKeysLoaded,
+    apiKeysLoading,
+    apiKeyEntries.length,
+  ]);
 
   return (
     <div className={styles.container}>
@@ -508,6 +1048,252 @@ export function SystemPage() {
           )}
         </Card>
 
+        <Card
+          title={t('system_info.api_key_policy_title')}
+          extra={
+            <div className={styles.cardActions}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void fetchAPIKeyEntries()}
+                loading={apiKeysLoading}
+                disabled={!canManageApiKeyPolicies}
+              >
+                {t('common.refresh')}
+              </Button>
+              <Button size="sm" onClick={openAPIKeyCreateModal} disabled={!canManageApiKeyPolicies}>
+                {t('common.add')}
+              </Button>
+            </div>
+          }
+        >
+          <p className={styles.sectionDescription}>{t('system_info.api_key_policy_desc')}</p>
+          {apiKeysError && <div className="error-box">{apiKeysError}</div>}
+          {apiKeysLoading ? (
+            <div className="hint">{t('common.loading')}</div>
+          ) : apiKeyEntries.length === 0 ? (
+            <div className="hint">{t('system_info.api_key_policy_empty')}</div>
+          ) : (
+            <div className={styles.apiKeyList}>
+              {apiKeyEntries.map((entry, index) => {
+                const runtime = apiKeyRuntimeMap.get(entry.key);
+                const modelCount = entry.models?.length ?? 0;
+                const periodicLimit = entry.limits?.tokens?.periodic?.limit;
+                const periodicWindow = entry.limits?.tokens?.periodic?.window;
+                return (
+                  <div key={`${entry.key}-${index}`} className={styles.apiKeyItem}>
+                    <div className={styles.apiKeyItemHeader}>
+                      <div className={styles.apiKeyPrimary}>
+                        <span className={styles.apiKeyValue}>{entry.key}</span>
+                        <span
+                          className={`${styles.apiKeyBadge} ${
+                            entry.super ? styles.apiKeyBadgeSuper : styles.apiKeyBadgeLimited
+                          }`}
+                        >
+                          {entry.super
+                            ? t('system_info.api_key_policy_super_badge')
+                            : t('system_info.api_key_policy_limited_badge')}
+                        </span>
+                        {entry.name && <span className={styles.apiKeyName}>{entry.name}</span>}
+                      </div>
+                      <div className={styles.apiKeyActions}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openAPIKeyEditModal(entry, index)}
+                        >
+                          {t('common.edit')}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          loading={resettingTokenKey === entry.key}
+                          onClick={() => void handleResetAPIKeyTokens(entry.key)}
+                        >
+                          {t('system_info.api_key_policy_reset_tokens')}
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteAPIKeyPolicy(entry, index)}
+                        >
+                          {t('common.delete')}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {entry.description && (
+                      <div className={styles.apiKeyDescription}>{entry.description}</div>
+                    )}
+
+                    <div className={styles.apiKeyMetaGrid}>
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>
+                          {t('system_info.api_key_field_rpm')}
+                        </span>
+                        <span className={styles.metaValue}>
+                          {entry.limits?.rate?.rpm ??
+                            t('system_info.api_key_runtime_not_configured')}
+                        </span>
+                      </div>
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>
+                          {t('system_info.api_key_field_qps')}/
+                          {t('system_info.api_key_field_burst')}
+                        </span>
+                        <span className={styles.metaValue}>
+                          {entry.limits?.rate?.qps ??
+                            t('system_info.api_key_runtime_not_configured')}{' '}
+                          /{' '}
+                          {entry.limits?.rate?.burst ??
+                            t('system_info.api_key_runtime_not_configured')}
+                        </span>
+                      </div>
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>
+                          {t('system_info.api_key_field_concurrency_max')}/
+                          {t('system_info.api_key_field_queue_max')}
+                        </span>
+                        <span className={styles.metaValue}>
+                          {entry.limits?.concurrency?.max ??
+                            t('system_info.api_key_runtime_not_configured')}{' '}
+                          /{' '}
+                          {entry.limits?.concurrency?.['queue-max'] ??
+                            t('system_info.api_key_runtime_not_configured')}
+                        </span>
+                      </div>
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>
+                          {t('system_info.api_key_field_lifetime_limit')}
+                        </span>
+                        <span className={styles.metaValue}>
+                          {entry.limits?.tokens?.lifetime?.limit ??
+                            t('system_info.api_key_runtime_not_configured')}
+                        </span>
+                      </div>
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>
+                          {t('system_info.api_key_field_periodic_limit')}
+                        </span>
+                        <span className={styles.metaValue}>
+                          {periodicLimit !== undefined
+                            ? `${periodicLimit} (${formatPeriodicWindow(periodicWindow)})`
+                            : t('system_info.api_key_runtime_not_configured')}
+                        </span>
+                      </div>
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}>
+                          {t('system_info.api_key_runtime_inflight')}/
+                          {t('system_info.api_key_runtime_queueing')}
+                        </span>
+                        <span className={styles.metaValue}>
+                          {runtime?.['in-flight'] ?? 0} / {runtime?.queueing ?? 0}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className={styles.apiKeyModels}>
+                      <span className={styles.metaLabel}>
+                        {t('system_info.api_key_field_models')}:
+                      </span>
+                      {entry.super ? (
+                        <span className={styles.apiKeyModelTag}>
+                          {t('system_info.api_key_policy_models_all')}
+                        </span>
+                      ) : modelCount > 0 ? (
+                        entry.models?.map((model) => (
+                          <span key={model} className={styles.apiKeyModelTag}>
+                            {model}
+                          </span>
+                        ))
+                      ) : (
+                        <span className={styles.apiKeyModelTag}>
+                          {t('system_info.api_key_runtime_not_configured')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card
+          title={t('system_info.api_key_runtime_title')}
+          extra={
+            <div className={styles.cardActions}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void fetchAPIKeyRuntime()}
+                loading={apiKeyRuntimeLoading}
+                disabled={!canManageApiKeyPolicies}
+              >
+                {t('common.refresh')}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleResetAllTokens}
+                loading={resettingAllTokens}
+                disabled={!canManageApiKeyPolicies || apiKeyRuntimeEntries.length === 0}
+              >
+                {t('system_info.api_key_runtime_reset_all')}
+              </Button>
+            </div>
+          }
+        >
+          <p className={styles.sectionDescription}>{t('system_info.api_key_runtime_desc')}</p>
+          {apiKeyRuntimeError && <div className="error-box">{apiKeyRuntimeError}</div>}
+          {apiKeyRuntimeLoading ? (
+            <div className="hint">{t('common.loading')}</div>
+          ) : apiKeyRuntimeEntries.length === 0 ? (
+            <div className="hint">{t('system_info.api_key_runtime_empty')}</div>
+          ) : (
+            <div className={styles.runtimeGrid}>
+              {apiKeyRuntimeEntries.map((entry) => (
+                <div key={entry.key} className={styles.runtimeItem}>
+                  <div className={styles.runtimeHeader}>
+                    <span className={styles.runtimeKey}>{entry.key}</span>
+                    {entry.super && (
+                      <span className={`${styles.apiKeyBadge} ${styles.apiKeyBadgeSuper}`}>
+                        {t('system_info.api_key_policy_super_badge')}
+                      </span>
+                    )}
+                  </div>
+                  <div className={styles.runtimeStats}>
+                    <div className={styles.runtimeStat}>
+                      <span>{t('system_info.api_key_runtime_inflight')}</span>
+                      <strong>{entry['in-flight']}</strong>
+                    </div>
+                    <div className={styles.runtimeStat}>
+                      <span>{t('system_info.api_key_runtime_queueing')}</span>
+                      <strong>{entry.queueing}</strong>
+                    </div>
+                    <div className={styles.runtimeStat}>
+                      <span>{t('system_info.api_key_runtime_lifetime_used')}</span>
+                      <strong>{entry['lifetime-used']}</strong>
+                    </div>
+                    <div className={styles.runtimeStat}>
+                      <span>{t('system_info.api_key_runtime_periodic_used')}</span>
+                      <strong>{entry['periodic-used']}</strong>
+                    </div>
+                    <div className={styles.runtimeStat}>
+                      <span>{t('system_info.api_key_runtime_periodic_from')}</span>
+                      <strong>{formatRuntimeDate(entry['periodic-from'])}</strong>
+                    </div>
+                    <div className={styles.runtimeStat}>
+                      <span>{t('system_info.api_key_field_periodic_window')}</span>
+                      <strong>{formatPeriodicWindow(entry['periodic-window'])}</strong>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         <Card title={t('system_info.clear_login_title')}>
           <p className={styles.sectionDescription}>{t('system_info.clear_login_desc')}</p>
           <div className={styles.clearLoginActions}>
@@ -517,6 +1303,310 @@ export function SystemPage() {
           </div>
         </Card>
       </div>
+
+      <Modal
+        open={apiKeyModalOpen}
+        onClose={closeAPIKeyModal}
+        title={
+          isEditingApiKey
+            ? t('system_info.api_key_policy_modal_edit')
+            : t('system_info.api_key_policy_modal_add')
+        }
+        width={860}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeAPIKeyModal} disabled={apiKeyModalSaving}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => void handleSaveAPIKeyPolicy()}
+              loading={apiKeyModalSaving}
+              disabled={!canManageApiKeyPolicies}
+            >
+              {t('common.save')}
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.apiKeyPolicyModal}>
+          <Input
+            label={t('system_info.api_key_field_key')}
+            value={apiKeyForm.key}
+            onChange={(event) =>
+              setApiKeyForm((prev) => ({
+                ...prev,
+                key: event.target.value,
+              }))
+            }
+            placeholder={t('api_keys.add_modal_key_placeholder')}
+            disabled={apiKeyModalSaving}
+          />
+          <div className={styles.apiKeyFormGrid}>
+            <Input
+              label={t('system_info.api_key_field_name')}
+              value={apiKeyForm.name}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  name: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving}
+            />
+            <Input
+              label={t('system_info.api_key_field_description')}
+              value={apiKeyForm.description}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  description: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>{t('system_info.api_key_field_super')}</label>
+            <ToggleSwitch
+              checked={apiKeyForm.superKey}
+              onChange={(value) => {
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  superKey: value,
+                }));
+              }}
+              disabled={apiKeyModalSaving}
+            />
+            <div className="hint">{t('system_info.api_key_policy_models_hint')}</div>
+          </div>
+
+          <div className="form-group">
+            <label>{t('system_info.api_key_field_models')}</label>
+            <div
+              className={[
+                styles.modelWhitelistPicker,
+                policyLimitsDisabled ? styles.modelWhitelistPickerDisabled : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <div className={styles.modelWhitelistColumn}>
+                <div className={styles.modelWhitelistHeader}>
+                  <span>{t('system_info.api_key_models_available')}</span>
+                  <span className={styles.modelWhitelistCount}>
+                    {filteredAvailableModelOptions.length}
+                  </span>
+                </div>
+                <Input
+                  value={modelWhitelistSearch}
+                  onChange={(event) => setModelWhitelistSearch(event.target.value)}
+                  placeholder={t('system_info.api_key_models_search_placeholder')}
+                  disabled={apiKeyModalSaving || policyLimitsDisabled}
+                />
+                <div className={styles.modelWhitelistList}>
+                  {modelsLoading ? (
+                    <div className={styles.modelWhitelistEmpty}>{t('common.loading')}</div>
+                  ) : filteredAvailableModelOptions.length === 0 ? (
+                    <div className={styles.modelWhitelistEmpty}>
+                      {t('system_info.api_key_models_available_empty')}
+                    </div>
+                  ) : (
+                    filteredAvailableModelOptions.map((model) => {
+                      const selected = selectedModelPatternSet.has(model.normalizedName);
+                      return (
+                        <button
+                          key={model.normalizedName}
+                          type="button"
+                          className={`${styles.modelWhitelistOption} ${
+                            selected ? styles.modelWhitelistOptionSelected : ''
+                          }`}
+                          onDoubleClick={() => addModelToWhitelist(model.normalizedName)}
+                          disabled={apiKeyModalSaving || policyLimitsDisabled || selected}
+                          title={model.description || model.name}
+                        >
+                          <span className={styles.modelWhitelistName}>{model.name}</span>
+                          {model.alias && model.alias !== model.name && (
+                            <span className={styles.modelWhitelistAlias}>{model.alias}</span>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.modelWhitelistColumn}>
+                <div className={styles.modelWhitelistHeader}>
+                  <span>{t('system_info.api_key_models_selected')}</span>
+                  <span className={styles.modelWhitelistCount}>{selectedModelPatterns.length}</span>
+                </div>
+                <div className={styles.modelWhitelistList}>
+                  {selectedModelPatterns.length === 0 ? (
+                    <div className={styles.modelWhitelistEmpty}>
+                      {t('system_info.api_key_models_selected_empty')}
+                    </div>
+                  ) : (
+                    selectedModelPatterns.map((model) => (
+                      <div key={model} className={styles.modelWhitelistSelectedItem}>
+                        <span className={styles.modelWhitelistName}>{model}</span>
+                        <button
+                          type="button"
+                          className={styles.modelWhitelistRemove}
+                          onClick={() => removeModelFromWhitelist(model)}
+                          disabled={apiKeyModalSaving || policyLimitsDisabled}
+                          aria-label={t('common.delete')}
+                          title={t('common.delete')}
+                        >
+                          <IconX size={14} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className={styles.modelWhitelistCustomRow}>
+                  <Input
+                    value={customModelPattern}
+                    onChange={(event) => setCustomModelPattern(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addCustomModelPattern();
+                      }
+                    }}
+                    placeholder={t('system_info.api_key_models_custom_placeholder')}
+                    disabled={apiKeyModalSaving || policyLimitsDisabled}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={addCustomModelPattern}
+                    disabled={
+                      apiKeyModalSaving ||
+                      policyLimitsDisabled ||
+                      !customModelPattern.trim()
+                    }
+                  >
+                    {t('common.add')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="hint">{t('system_info.api_key_policy_models_hint')}</div>
+            {modelsError && <div className="hint">{modelsError}</div>}
+          </div>
+
+          <div className={styles.apiKeyFormSectionTitle}>
+            {t('system_info.api_key_runtime_limits')}
+          </div>
+          <div className={styles.apiKeyFormGrid}>
+            <Input
+              label={t('system_info.api_key_field_rpm')}
+              value={apiKeyForm.rpm}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  rpm: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_qps')}
+              value={apiKeyForm.qps}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  qps: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_burst')}
+              value={apiKeyForm.burst}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  burst: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_concurrency_max')}
+              value={apiKeyForm.concurrencyMax}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  concurrencyMax: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_queue_max')}
+              value={apiKeyForm.queueMax}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  queueMax: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_queue_timeout_ms')}
+              value={apiKeyForm.queueTimeoutMs}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  queueTimeoutMs: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_lifetime_limit')}
+              value={apiKeyForm.lifetimeLimit}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  lifetimeLimit: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <Input
+              label={t('system_info.api_key_field_periodic_limit')}
+              value={apiKeyForm.periodicLimit}
+              onChange={(event) =>
+                setApiKeyForm((prev) => ({
+                  ...prev,
+                  periodicLimit: event.target.value,
+                }))
+              }
+              disabled={apiKeyModalSaving || policyLimitsDisabled}
+            />
+            <div className="form-group">
+              <label>{t('system_info.api_key_field_periodic_window')}</label>
+              <Select
+                value={apiKeyForm.periodicWindow}
+                options={periodicWindowOptions}
+                onChange={(value) =>
+                  setApiKeyForm((prev) => ({
+                    ...prev,
+                    periodicWindow: value === 'day' || value === 'month' ? value : '',
+                  }))
+                }
+                disabled={apiKeyModalSaving || policyLimitsDisabled}
+                fullWidth
+              />
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={requestLogModalOpen}

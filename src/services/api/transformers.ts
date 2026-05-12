@@ -123,6 +123,35 @@ const normalizeApiKeyEntry = (entry: unknown): ApiKeyEntry | null => {
   return result;
 };
 
+const normalizeApiKeyValue = (entry: unknown): string | null => {
+  const record = isRecord(entry) ? entry : null;
+  const apiKey =
+    record?.['api-key'] ?? record?.apiKey ?? record?.key ?? (typeof entry === 'string' ? entry : '');
+  const trimmed = String(apiKey || '').trim();
+  return trimmed || null;
+};
+
+const normalizeApiKeyValues = (input: unknown): string[] | undefined => {
+  const source = Array.isArray(input)
+    ? input
+    : isRecord(input)
+      ? Object.values(input)
+      : typeof input === 'string'
+        ? input.split(/[\n,]/)
+        : [];
+  if (!source.length) return undefined;
+
+  const seen = new Set<string>();
+  const values: string[] = [];
+  source.forEach((item) => {
+    const key = normalizeApiKeyValue(item);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    values.push(key);
+  });
+  return values.length ? values : undefined;
+};
+
 const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => {
   if (item === undefined || item === null) return null;
   const record = isRecord(item) ? item : null;
@@ -247,15 +276,20 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   const models = normalizeModelAliases(provider.models);
   const priority = provider.priority ?? provider['priority'];
   const testModel = provider['test-model'] ?? provider.testModel;
+  const disabledRaw = provider.disabled ?? provider['disabled'];
+  const enabledRaw = provider.enabled ?? provider['enabled'];
+  const normalizedDisabled = normalizeBoolean(disabledRaw);
+  const normalizedEnabled = normalizeBoolean(enabledRaw);
+  const disabled =
+    normalizedDisabled ?? (normalizedEnabled !== undefined ? !normalizedEnabled : false);
 
   const result: OpenAIProviderConfig = {
     name: String(name),
     baseUrl: String(baseUrl),
-    apiKeyEntries
+    apiKeyEntries,
+    disabled
   };
 
-  const disabled = normalizeBoolean(provider.disabled ?? provider['disabled']);
-  if (disabled !== undefined) result.disabled = disabled;
   const prefix = normalizePrefix(provider.prefix ?? provider['prefix']);
   if (prefix) result.prefix = prefix;
   if (headers) result.headers = headers;
@@ -424,8 +458,9 @@ export const normalizeConfigResponse = (raw: unknown): Config => {
     config.routingStrategy = String(strategyRaw);
   }
   const apiKeysRaw = raw['api-keys'] ?? raw.apiKeys;
-  if (Array.isArray(apiKeysRaw)) {
-    config.apiKeys = apiKeysRaw.map((key) => String(key)).filter((key) => key.trim() !== '');
+  const apiKeys = normalizeApiKeyValues(apiKeysRaw);
+  if (apiKeys) {
+    config.apiKeys = apiKeys;
   }
 
   const geminiList = raw['gemini-api-key'] ?? raw.geminiApiKey ?? raw.geminiApiKeys;

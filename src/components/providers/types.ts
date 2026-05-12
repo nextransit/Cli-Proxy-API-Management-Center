@@ -12,6 +12,7 @@ export interface OpenAIFormState {
   priority?: number;
   prefix: string;
   baseUrl: string;
+  disabled?: boolean;
   headers: HeaderEntry[];
   testModel?: string;
   modelEntries: ModelEntry[];

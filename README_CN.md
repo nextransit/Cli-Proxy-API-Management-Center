@@ -134,6 +134,45 @@ npm run build
 - **功能提示不支持**：多为后端版本较旧或接口未启用/不存在（如：认证文件模型列表、排除模型、日志相关接口）。
 - **OpenAI 提供商测试失败**：测试在浏览器侧执行，会受网络与 CORS 影响；这里失败不一定代表服务端不可用。
 
+## 每次更新前自动备份
+
+如果你已经遇到升级后数据丢失（认证文件、API Keys、OpenAI 兼容提供商 Key、统计数据），建议把“更新前备份”作为强制步骤。
+
+1. 先设置环境变量：
+
+```bash
+export CLI_PROXY_API_BASE="http://127.0.0.1:8317"
+export CLI_PROXY_MANAGEMENT_KEY="<你的管理密钥>"
+```
+
+2. 手动执行备份：
+
+```bash
+npm run backup:management
+```
+
+3. 需要恢复时：
+
+```bash
+npm run restore:management -- --input-dir backups/backup-20260329T101530Z
+```
+
+4. 后续所有更新都用包装脚本执行（先备份，再更新）：
+
+```bash
+npm run update:with-backup -- bash -lc 'git -C /path/to/CLIProxyAPI pull --ff-only && systemctl restart cliproxyapi'
+```
+
+说明：
+- 默认备份目录是 `./backups/`（已加入 `.gitignore`）。
+- 备份内容包含：
+  - `config.yaml` 与 `/config` 快照
+  - 代理 `api-keys`
+  - Gemini/Codex/Claude/Vertex/OpenAI 兼容提供商配置
+  - 认证文件（完整文件内容）
+  - OAuth 排除模型与 OAuth 模型别名映射
+  - 使用统计导出快照（`/usage/export`）
+
 ## 开发命令
 
 ```bash
@@ -143,6 +182,9 @@ npm run preview    # 本地预览 dist
 npm run lint       # ESLint（warnings 视为失败）
 npm run format     # Prettier
 npm run type-check # tsc --noEmit
+npm run backup:management
+npm run restore:management -- --input-dir <备份目录>
+npm run update:with-backup -- <更新命令...>
 ```
 
 ## 贡献

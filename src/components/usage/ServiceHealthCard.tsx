@@ -8,6 +8,7 @@ import {
   type StatusBlockDetail,
 } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
+import { Card } from '@/components/ui/Card';
 import styles from '@/pages/UsagePage.module.scss';
 
 const COLOR_STOPS = [
@@ -45,6 +46,12 @@ function rateToColor(rate: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+function getHealthStatus(rate: number): 'good' | 'warning' | 'bad' {
+  if (rate > 95) return 'good';
+  if (rate >= 80) return 'warning';
+  return 'bad';
+}
+
 function formatDateTime(timestamp: number): string {
   const date = new Date(timestamp);
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -54,12 +61,35 @@ function formatDateTime(timestamp: number): string {
   return `${month}/${day} ${h}:${m}`;
 }
 
+// Green/Red status indicator component
+const StatusIndicator = ({ rate, hasData, loading }: { rate: number; hasData: boolean; loading: boolean }) => {
+  if (loading || !hasData) {
+    return <span className={styles.statusIndicator} data-status="unknown" title="No data">--</span>;
+  }
+  const status = getHealthStatus(rate);
+  const label = status === 'good' ? '✓' : status === 'warning' ? '⚠' : '!';
+  return (
+    <span className={styles.statusIndicator} data-status={status} title={`Success rate: ${rate.toFixed(1)}%`}>
+      {label}
+    </span>
+  );
+};
+
 export interface ServiceHealthCardProps {
   usage: UsagePayload | null;
   loading: boolean;
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+  summary?: React.ReactNode;
 }
 
-export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
+export function ServiceHealthCard({ usage, loading, collapsible = false, defaultCollapsed = false, summary: customSummary }: ServiceHealthCardProps) {
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
+  const handleHeaderClick = () => {
+    if (collapsible) {
+      setExpanded((prev) => !prev);
+    }
+  };
   const { t } = useTranslation();
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltipState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -70,6 +100,33 @@ export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
   }, [usage]);
 
   const hasData = healthData.totalSuccess + healthData.totalFailure > 0;
+
+  // Auto-generate summary when collapsible is true and no custom summary provided
+  const autoSummary = useMemo(() => {
+    if (!collapsible || customSummary !== undefined) {
+      return customSummary;
+    }
+
+    const successRateText = loading ? '--' : hasData ? `${healthData.successRate.toFixed(1)}%` : '--';
+    const successCountText = loading ? '--' : healthData.totalSuccess.toLocaleString();
+    const failureCountText = loading ? '--' : healthData.totalFailure.toLocaleString();
+
+    return (
+      <span className={styles.healthSummary}>
+        <StatusIndicator rate={healthData.successRate} hasData={hasData} loading={loading} />
+        <span className={styles.healthSummaryRate}>{successRateText}</span>
+        <span className={styles.healthSummaryDetail}>
+          <span className={styles.healthSummarySuccess}>
+            {t('status_bar.success_short')} {successCountText}
+          </span>
+          <span className={styles.healthSummarySeparator}>/</span>
+          <span className={styles.healthSummaryFailure}>
+            {t('status_bar.failure_short')} {failureCountText}
+          </span>
+        </span>
+      </span>
+    );
+  }, [collapsible, customSummary, hasData, healthData, loading, t]);
 
   useEffect(() => {
     if (activeTooltip === null) return;
@@ -139,12 +196,12 @@ export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
     };
   }, [activeTooltip, buildTooltipState]);
 
-  const openTooltip = useCallback(
-    (idx: number, anchorEl: HTMLDivElement) => {
-      setActiveTooltip(buildTooltipState(idx, anchorEl));
-    },
-    [buildTooltipState]
-  );
+  const openTooltip = useCallback((idx: number, anchorEl: HTMLDivElement) => {
+    const tooltipState = buildTooltipState(idx, anchorEl);
+    if (tooltipState) {
+      setActiveTooltip(tooltipState);
+    }
+  }, [buildTooltipState]);
 
   const handlePointerEnter = useCallback(
     (e: React.PointerEvent<HTMLDivElement>, idx: number) => {
@@ -216,21 +273,44 @@ export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
 
   const rateClass = !hasData
     ? ''
-    : healthData.successRate >= 90
+    : getHealthStatus(healthData.successRate) === 'good'
       ? styles.healthRateHigh
-      : healthData.successRate >= 50
+      : getHealthStatus(healthData.successRate) === 'warning'
         ? styles.healthRateMedium
         : styles.healthRateLow;
+  const successPercent = Math.max(0, Math.min(100, hasData ? healthData.successRate : 0));
 
   return (
-    <div className={styles.healthCard}>
-      <div className={styles.healthHeader}>
-        <h3 className={styles.healthTitle}>{t('service_health.title')}</h3>
-        <div className={styles.healthMeta}>
-          <span className={styles.healthWindow}>{t('service_health.window')}</span>
-          <span className={`${styles.healthRate} ${rateClass}`}>
+    <Card
+      title={t('service_health.title')}
+      collapsible={collapsible}
+      defaultCollapsed={defaultCollapsed}
+      headerExpanded={expanded}
+      onHeaderClick={handleHeaderClick}
+      summary={autoSummary}
+      extra={
+        !collapsible || expanded ? (
+          <div className={styles.healthMeta}>
+            <span className={styles.healthWindow}>{t('service_health.window')}</span>
+            <span className={`${styles.healthRate} ${rateClass}`}>
+              {loading ? '--' : hasData ? `${healthData.successRate.toFixed(1)}%` : '--'}
+            </span>
+          </div>
+        ) : undefined
+      }
+    >
+      <div className={styles.healthStatusBar}>
+        <div className={styles.healthStatusBarMeta}>
+          <span className={styles.healthStatusBarLabel}>{t('service_health.title')}</span>
+          <span className={`${styles.healthStatusBarValue} ${rateClass}`}>
             {loading ? '--' : hasData ? `${healthData.successRate.toFixed(1)}%` : '--'}
           </span>
+        </div>
+        <div className={styles.healthProgressTrack} aria-hidden="true">
+          <div
+            className={`${styles.healthProgressFill} ${rateClass}`}
+            style={{ width: `${successPercent}%` }}
+          />
         </div>
       </div>
       <div className={styles.healthGridScroller}>
@@ -258,16 +338,20 @@ export function ServiceHealthCard({ usage, loading }: ServiceHealthCardProps) {
           })}
         </div>
       </div>
-      <div className={styles.healthLegend}>
-        <span className={styles.healthLegendLabel}>{t('service_health.oldest')}</span>
-        <div className={styles.healthLegendColors}>
-          <div className={`${styles.healthLegendBlock} ${styles.healthBlockIdle}`} />
-          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#0891b2' }} />
-          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#06b6d4' }} />
-          <div className={styles.healthLegendBlock} style={{ backgroundColor: '#22d3ee' }} />
-        </div>
-        <span className={styles.healthLegendLabel}>{t('service_health.newest')}</span>
-      </div>
-    </div>
+      {!collapsible || expanded ? (
+        <>
+          <div className={styles.healthLegend}>
+            <span className={styles.healthLegendLabel}>{t('service_health.oldest')}</span>
+            <div className={styles.healthLegendColors}>
+              <div className={`${styles.healthLegendBlock} ${styles.healthBlockIdle}`} />
+              <div className={styles.healthLegendBlock} style={{ backgroundColor: '#0891b2' }} />
+              <div className={styles.healthLegendBlock} style={{ backgroundColor: '#06b6d4' }} />
+              <div className={styles.healthLegendBlock} style={{ backgroundColor: '#22d3ee' }} />
+            </div>
+            <span className={styles.healthLegendLabel}>{t('service_health.newest')}</span>
+          </div>
+        </>
+      ) : null}
+    </Card>
   );
 }

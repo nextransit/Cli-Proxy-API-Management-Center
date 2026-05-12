@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, ProviderKeyConfig, OpenAIProviderConfig } from '@/types';
@@ -24,6 +25,34 @@ import styles from '@/pages/UsagePage.module.scss';
 
 const ALL_FILTER = '__all__';
 const MAX_RENDERED_EVENTS = 500;
+
+// Latency severity classes for dark-mode visual scanning.
+const getLatencyClassName = (latencyMs: number | null): string => {
+  if (latencyMs === null) return '';
+  if (latencyMs < 1000) return styles.latencyFast;
+  if (latencyMs < 5000) return styles.latencyNormal;
+  if (latencyMs < 10000) return styles.latencySlow;
+  return styles.latencyCritical;
+};
+
+const formatEventTimestamp = (date: Date | null, fallback: string): string => {
+  if (!date) return fallback || '-';
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const second = String(date.getSeconds()).padStart(2, '0');
+  return `${month}/${day} ${hour}:${minute}:${second}`;
+};
+
+const getThinkingClassName = (thinkingLabel: string): string => {
+  const normalized = thinkingLabel.toLowerCase();
+  if (normalized.includes('xhigh')) return styles.thinkingXHigh;
+  if (normalized.includes('high')) return styles.thinkingHigh;
+  if (normalized.includes('medium')) return styles.thinkingMedium;
+  if (normalized.includes('low')) return styles.thinkingLow;
+  return '';
+};
 
 type RequestEventRow = {
   id: string;
@@ -110,7 +139,7 @@ export function RequestEventsDetailsCard({
   vertexConfigs,
   openaiProviders,
 }: RequestEventsDetailsCardProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const latencyHint = t('usage_stats.latency_unit_hint', {
     field: LATENCY_SOURCE_FIELD,
     unit: t('usage_stats.duration_unit_ms'),
@@ -119,6 +148,7 @@ export function RequestEventsDetailsCard({
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
+  const [searchText, setSearchText] = useState('');
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
 
   useEffect(() => {
@@ -198,7 +228,7 @@ export function RequestEventsDetailsCard({
         id: `${timestamp}-${model}-${sourceKey}-${authIndex}-${index}`,
         timestamp,
         timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
-        timestampLabel: date ? date.toLocaleString(i18n.language) : timestamp || '-',
+        timestampLabel: formatEventTimestamp(date, timestamp),
         model,
         sourceKey,
         sourceRaw: sourceRaw || '-',
@@ -251,7 +281,7 @@ export function RequestEventsDetailsCard({
         source: buildDisambiguatedSourceLabel(row),
       }))
       .sort((a, b) => b.timestampMs - a.timestampMs);
-  }, [authFileMap, i18n.language, sourceInfoMap, usage]);
+  }, [authFileMap, sourceInfoMap, usage]);
 
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
 
@@ -312,6 +342,7 @@ export function RequestEventsDetailsCard({
   const effectiveAuthIndexFilter = authIndexOptionSet.has(authIndexFilter)
     ? authIndexFilter
     : ALL_FILTER;
+  const normalizedSearchText = searchText.trim().toLowerCase();
 
   const filteredRows = useMemo(
     () =>
@@ -322,9 +353,28 @@ export function RequestEventsDetailsCard({
           effectiveSourceFilter === ALL_FILTER || row.sourceKey === effectiveSourceFilter;
         const authIndexMatched =
           effectiveAuthIndexFilter === ALL_FILTER || row.authIndex === effectiveAuthIndexFilter;
-        return modelMatched && sourceMatched && authIndexMatched;
+        const searchMatched =
+          !normalizedSearchText ||
+          [
+            row.model,
+            row.source,
+            row.sourceRaw,
+            row.sourceType,
+            row.authIndex,
+            row.thinkingLabel,
+          ]
+            .join(' ')
+            .toLowerCase()
+            .includes(normalizedSearchText);
+        return modelMatched && sourceMatched && authIndexMatched && searchMatched;
       }),
-    [effectiveAuthIndexFilter, effectiveModelFilter, effectiveSourceFilter, rows]
+    [
+      effectiveAuthIndexFilter,
+      effectiveModelFilter,
+      effectiveSourceFilter,
+      normalizedSearchText,
+      rows,
+    ]
   );
 
   const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
@@ -332,12 +382,14 @@ export function RequestEventsDetailsCard({
   const hasActiveFilters =
     effectiveModelFilter !== ALL_FILTER ||
     effectiveSourceFilter !== ALL_FILTER ||
-    effectiveAuthIndexFilter !== ALL_FILTER;
+    effectiveAuthIndexFilter !== ALL_FILTER ||
+    normalizedSearchText.length > 0;
 
   const handleClearFilters = () => {
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
     setAuthIndexFilter(ALL_FILTER);
+    setSearchText('');
   };
 
   const handleExportCsv = () => {
@@ -427,34 +479,39 @@ export function RequestEventsDetailsCard({
       title={t('usage_stats.request_events_title')}
       extra={
         <div className={styles.requestEventsActions}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearFilters}
-            disabled={!hasActiveFilters}
-          >
-            {t('usage_stats.clear_filters')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportCsv}
-            disabled={filteredRows.length === 0}
-          >
-            {t('usage_stats.export_csv')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportJson}
-            disabled={filteredRows.length === 0}
-          >
-            {t('usage_stats.export_json')}
-          </Button>
+          <div className={styles.exportMenu}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={filteredRows.length === 0}
+            >
+              {t('usage_stats.export')}
+            </Button>
+            <div className={styles.exportMenuContent}>
+              <button type="button" onClick={handleExportCsv} disabled={filteredRows.length === 0}>
+                {t('usage_stats.export_csv')}
+              </button>
+              <button type="button" onClick={handleExportJson} disabled={filteredRows.length === 0}>
+                {t('usage_stats.export_json')}
+              </button>
+            </div>
+          </div>
         </div>
       }
     >
       <div className={styles.requestEventsToolbar}>
+        <div className={`${styles.requestEventsFilterItem} ${styles.requestEventsSearchItem}`}>
+          <span className={styles.requestEventsFilterLabel}>
+            {t('usage_stats.request_events_search')}
+          </span>
+          <Input
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder={t('usage_stats.request_events_search_placeholder')}
+            aria-label={t('usage_stats.request_events_search')}
+            className={styles.requestEventsSearchInput}
+          />
+        </div>
         <div className={styles.requestEventsFilterItem}>
           <span className={styles.requestEventsFilterLabel}>
             {t('usage_stats.request_events_filter_model')}
@@ -494,6 +551,15 @@ export function RequestEventsDetailsCard({
             fullWidth={false}
           />
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleClearFilters}
+          disabled={!hasActiveFilters}
+          className={styles.requestEventsClearButton}
+        >
+          {t('usage_stats.clear_filters')}
+        </Button>
       </div>
 
       {loading && rows.length === 0 ? (
@@ -533,12 +599,8 @@ export function RequestEventsDetailsCard({
                   <th>{t('usage_stats.request_events_auth_index')}</th>
                   <th>{t('usage_stats.request_events_result')}</th>
                   {hasLatencyData && <th title={latencyHint}>{t('usage_stats.time')}</th>}
-                  <th>{t('usage_stats.thinking_intensity')}</th>
-                  <th>{t('usage_stats.input_tokens')}</th>
-                  <th>{t('usage_stats.output_tokens')}</th>
-                  <th>{t('usage_stats.reasoning_tokens')}</th>
-                  <th>{t('usage_stats.cached_tokens')}</th>
                   <th>{t('usage_stats.total_tokens')}</th>
+                  <th>{t('usage_stats.thinking_intensity')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -565,17 +627,38 @@ export function RequestEventsDetailsCard({
                             : styles.requestEventsResultSuccess
                         }
                       >
-                        {row.failed ? t('stats.failure') : t('stats.success')}
+                        <span className={styles.resultGlyph} aria-hidden="true">
+                          {row.failed ? '!' : ''}
+                        </span>
+                        <span className={styles.resultText}>
+                          {row.failed ? t('stats.failure') : t('stats.success')}
+                        </span>
                       </span>
                     </td>
                     {hasLatencyData && (
-                      <td className={styles.durationCell}>{formatDurationMs(row.latencyMs)}</td>
+                      <td className={`${styles.durationCell} ${getLatencyClassName(row.latencyMs)}`}>{formatDurationMs(row.latencyMs)}</td>
                     )}
+                    <td
+                      className={styles.tokenSummaryCell}
+                      title={[
+                        `${t('usage_stats.input_tokens')}: ${row.inputTokens.toLocaleString()}`,
+                        `${t('usage_stats.output_tokens')}: ${row.outputTokens.toLocaleString()}`,
+                        `${t('usage_stats.reasoning_tokens')}: ${row.reasoningTokens.toLocaleString()}`,
+                        `${t('usage_stats.cached_tokens')}: ${row.cachedTokens.toLocaleString()}`,
+                      ].join('\n')}
+                    >
+                      <span className={styles.tokenSummaryTotal}>
+                        {row.totalTokens.toLocaleString()}
+                      </span>
+                      <span className={styles.tokenSummaryParts}>
+                        {row.inputTokens.toLocaleString()} / {row.outputTokens.toLocaleString()} / {row.reasoningTokens.toLocaleString()} / {row.cachedTokens.toLocaleString()}
+                      </span>
+                    </td>
                     <td>
                       <span
                         className={
                           row.thinking
-                            ? styles.requestEventsThinkingBadge
+                            ? `${styles.requestEventsThinkingBadge} ${getThinkingClassName(row.thinkingLabel)}`
                             : styles.requestEventsThinkingEmpty
                         }
                         title={
@@ -599,11 +682,6 @@ export function RequestEventsDetailsCard({
                         {row.thinkingLabel}
                       </span>
                     </td>
-                    <td>{row.inputTokens.toLocaleString()}</td>
-                    <td>{row.outputTokens.toLocaleString()}</td>
-                    <td>{row.reasoningTokens.toLocaleString()}</td>
-                    <td>{row.cachedTokens.toLocaleString()}</td>
-                    <td>{row.totalTokens.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

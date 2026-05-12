@@ -76,11 +76,140 @@
 :global([data-theme='dark']) {
   .btn {
     color: #fff;
+    border-radius: 8px;
+    
+    &:hover {
+      transform: translateY(-1px);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
   }
 
   .btn.btn-secondary,
   .btn.btn-ghost {
     color: #fff;
+  }
+  
+  .btn.btn-primary {
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.25);
+    
+    &:hover {
+      box-shadow: 0 6px 16px rgba(88, 166, 255, 0.35);
+    }
+  }
+  
+  // 状态徽章精致化
+  .status-badge {
+    border-radius: 6px;
+    font-weight: 500;
+    
+    &.success {
+      background: rgba(52, 211, 153, 0.1) !important;
+      border-color: rgba(52, 211, 153, 0.25) !important;
+      color: #34d399 !important;
+    }
+    
+    &.warning {
+      background: rgba(251, 146, 60, 0.12) !important;
+      border-color: rgba(251, 146, 60, 0.25) !important;
+      color: #fb923c !important;
+    }
+    
+    &.error {
+      background: rgba(251, 113, 133, 0.1) !important;
+      border-color: rgba(251, 113, 133, 0.25) !important;
+      color: #fb7185 !important;
+    }
+  }
+  
+  // 输入框精致化
+  .input, input[type="text"], input[type="search"], textarea, select {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px;
+    color: var(--text-primary);
+    
+    &:focus {
+      border-color: var(--primary-color) !important;
+      box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+    }
+    
+    &::placeholder {
+      color: var(--text-quaternary);
+    }
+  }
+  
+  // 卡片精致化
+  .card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+  }
+}
+
+:global([data-theme='white']),
+:global([data-theme='light']) {
+  .btn {
+    color: #374151 !important;
+    background-color: #ffffff !important;
+    border-color: #d1d5db !important;
+
+    &:hover {
+      background-color: #f3f4f6 !important;
+      border-color: #9ca3af !important;
+    }
+  }
+
+  .btn.btn-primary {
+    background-color: #06b6d4 !important;
+    color: #ffffff !important;
+    border-color: #06b6d4 !important;
+
+    &:hover {
+      background-color: #0891b2 !important;
+      border-color: #0891b2 !important;
+    }
+  }
+
+  .btn.btn-secondary {
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+
+    &:hover {
+      background-color: #e5e7eb !important;
+      border-color: #9ca3af !important;
+    }
+  }
+
+  .btn.btn-ghost {
+    background-color: transparent !important;
+    color: #6b7280 !important;
+    border-color: transparent !important;
+
+    &:hover {
+      background-color: #f3f4f6 !important;
+      color: #374151 !important;
+    }
+  }
+
+  .btn.btn-danger {
+    background-color: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+
+    &:hover {
+      background-color: #dc2626 !important;
+      border-color: #dc2626 !important;
+    }
+  }
+
+  .btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
   }
 }
 
@@ -144,6 +273,22 @@ textarea {
     font-size: 18px;
     font-weight: 700;
     color: var(--text-primary);
+  }
+}
+
+.card-header-clickable {
+  cursor: pointer;
+
+  &:hover {
+    .title {
+      color: var(--primary-color);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: $radius-md;
   }
 }
 
@@ -800,3 +945,739 @@ textarea {
 .hint {
   color: var(--text-secondary);
 }
+
+// ============================================
+// Card 折叠/展开样式
+// ============================================
+.card {
+  .card-header-clickable {
+    cursor: pointer;
+  }
+  
+  .card-collapse-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s ease;
+    
+    &.collapsed {
+      transform: rotate(-90deg);
+    }
+  }
+  
+  .card-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    
+    &.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+    
+    &:not(.collapsed) {
+      max-height: 5000px;
+      opacity: 1;
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：折叠组件视觉优化
+// ============================================
+[data-theme='dark'] {
+  // 卡片折叠标题栏
+  .card {
+    .card-header {
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid transparent;
+      transition: all 0.2s ease;
+      margin: -1px -1px 0 -1px;
+      border-radius: 13px 13px 0 0;
+      padding: 16px 20px;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+    }
+    
+    .card-header-clickable:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+  
+  // 折叠箭头动画
+  .card-collapse-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.06);
+    transition: all 0.25s ease;
+    margin-left: 10px;
+    flex-shrink: 0;
+    
+    svg {
+      transition: transform 0.25s ease;
+    }
+    
+    &.collapsed {
+      background: rgba(255, 255, 255, 0.08);
+      
+      svg {
+        transform: rotate(-90deg);
+      }
+    }
+    
+    &:not(.collapsed) {
+      background: rgba(88, 166, 255, 0.18);
+      
+      svg {
+        transform: rotate(0deg);
+        color: #58a6ff;
+      }
+    }
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+  }
+  
+  // 折叠内容区过渡动画
+  .card-content {
+    overflow: hidden;
+    transition: 
+      max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.25s ease,
+      padding 0.25s ease;
+    padding: 0 1px;
+    
+    &.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+    }
+    
+    &:not(.collapsed) {
+      max-height: 5000px;
+      opacity: 1;
+      padding: 1px;
+    }
+  }
+}
+
+// ============================================
+// 暗色模式：摘要展示模式 (Summary Mode)
+// ============================================
+[data-theme='dark'] {
+  .card {
+    // 透明背景，只保留底部细线
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    
+    // 标题栏 - 轻盈样式
+    .card-header {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 14px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      &-collapsed {
+        padding: 16px 0;
+        
+        &:hover {
+          .card-collapse-icon {
+            background: rgba(255, 255, 255, 0.08);
+          }
+        }
+      }
+      
+      &-expanded {
+        border-bottom-color: rgba(88, 166, 255, 0.2);
+        background: rgba(22, 27, 34, 0.6);
+        border-radius: 12px 12px 0 0;
+        padding: 14px 16px;
+        margin-bottom: 0;
+        
+        &:hover {
+          background: rgba(22, 27, 34, 0.8);
+        }
+      }
+    }
+    
+    .card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .card-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    
+    // 标题文字
+    .card-title {
+      color: rgba(201, 209, 217, 0.8);
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    
+    // 折叠图标
+    .card-collapse-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: rgba(139, 148, 158, 0.8);
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      
+      svg {
+        transition: transform 0.2s ease;
+      }
+      
+      &.collapsed {
+        svg {
+          transform: rotate(-90deg);
+        }
+      }
+      
+      &:not(.collapsed) {
+        background: rgba(88, 166, 255, 0.15);
+        color: #58a6ff;
+        
+        svg {
+          transform: rotate(0deg);
+        }
+      }
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+    
+    // 摘要徽章
+    
+    
+    // 迷你图表容器
+    .card-summary-chart {
+      height: 28px;
+      min-width: 80px;
+      max-width: 120px;
+      opacity: 0.7;
+      transition: opacity 0.2s ease;
+      
+      &:hover {
+        opacity: 1;
+      }
+    }
+    
+    // 内容区
+    .card-content {
+      background: rgba(22, 27, 34, 0.5);
+      border-radius: 0 0 12px 12px;
+      margin-top: -1px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: none;
+      transition: all 0.3s ease;
+      
+      &.collapsed {
+        display: none;
+      }
+    }
+  }
+}
+
+// ============================================
+// 表格优化：呼吸感与导读性 (Dark Mode Enhanced)
+// ============================================
+[data-theme='dark'] {
+  .table {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(22, 27, 34, 0.3);
+
+    .table-header,
+    .table-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: $spacing-sm;
+      padding: 14px 20px;
+      align-items: center;
+      line-height: 1.5;
+      // 添加极细底部边框替代纯背景区分
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .table-header {
+      background: rgba(255, 255, 255, 0.02);
+      font-weight: 600;
+      color: rgba(201, 209, 217, 0.7);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .table-row {
+      border-top: none;
+      background: transparent;
+      transition: background-color 0.15s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      
+      &:nth-child(even) {
+        background: rgba(255, 255, 255, 0.01);
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.04);
+        }
+      }
+    }
+
+    .cell {
+      display: flex;
+      align-items: center;
+      gap: $spacing-sm;
+      flex-wrap: wrap;
+    }
+
+    // 单元格内容层级
+    .cell-timestamp,
+    .cell-index {
+      color: #666;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .cell-model {
+      color: #ffffff;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.08);
+    }
+
+    .cell-token,
+    .cell-cost {
+      color: #a5f3fc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+    }
+
+    // 状态标签优化
+    .cell-status {
+      .status-badge {
+        &.success {
+          background: rgba(16, 185, 129, 0.12) !important;
+          border: 1px solid rgba(16, 185, 129, 0.25) !important;
+          color: #10b981 !important;
+        }
+        
+        &.error,
+        &.fail {
+          background: rgba(251, 113, 133, 0.1) !important;
+          border: 1px solid rgba(251, 113, 133, 0.25) !important;
+          color: #fb7185 !important;
+        }
+      }
+    }
+
+    // 延迟颜色分级
+    .cell-latency {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      
+      &.fast { color: rgba(255, 255, 255, 0.5); }
+      &.normal { color: rgba(255, 255, 255, 0.85); }
+      &.slow { color: #fbbf24; }
+      &.very-slow { color: #fb923c; }
+    }
+
+    // xhigh/思考强度 - 毛玻璃效果
+    .cell-thinking {
+      .thinking-badge {
+        background: rgba(139, 92, 246, 0.15);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 4px 10px;
+        color: #a78bfa;
+        font-size: 12px;
+        font-weight: 500;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 0 12px rgba(139, 92, 246, 0.1);
+      }
+    }
+  }
+}
+
+
+// ============================================
+// 统计卡片优化：悬浮感 (Rim Light Effect)
+// ============================================
+[data-theme='dark'] {
+  .stat-card {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px 20px;
+    background: rgba(22, 27, 34, 0.6);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+    // 微发光描边 (Rim Light)
+    box-shadow: 
+      inset 0 1px 1px rgba(255, 255, 255, 0.05),
+      0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.25s ease;
+    
+    &:hover {
+      background: rgba(22, 27, 34, 0.8);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 
+        inset 0 1px 1px rgba(255, 255, 255, 0.08),
+        0 4px 16px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .stat-label {
+      color: rgba(201, 209, 217, 0.6);
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      // 图标点缀
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(139, 148, 158, 0.4);
+        box-shadow: 0 0 6px rgba(139, 148, 158, 0.3);
+      }
+    }
+
+    .stat-value {
+      font-weight: 800;
+      color: #ffffff;
+      font-size: 20px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.1);
+      line-height: 1.2;
+    }
+
+    // 成本相关卡片特殊样式
+    &.stat-card-cost {
+      .stat-value {
+        color: #a5f3fc;
+        text-shadow: 0 0 12px rgba(165, 243, 252, 0.15);
+      }
+      
+      .stat-label::before {
+        background: rgba(165, 243, 252, 0.5);
+        box-shadow: 0 0 6px rgba(165, 243, 252, 0.4);
+      }
+    }
+    
+    // 请求数相关
+    &.stat-card-requests {
+      .stat-value {
+        color: #ffffff;
+      }
+      
+      .stat-label::before {
+        background: rgba(88, 166, 255, 0.5);
+        box-shadow: 0 0 6px rgba(88, 166, 255, 0.4);
+      }
+    }
+    
+    // Token数相关
+    &.stat-card-tokens {
+      .stat-value {
+        color: #a78bfa;
+        text-shadow: 0 0 12px rgba(167, 139, 250, 0.15);
+      }
+      
+      .stat-label::before {
+        background: rgba(167, 139, 250, 0.5);
+        box-shadow: 0 0 6px rgba(167, 139, 250, 0.4);
+      }
+    }
+  }
+
+  // 统计卡片网格布局优化
+  .stats-grid {
+    display: grid;
+    gap: 16px;
+    padding: 16px;
+    
+    @media (min-width: 768px) {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+  }
+}
+
+
+// ============================================
+// 折叠状态交互优化：活动状态标记
+// ============================================
+[data-theme='dark'] {
+  .card {
+    // 展开状态深度感
+    &.is-expanded {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+    }
+    
+    .card-header {
+      &.card-header-clickable {
+        cursor: pointer;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.03);
+        }
+      }
+      
+      // 展开状态：左侧蓝色呼吸条
+      &.is-expanded {
+        border-left: 3px solid #58a6ff;
+        background: rgba(88, 166, 255, 0.05);
+        
+        .card-title {
+          color: #ffffff;
+        }
+      }
+      
+      // 折叠状态：文字变灰
+      &.is-collapsed {
+        .card-title {
+          color: rgba(201, 209, 217, 0.6);
+        }
+      }
+    }
+    
+    .card-title {
+      transition: color 0.2s ease;
+      color: rgba(201, 209, 217, 0.8);
+    }
+    
+    .card-collapse-icon {
+      &.collapsed {
+        background: rgba(255, 255, 255, 0.06);
+        
+        svg {
+          transform: rotate(-90deg);
+          color: rgba(139, 148, 158, 0.7);
+        }
+      }
+      
+      &:not(.collapsed) {
+        background: rgba(88, 166, 255, 0.18);
+        animation: pulse-subtle 2s ease-in-out infinite;
+        
+        svg {
+          transform: rotate(0deg);
+          color: #58a6ff;
+        }
+      }
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+    }
+    
+    .card-content {
+      &.is-expanded {
+        background: rgba(22, 27, 34, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-top: none;
+        border-radius: 0 0 12px 12px;
+      }
+    }
+  }
+  
+  // 折叠面板整体 hover 效果
+  .collapse-panel {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    &.is-expanded {
+      border-color: rgba(88, 166, 255, 0.2);
+    }
+  }
+}
+
+// 蓝色呼吸动画
+@keyframes pulse-subtle {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(88, 166, 255, 0.15);
+  }
+}
+
+// ============================================
+// 滚动条优化：精致且不破坏整体感
+// ============================================
+[data-theme='dark'] {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+  }
+  
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+// ============================================
+// 数据可视化增强：xhigh 思考强度毛玻璃效果
+// ============================================
+[data-theme='dark'] {
+  .thinking-intensity {
+    &.xhigh,
+    &.high {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 8px;
+      padding: 4px 12px;
+      color: #a78bfa;
+      font-size: 12px;
+      font-weight: 500;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 
+        0 0 16px rgba(139, 92, 246, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    
+    &.medium {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    
+    &.low {
+      background: rgba(107, 114, 128, 0.1);
+      border: 1px solid rgba(107, 114, 128, 0.2);
+      color: #9ca3af;
+    }
+  }
+  
+  // 模型统计表格特殊样式
+  .model-stats-table {
+    .table-row {
+      &:hover {
+        .model-name {
+          color: #ffffff;
+          text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+        }
+      }
+      
+      .model-name {
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 600;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        transition: all 0.2s ease;
+      }
+      
+      .model-count {
+        color: #a5f3fc;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      
+      .model-cost {
+        color: #fbbf24;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+    }
+  }
+  
+  // 请求事件明细表格
+  .request-events-table {
+    .timestamp-cell {
+      color: #666;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    
+    .provider-cell {
+      color: rgba(201, 209, 217, 0.7);
+      font-size: 13px;
+    }
+    
+    .model-cell {
+      color: #ffffff;
+      font-weight: 600;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    
+    .tokens-cell {
+      color: #a5f3fc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    
+    .cost-cell {
+      color: #fbbf24;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    
+    .latency-cell {
+      &.fast { color: rgba(255, 255, 255, 0.45); }
+      &.normal { color: rgba(255, 255, 255, 0.8); }
+      &.slow { color: #fbbf24; }
+      &.very-slow { color: #fb923c; }
+    }
+  }
+}
+

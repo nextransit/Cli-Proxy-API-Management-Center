@@ -201,64 +201,107 @@
   --glass-border: rgba(226, 222, 208, 0.6);
 }
 
-// 深色主题（#191919）
+// 深色主题 - Material Dark Design
 [data-theme='dark'] {
-  // 极简暖灰：深色模式（提升对比度与层级）
-  --bg-secondary: #151412; // 页面背景
-  --bg-primary: #1d1b18; // 容器/卡片背景
-  --bg-tertiary: #262320; // hover/次级背景
-  --bg-hover: #2e2a26;
-  --bg-quinary: #191714;
-  --bg-error-light: rgba(198, 87, 70, 0.18);
-  --floating-surface: #2a2723;
-  --floating-border: #4a443d;
-  --floating-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+  // ============================================
+  // 1. 基于深度的层级系统 (Layering & Elevation)
+  // 越靠近用户的层级，颜色应该越浅
+  // ============================================
+  
+  // 底层背景 (Base Layer) - 极深灰黑
+  --bg-secondary: #0a0a0a;
+  --bg-quinary: #0d1117;
+  
+  // 卡片层 (Card Layer) - 次深灰
+  --bg-primary: #161b22;
+  --bg-tertiary: #1c1c1e;
+  --bg-hover: #21262d;
+  
+  // 弹窗层 (Popover Layer) - 最浅灰
+  --floating-surface: #21262d;
+  
+  --bg-error-light: rgba(248, 113, 113, 0.12);
+  --floating-border: rgba(255, 255, 255, 0.08);
+  --floating-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
 
-  --text-primary: #f6f4f1;
-  --text-secondary: #c9c3bb;
-  --text-tertiary: #9c958d;
-  --text-quaternary: #6f6962;
+  // ============================================
+  // 2. 文字层级 (Typography Hierarchy)
+  // ============================================
+  
+  --text-primary: #ffffff;
+  --text-secondary: #c9d1d9;
+  --text-tertiary: #8b949e;
+  --text-quaternary: #484f58;
   --text-muted: var(--text-tertiary);
 
-  --border-color: #3a3530;
-  --border-secondary: var(--border-color);
-  --border-primary: #4a453f;
-  --border-hover: #5a544d;
+  // ============================================
+  // 3. 边框层级 (Border Hierarchy)
+  // ============================================
+  
+  --border-subtle: rgba(240, 246, 252, 0.1);
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-secondary: rgba(255, 255, 255, 0.04);
+  --border-primary: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --primary-color: #8b8680;
-  --primary-hover: #9a948e;
-  --primary-active: #a6a099;
-  --primary-contrast: #ffffff;
+  // ============================================
+  // 4. 品牌强调色 (Accent Colors)
+  // ============================================
+  
+  --primary-color: #58a6ff;
+  --primary-hover: #79b8ff;
+  --primary-active: #388bfd;
+  --primary-contrast: #0d1117;
 
-  --success-color: #10b981;
-  --quota-medium-color: #ffd862;
-  --warning-color: #c65746;
-  --error-color: #c65746;
+  --success-color: #34d399;
+  --quota-medium-color: #fbbf24;
+  --warning-color: #fb923c;
+  --error-color: #fb7185;
   --danger-color: var(--error-color);
   --info-color: var(--primary-color);
 
-  --warning-bg: rgba(198, 87, 70, 0.22);
-  --warning-border: rgba(198, 87, 70, 0.45);
-  --warning-text: #f1b0a6;
+  // ============================================
+  // 5. 徽章与标签 (Badges & Tags)
+  // ============================================
+  
+  --warning-bg: rgba(251, 146, 60, 0.12);
+  --warning-border: rgba(251, 146, 60, 0.25);
+  --warning-text: #fdba74;
 
-  --success-badge-bg: rgba(6, 78, 59, 0.3);
-  --success-badge-text: #6ee7b7;
-  --success-badge-border: #059669;
+  --success-badge-bg: rgba(52, 211, 153, 0.1);
+  --success-badge-text: #34d399;
+  --success-badge-border: rgba(52, 211, 153, 0.25);
 
-  --failure-badge-bg: rgba(198, 87, 70, 0.24);
-  --failure-badge-text: #f1b0a6;
-  --failure-badge-border: rgba(198, 87, 70, 0.5);
+  --failure-badge-bg: rgba(251, 113, 133, 0.1);
+  --failure-badge-text: #fb7185;
+  --failure-badge-border: rgba(251, 113, 133, 0.25);
 
-  --count-badge-bg: rgba(139, 134, 128, 0.28);
-  --count-badge-text: var(--primary-active);
+  --count-badge-bg: rgba(139, 134, 128, 0.15);
+  --count-badge-text: #8b949e;
 
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+  // ============================================
+  // 6. 阴影系统 (Shadow System)
+  // ============================================
+  
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
 
-  --radius-md: 8px;
+  --radius-md: 10px;
   --accent-tertiary: var(--bg-tertiary);
 
-  --glass-border: color-mix(in srgb, var(--border-color) 55%, transparent);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  
+  // ============================================
+  // 7. 数据可视化专用色 (Data Viz Colors)
+  // ============================================
+  
+  --chart-glow-blue: rgba(88, 166, 255, 0.2);
+  --chart-glow-green: rgba(52, 211, 153, 0.15);
+  --chart-glow-amber: rgba(251, 191, 36, 0.15);
+  --chart-glow-red: rgba(251, 113, 133, 0.15);
+  
+  --chart-gradient-blue: linear-gradient(to bottom, rgba(88, 166, 255, 0.2), transparent);
+  --chart-gradient-green: linear-gradient(to bottom, rgba(52, 211, 153, 0.15), transparent);
 }
 
 @media (max-width: 768px), (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {

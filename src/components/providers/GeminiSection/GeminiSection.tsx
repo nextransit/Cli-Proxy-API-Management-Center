@@ -1,8 +1,9 @@
-import { Fragment, useMemo } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { IconChevronDown, IconChevronUp } from '@/components/ui/icons';
 import iconGemini from '@/assets/icons/gemini.svg';
 import type { GeminiKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
@@ -46,6 +47,7 @@ export function GeminiSection({
   onToggle,
 }: GeminiSectionProps) {
   const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState(true);
   const actionsDisabled = disableControls || loading || isSwitching;
   const toggleDisabled = disableControls || loading || isSwitching;
 
@@ -79,130 +81,150 @@ export function GeminiSection({
             {t('ai_providers.gemini_title')}
           </span>
         }
+        onHeaderClick={() => setCollapsed((prev) => !prev)}
+        headerExpanded={!collapsed}
+        headerAriaLabel={collapsed ? t('ai_providers.expand') : t('ai_providers.collapse')}
         extra={
-          <Button size="sm" onClick={onAdd} disabled={actionsDisabled}>
-            {t('ai_providers.gemini_add_button')}
-          </Button>
+          <div className={styles.cardExtraActions}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCollapsed((prev) => !prev)}
+              className={styles.collapseToggleButton}
+              aria-expanded={!collapsed}
+              data-card-header-ignore-click="true"
+            >
+              <span className={styles.collapseToggleIcon} aria-hidden="true">
+                {collapsed ? <IconChevronDown size={14} /> : <IconChevronUp size={14} />}
+              </span>
+              {collapsed ? t('ai_providers.expand') : t('ai_providers.collapse')}
+            </Button>
+            <Button size="sm" onClick={onAdd} disabled={actionsDisabled}>
+              {t('ai_providers.gemini_add_button')}
+            </Button>
+          </div>
         }
       >
-        <ProviderList<GeminiKeyConfig>
-          items={configs}
-          loading={loading}
-          keyField={(item, index) => getProviderConfigKey(item, index)}
-          emptyTitle={t('ai_providers.gemini_empty_title')}
-          emptyDescription={t('ai_providers.gemini_empty_desc')}
-          onEdit={(_, index) => onEdit(index)}
-          onDelete={(_, index) => onDelete(index)}
-          actionsDisabled={actionsDisabled}
-          getRowDisabled={(item) => hasDisableAllModelsRule(item.excludedModels)}
-          renderExtraActions={(item, index) => (
-            <ToggleSwitch
-              label={t('ai_providers.config_toggle_label')}
-              checked={!hasDisableAllModelsRule(item.excludedModels)}
-              disabled={toggleDisabled}
-              onChange={(value) => void onToggle(index, value)}
-            />
-          )}
-          renderContent={(item, index) => {
-            const stats = getStatsForIdentity(
-              { authIndex: item.authIndex, apiKey: item.apiKey, prefix: item.prefix },
-              keyStats
-            );
-            const headerEntries = Object.entries(item.headers || {});
-            const configDisabled = hasDisableAllModelsRule(item.excludedModels);
-            const excludedModels = item.excludedModels ?? [];
-            const statusData =
-              statusBarCache.get(getProviderConfigKey(item, index)) || calculateStatusBarData([]);
+        {!collapsed && (
+          <ProviderList<GeminiKeyConfig>
+            items={configs}
+            loading={loading}
+            keyField={(item, index) => getProviderConfigKey(item, index)}
+            emptyTitle={t('ai_providers.gemini_empty_title')}
+            emptyDescription={t('ai_providers.gemini_empty_desc')}
+            onEdit={(_, index) => onEdit(index)}
+            onDelete={(_, index) => onDelete(index)}
+            actionsDisabled={actionsDisabled}
+            getRowDisabled={(item) => hasDisableAllModelsRule(item.excludedModels)}
+            renderExtraActions={(item, index) => (
+              <ToggleSwitch
+                label={t('ai_providers.config_toggle_label')}
+                checked={!hasDisableAllModelsRule(item.excludedModels)}
+                disabled={toggleDisabled}
+                onChange={(value) => void onToggle(index, value)}
+              />
+            )}
+            renderContent={(item, index) => {
+              const stats = getStatsForIdentity(
+                { authIndex: item.authIndex, apiKey: item.apiKey, prefix: item.prefix },
+                keyStats
+              );
+              const headerEntries = Object.entries(item.headers || {});
+              const configDisabled = hasDisableAllModelsRule(item.excludedModels);
+              const excludedModels = item.excludedModels ?? [];
+              const statusData =
+                statusBarCache.get(getProviderConfigKey(item, index)) || calculateStatusBarData([]);
 
-            return (
-              <Fragment>
-                <div className="item-title">
-                  {t('ai_providers.gemini_item_title')} #{index + 1}
-                </div>
-                <div className={styles.fieldRow}>
-                  <span className={styles.fieldLabel}>{t('common.api_key')}:</span>
-                  <span className={styles.fieldValue}>{maskApiKey(item.apiKey)}</span>
-                </div>
-                {item.priority !== undefined && (
+              return (
+                <Fragment>
+                  <div className="item-title">
+                    {t('ai_providers.gemini_item_title')} #{index + 1}
+                  </div>
                   <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t('common.priority')}:</span>
-                    <span className={styles.fieldValue}>{item.priority}</span>
+                    <span className={styles.fieldLabel}>{t('common.api_key')}:</span>
+                    <span className={styles.fieldValue}>{maskApiKey(item.apiKey)}</span>
                   </div>
-                )}
-                {item.prefix && (
-                  <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
-                    <span className={styles.fieldValue}>{item.prefix}</span>
-                  </div>
-                )}
-                {item.baseUrl && (
-                  <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
-                    <span className={styles.fieldValue}>{item.baseUrl}</span>
-                  </div>
-                )}
-                {item.proxyUrl && (
-                  <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t('common.proxy_url')}:</span>
-                    <span className={styles.fieldValue}>{item.proxyUrl}</span>
-                  </div>
-                )}
-                {headerEntries.length > 0 && (
-                  <div className={styles.headerBadgeList}>
-                    {headerEntries.map(([key, value]) => (
-                      <span key={key} className={styles.headerBadge}>
-                        <strong>{key}:</strong> {value}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {configDisabled && (
-                  <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
-                    {t('ai_providers.config_disabled_badge')}
-                  </div>
-                )}
-                {item.models?.length ? (
-                  <div className={styles.modelTagList}>
-                    <span className={styles.modelCountLabel}>
-                      {t('ai_providers.gemini_models_count')}: {item.models.length}
-                    </span>
-                    {item.models.map((model) => (
-                      <span key={model.name} className={styles.modelTag}>
-                        <span className={styles.modelName}>{model.name}</span>
-                        {model.alias && model.alias !== model.name && (
-                          <span className={styles.modelAlias}>{model.alias}</span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                {excludedModels.length ? (
-                  <div className={styles.excludedModelsSection}>
-                    <div className={styles.excludedModelsLabel}>
-                      {t('ai_providers.excluded_models_count', { count: excludedModels.length })}
+                  {item.priority !== undefined && (
+                    <div className={styles.fieldRow}>
+                      <span className={styles.fieldLabel}>{t('common.priority')}:</span>
+                      <span className={styles.fieldValue}>{item.priority}</span>
                     </div>
-                    <div className={styles.modelTagList}>
-                      {excludedModels.map((model) => (
-                        <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
-                          <span className={styles.modelName}>{model}</span>
+                  )}
+                  {item.prefix && (
+                    <div className={styles.fieldRow}>
+                      <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
+                      <span className={styles.fieldValue}>{item.prefix}</span>
+                    </div>
+                  )}
+                  {item.baseUrl && (
+                    <div className={styles.fieldRow}>
+                      <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
+                      <span className={styles.fieldValue}>{item.baseUrl}</span>
+                    </div>
+                  )}
+                  {item.proxyUrl && (
+                    <div className={styles.fieldRow}>
+                      <span className={styles.fieldLabel}>{t('common.proxy_url')}:</span>
+                      <span className={styles.fieldValue}>{item.proxyUrl}</span>
+                    </div>
+                  )}
+                  {headerEntries.length > 0 && (
+                    <div className={styles.headerBadgeList}>
+                      {headerEntries.map(([key, value]) => (
+                        <span key={key} className={styles.headerBadge}>
+                          <strong>{key}:</strong> {value}
                         </span>
                       ))}
                     </div>
+                  )}
+                  {configDisabled && (
+                    <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
+                      {t('ai_providers.config_disabled_badge')}
+                    </div>
+                  )}
+                  {item.models?.length ? (
+                    <div className={styles.modelTagList}>
+                      <span className={styles.modelCountLabel}>
+                        {t('ai_providers.gemini_models_count')}: {item.models.length}
+                      </span>
+                      {item.models.map((model) => (
+                        <span key={model.name} className={styles.modelTag}>
+                          <span className={styles.modelName}>{model.name}</span>
+                          {model.alias && model.alias !== model.name && (
+                            <span className={styles.modelAlias}>{model.alias}</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {excludedModels.length ? (
+                    <div className={styles.excludedModelsSection}>
+                      <div className={styles.excludedModelsLabel}>
+                        {t('ai_providers.excluded_models_count', { count: excludedModels.length })}
+                      </div>
+                      <div className={styles.modelTagList}>
+                        {excludedModels.map((model) => (
+                          <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
+                            <span className={styles.modelName}>{model}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className={styles.cardStats}>
+                    <span className={`${styles.statPill} ${styles.statSuccess}`}>
+                      {t('stats.success')}: {stats.success}
+                    </span>
+                    <span className={`${styles.statPill} ${styles.statFailure}`}>
+                      {t('stats.failure')}: {stats.failure}
+                    </span>
                   </div>
-                ) : null}
-                <div className={styles.cardStats}>
-                  <span className={`${styles.statPill} ${styles.statSuccess}`}>
-                    {t('stats.success')}: {stats.success}
-                  </span>
-                  <span className={`${styles.statPill} ${styles.statFailure}`}>
-                    {t('stats.failure')}: {stats.failure}
-                  </span>
-                </div>
-                <ProviderStatusBar statusData={statusData} />
-              </Fragment>
-            );
-          }}
-        />
+                  <ProviderStatusBar statusData={statusData} />
+                </Fragment>
+              );
+            }}
+          />
+        )}
       </Card>
     </>
   );

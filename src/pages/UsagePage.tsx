@@ -694,9 +694,20 @@ export function UsagePage() {
     [modelPrices, scopedUsage]
   );
 
-  // Auto-select top 4 models when usage data loads and chartLines is still 'all'
+  // Auto-select top 4 lines for the active comparison mode when usage data loads.
   useEffect(() => {
     if (!loading && usage && chartLines.length === 1 && chartLines[0] === 'all') {
+      if (chartCompareMode === 'credential') {
+        const topCredentials = credentialRows
+          .filter((row) => row.requests > 0)
+          .slice(0, 4)
+          .map((row) => row.value);
+        if (topCredentials.length > 0) {
+          setChartLines(topCredentials);
+        }
+        return;
+      }
+
       const topModels = [...modelStats]
         .sort((a, b) => b.requests - a.requests)
         .slice(0, 4)
@@ -705,7 +716,7 @@ export function UsagePage() {
         setChartLines(topModels);
       }
     }
-  }, [loading, usage, chartLines, modelStats]);
+  }, [chartCompareMode, chartLines, credentialRows, loading, modelStats, usage]);
 
   const hasPrices = Object.keys(modelPrices).length > 0;
   const topCredentialRows = useMemo(
@@ -963,11 +974,7 @@ export function UsagePage() {
           <CredentialStatsCard
             usage={scopedUsage}
             loading={loading}
-            geminiKeys={config?.geminiApiKeys || []}
-            claudeConfigs={config?.claudeApiKeys || []}
-            codexConfigs={config?.codexApiKeys || []}
-            vertexConfigs={config?.vertexApiKeys || []}
-            openaiProviders={openaiProvidersForUsage}
+            apiKeyEntries={clientApiKeys}
             modelPrices={modelPrices}
           />
         ) : (

@@ -6581,7 +6581,8 @@ $navy-blue: #2A7B9B;
 
 .credentialStatusActive,
 .credentialStatusWarning,
-.credentialStatusCritical {
+.credentialStatusCritical,
+.credentialStatusInactive {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -6608,6 +6609,21 @@ $navy-blue: #2A7B9B;
   color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.18);
+}
+
+.credentialStatusInactive {
+  color: var(--text-tertiary);
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.credentialDescription {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .metricCard {
@@ -6787,5 +6803,96 @@ $navy-blue: #2A7B9B;
 
   .credentialFilterSelectControl {
     min-width: min(100%, 220px);
+  }
+}
+
+// Final usage KPI alignment. Keep the three total cards visually identical
+// across dark, light, and white themes.
+.statsGrid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 18px !important;
+  align-items: stretch !important;
+}
+
+.statsGrid > .metricCard {
+  grid-column: auto !important;
+  min-width: 0 !important;
+  min-height: 120px !important;
+  padding: 18px 20px !important;
+}
+
+.metricCard {
+  min-height: 120px !important;
+}
+
+.metricMainValue {
+  max-width: 100%;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.metricSubDetails {
+  row-gap: 5px;
+}
+
+.dataCapsule {
+  min-height: 18px;
+  padding: 1px 0 3px;
+  border-radius: 0;
+  background: transparent !important;
+  border: 0;
+  border-bottom: 2px solid currentColor;
+}
+
+.tokenRatioTrack,
+.metricMiniProgress {
+  height: 3px;
+  max-width: none;
+}
+
+:global([data-theme='white']) .statsGrid,
+:global([data-theme='light']) .statsGrid,
+:root:not([data-theme]) .statsGrid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 18px !important;
+}
+
+:global([data-theme='white']) .statsGrid > .metricCard,
+:global([data-theme='light']) .statsGrid > .metricCard,
+:root:not([data-theme]) .statsGrid > .metricCard {
+  grid-column: auto !important;
+  min-width: 0 !important;
+  min-height: 120px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+}
+
+:global([data-theme='white']) .metricSubLine,
+:global([data-theme='light']) .metricSubLine,
+:root:not([data-theme]) .metricSubLine {
+  color: #8a8f98 !important;
+}
+
+@media (max-width: 1080px) {
+  .statsGrid,
+  :global([data-theme='white']) .statsGrid,
+  :global([data-theme='light']) .statsGrid,
+  :root:not([data-theme]) .statsGrid {
+    grid-template-columns: repeat(3, minmax(210px, 1fr)) !important;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+}
+
+@media (max-width: 760px) {
+  .statsGrid,
+  :global([data-theme='white']) .statsGrid,
+  :global([data-theme='light']) .statsGrid,
+  :root:not([data-theme]) .statsGrid {
+    grid-template-columns: 1fr !important;
+    overflow-x: visible;
   }
 }

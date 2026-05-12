@@ -21,6 +21,9 @@ export interface CostTrendChartProps {
   isMobile: boolean;
   modelPrices: Record<string, ModelPrice>;
   hourWindowHours?: number;
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+  summary?: React.ReactNode;
 }
 
 const COST_COLOR = '#06b6d4';
@@ -43,10 +46,14 @@ export function CostTrendChart({
   isDark,
   isMobile,
   modelPrices,
-  hourWindowHours
+  hourWindowHours,
+  collapsible = false,
+  defaultCollapsed = false,
+  summary,
 }: CostTrendChartProps) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<'hour' | 'day'>('hour');
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const hasPrices = Object.keys(modelPrices).length > 0;
 
   const { chartData, chartOptions, hasData } = useMemo(() => {
@@ -93,26 +100,39 @@ export function CostTrendChart({
     return { chartData: data, chartOptions: options, hasData: series.hasData };
   }, [usage, period, isDark, isMobile, modelPrices, hasPrices, hourWindowHours, t]);
 
+  const handleHeaderClick = () => {
+    if (collapsible) {
+      setExpanded(!expanded);
+    }
+  };
+
   return (
     <Card
       title={t('usage_stats.cost_trend')}
+      collapsible={collapsible}
+      defaultCollapsed={defaultCollapsed}
+      headerExpanded={expanded}
+      onHeaderClick={handleHeaderClick}
+      summary={summary}
       extra={
-        <div className={styles.periodButtons}>
-          <Button
-            variant={period === 'hour' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setPeriod('hour')}
-          >
-            {t('usage_stats.by_hour')}
-          </Button>
-          <Button
-            variant={period === 'day' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setPeriod('day')}
-          >
-            {t('usage_stats.by_day')}
-          </Button>
-        </div>
+        !collapsible || expanded ? (
+          <div className={styles.periodButtons}>
+            <Button
+              variant={period === 'hour' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setPeriod('hour')}
+            >
+              {t('usage_stats.by_hour')}
+            </Button>
+            <Button
+              variant={period === 'day' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setPeriod('day')}
+            >
+              {t('usage_stats.by_day')}
+            </Button>
+          </div>
+        ) : undefined
       }
     >
       {loading ? (

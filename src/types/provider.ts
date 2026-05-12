@@ -51,10 +51,10 @@ export interface ProviderKeyConfig {
 
 export interface OpenAIProviderConfig {
   name: string;
+  disabled?: boolean;
   prefix?: string;
   baseUrl: string;
   apiKeyEntries: ApiKeyEntry[];
-  disabled?: boolean;
   headers?: Record<string, string>;
   models?: ModelAlias[];
   priority?: number;

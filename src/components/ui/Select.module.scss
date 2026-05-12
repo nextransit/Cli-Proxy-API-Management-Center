@@ -109,3 +109,40 @@
 .optionHighlighted {
   background: var(--bg-secondary);
 }
+
+// 浅色模式覆盖
+:global([data-theme='white']),
+:global([data-theme='light']) {
+  .trigger {
+    background: #ffffff !important;
+    border-color: #d1d5db !important;
+    color: #374151 !important;
+  }
+
+  .dropdown {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+  }
+
+  .option {
+    background: transparent !important;
+    color: #374151 !important;
+  }
+
+  .option:hover {
+    background: #f3f4f6 !important;
+  }
+
+  .optionActive {
+    background: rgba(6, 182, 212, 0.1) !important;
+    border-color: rgba(6, 182, 212, 0.5) !important;
+  }
+
+  .triggerIcon {
+    color: #6b7280 !important;
+  }
+
+  .placeholder {
+    color: #9ca3af !important;
+  }
+}

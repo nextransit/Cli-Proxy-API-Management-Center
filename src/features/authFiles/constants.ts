@@ -39,7 +39,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
 ]);
 
 export const MIN_CARD_PAGE_SIZE = 3;
-export const MAX_CARD_PAGE_SIZE = 30;
+export const MAX_CARD_PAGE_SIZE = 100;
 export const AUTH_FILE_REFRESH_WARNING_MS = 24 * 60 * 60 * 1000;
 
 export const INTEGER_STRING_PATTERN = /^[+-]?\d+$/;
@@ -211,6 +211,21 @@ export const parseDisableCoolingValue = (value: unknown): boolean | undefined =>
   if (TRUTHY_TEXT_VALUES.has(normalized)) return true;
   if (FALSY_TEXT_VALUES.has(normalized)) return false;
   return undefined;
+};
+
+export const isAuthFileDisabled = (file: AuthFileItem): boolean => {
+  const disabled = parseDisableCoolingValue(file['disabled'] ?? file.disabled);
+  if (disabled !== undefined) return disabled;
+
+  const enabled = parseDisableCoolingValue(file['enabled'] ?? file.enabled);
+  if (enabled !== undefined) return !enabled;
+
+  const status = String(file.status ?? '')
+    .trim()
+    .toLowerCase();
+  if (status === 'disabled' || status === 'inactive') return true;
+
+  return false;
 };
 
 export const readCodexAuthFileWebsockets = (value: Record<string, unknown>): boolean =>

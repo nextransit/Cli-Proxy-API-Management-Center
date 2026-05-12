@@ -135,6 +135,45 @@ The UI language is automatically detected from browser settings and can be manua
 - **Some features show “unsupported”**: the backend may be too old or the endpoint is disabled/absent (common for model lists per auth file, excluded models, logs).
 - **OpenAI provider test fails**: the test runs in the browser and depends on network/CORS of the provider endpoint; a failure here does not always mean the server cannot reach it.
 
+## Backup before every update
+
+If you have experienced data loss during upgrades (auth files, API keys, OpenAI-compatible provider keys, usage stats), use the built-in backup scripts and make backup mandatory before every update.
+
+1. Set environment variables:
+
+```bash
+export CLI_PROXY_API_BASE="http://127.0.0.1:8317"
+export CLI_PROXY_MANAGEMENT_KEY="<your-management-key>"
+```
+
+2. Run a backup manually:
+
+```bash
+npm run backup:management
+```
+
+3. Restore from a backup directory (if needed):
+
+```bash
+npm run restore:management -- --input-dir backups/backup-20260329T101530Z
+```
+
+4. Always run updates via the wrapper so backup is triggered first:
+
+```bash
+npm run update:with-backup -- bash -lc 'git -C /path/to/CLIProxyAPI pull --ff-only && systemctl restart cliproxyapi'
+```
+
+Notes:
+- Backups are written to `./backups/` by default (ignored by git).
+- The backup contains:
+  - `config.yaml` and `/config` snapshot
+  - proxy `api-keys`
+  - Gemini/Codex/Claude/Vertex/OpenAI-compatible provider configs
+  - auth files (full file content)
+  - OAuth excluded models and OAuth model alias mappings
+  - usage export snapshot (`/usage/export`)
+
 ## Development
 
 ```bash
@@ -144,6 +183,9 @@ npm run preview    # serve dist locally
 npm run lint       # ESLint (fails on warnings)
 npm run format     # Prettier
 npm run type-check # tsc --noEmit
+npm run backup:management
+npm run restore:management -- --input-dir <backup-dir>
+npm run update:with-backup -- <update-command...>
 ```
 
 ## Contributing

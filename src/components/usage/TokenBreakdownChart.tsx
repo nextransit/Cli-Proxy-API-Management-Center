@@ -34,6 +34,9 @@ export interface TokenBreakdownChartProps {
   isDark: boolean;
   isMobile: boolean;
   hourWindowHours?: number;
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
+  summary?: React.ReactNode;
 }
 
 export function TokenBreakdownChart({
@@ -42,9 +45,13 @@ export function TokenBreakdownChart({
   isDark,
   isMobile,
   hourWindowHours,
+  collapsible = false,
+  defaultCollapsed = false,
+  summary,
 }: TokenBreakdownChartProps) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<'hour' | 'day'>('hour');
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
 
   const { chartData, chartOptions } = useMemo(() => {
     const series =
@@ -122,26 +129,39 @@ export function TokenBreakdownChart({
   }, [usage, period, isDark, isMobile, hourWindowHours, t]);
   const labels = chartData.labels ?? [];
 
+  const handleHeaderClick = () => {
+    if (collapsible) {
+      setExpanded(!expanded);
+    }
+  };
+
   return (
     <Card
       title={t('usage_stats.token_breakdown')}
+      collapsible={collapsible}
+      defaultCollapsed={defaultCollapsed}
+      headerExpanded={expanded}
+      onHeaderClick={handleHeaderClick}
+      summary={summary}
       extra={
-        <div className={styles.periodButtons}>
-          <Button
-            variant={period === 'hour' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setPeriod('hour')}
-          >
-            {t('usage_stats.by_hour')}
-          </Button>
-          <Button
-            variant={period === 'day' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setPeriod('day')}
-          >
-            {t('usage_stats.by_day')}
-          </Button>
-        </div>
+        !collapsible || expanded ? (
+          <div className={styles.periodButtons}>
+            <Button
+              variant={period === 'hour' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setPeriod('hour')}
+            >
+              {t('usage_stats.by_hour')}
+            </Button>
+            <Button
+              variant={period === 'day' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setPeriod('day')}
+            >
+              {t('usage_stats.by_day')}
+            </Button>
+          </div>
+        ) : undefined
       }
     >
       {loading ? (
