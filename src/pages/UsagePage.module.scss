@@ -59,35 +59,35 @@
 }
 
 :global([data-theme='dark']) .container {
-  background: #0a0a0a;
+  background: var(--bg-secondary);
   border-radius: 18px;
 }
 
 // 浅色模式（white 和 light）下使用统计页面使用浅色背景
 :global([data-theme='white']) .container,
-:global([data-theme='light']) .container {
+:root:not([data-theme]) .container {
   background: var(--bg-primary);
   border-radius: 18px;
 }
 
 // 浅色模式下的卡片和组件背景
 :global([data-theme='white']) .container :global(.card),
-:global([data-theme='light']) .container :global(.card) {
+:root:not([data-theme]) .container :global(.card) {
   background: var(--bg-primary);
   border-color: var(--border-color);
   box-shadow: var(--shadow-sm);
 }
 
 :global([data-theme='white']) .container :global(.card)::before,
-:global([data-theme='light']) .container :global(.card)::before {
+:root:not([data-theme]) .container :global(.card)::before {
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.06), transparent);
 }
 
 // 浅色模式下的健康卡片和统计卡片背景
 :global([data-theme='white']) .container .healthCard,
-:global([data-theme='light']) .container .healthCard,
+:root:not([data-theme]) .container .healthCard,
 :global([data-theme='white']) .container .statCard,
-:global([data-theme='light']) .container .statCard {
+:root:not([data-theme]) .container .statCard {
   background: var(--bg-primary);
   border-color: var(--border-color);
   box-shadow: var(--shadow-sm);
@@ -200,7 +200,7 @@
   padding: 28px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.03);
-  background: rgba(20, 20, 20, 0.86);
+  background: var(--bg-primary);
   backdrop-filter: var(--glass-backdrop-filter);
   -webkit-backdrop-filter: var(--glass-backdrop-filter);
   box-shadow:
@@ -254,9 +254,9 @@
   padding: 30px;
   background:
     radial-gradient(124% 136% at 6% 2%, var(--accent-soft) 0%, rgba(0, 0, 0, 0) 66%),
-    rgba(20, 20, 20, 0.9);
+    var(--bg-primary);
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -456,7 +456,7 @@
   border-radius: $radius-md;
   padding: 10px;
   height: 62px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
 }
 
 .statTrendPlaceholder {
@@ -523,9 +523,9 @@
 }
 
 .apiItem {
-  background: rgba(20, 20, 20, 0.74);
+  background: var(--bg-primary);
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
   overflow: hidden;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
 }
@@ -579,7 +579,7 @@
   font-size: 11px;
   color: #787878;
   background-color: rgba(12, 12, 12, 0.68);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
   padding: 2px 8px;
   border-radius: $radius-full;
 }
@@ -679,7 +679,7 @@
   th {
     font-weight: 600;
     color: var(--text-tertiary);
-    background-color: rgba(20, 20, 20, 0.88);
+    background-color: var(--bg-primary);
     white-space: nowrap;
     position: sticky;
     top: 0;
@@ -700,11 +700,11 @@
   }
 
   tbody tr:nth-child(odd) {
-    background-color: rgba(20, 20, 20, 0.7);
+    background-color: var(--bg-primary);
   }
 
   tbody tr:nth-child(even) {
-    background-color: rgba(14, 14, 14, 0.74);
+    background-color: var(--bg-primary);
   }
 
   tbody tr:hover {
@@ -845,9 +845,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px;
-  background-color: rgba(20, 20, 20, 0.72);
+  background-color: var(--bg-primary);
   border-radius: $radius-sm;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
   gap: 10px;
 
   @include mobile {
@@ -916,9 +916,9 @@
 
 .chartWrapper {
   padding: 16px;
-  background: rgba(20, 20, 20, 0.72);
+  background: var(--bg-primary);
   border-radius: $radius-lg;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 13px;
@@ -948,7 +948,7 @@
   max-width: 240px;
   padding: 4px 10px;
   border-radius: $radius-full;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
   background: rgba(12, 12, 12, 0.74);
   font-size: 12px;
   color: var(--text-secondary);
@@ -1203,8 +1203,8 @@
 
 // Service health card
 .healthCard {
-  background: rgba(20, 20, 20, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
   border-radius: $radius-lg;
   padding: 22px;
   display: flex;
@@ -1477,7 +1477,7 @@
 // 浅色模式全局覆盖：处理所有硬编码的深色背景
 // ============================================
 :global([data-theme='white']) .container,
-:global([data-theme='light']) .container {
+:root:not([data-theme]) .container {
   // 通用背景覆盖
   > * {
     background: var(--bg-primary) !important;
@@ -1555,7 +1555,7 @@
 // 浅色模式强化覆盖：所有表格、卡片、组件
 // ============================================
 :global([data-theme='white']) .container,
-:global([data-theme='light']) .container {
+:root:not([data-theme]) .container {
 
   // 表格样式覆盖
   .table {
@@ -1676,7 +1676,7 @@
 // 浅色模式：强制清除所有图表和 Sparkline 的深色背景
 // ============================================
 :global([data-theme='white']) .container,
-:global([data-theme='light']) .container {
+:root:not([data-theme]) .container {
 
   // Sparkline 图表背景清除
   .sparkline-light,
@@ -1749,7 +1749,7 @@
 // 浅色模式：图表容器和请求事件明细表格
 // ============================================
 :global([data-theme='white']) .container,
-:global([data-theme='light']) .container {
+:root:not([data-theme]) .container {
 
   // 图表容器
   .chartWrapper,
@@ -2041,7 +2041,7 @@
 
 // 浅色模式骨架屏
 :global([data-theme='white']) .container.refreshing,
-:global([data-theme='light']) .container.refreshing {
+:root:not([data-theme]) .container.refreshing {
   .statCard .statValue {
     background: linear-gradient(90deg, #f5f5f5 25%, #e6e6e6 37%, #f5f5f5 63%);
     background-size: 400% 100%;
@@ -2064,7 +2064,7 @@
 
 // 浅色模式首次加载遮罩
 :global([data-theme='white']) .container.loading-overlay-visible,
-:global([data-theme='light']) .container.loading-overlay-visible {
+:root:not([data-theme]) .container.loading-overlay-visible {
   .loadingOverlay {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(2px);
@@ -2098,7 +2098,7 @@
 
 // 强制隐藏可能包含"加载中"文字的元素
 :global([data-theme='white']) .hint,
-:global([data-theme='light']) .hint {
+:root:not([data-theme]) .hint {
   display: none;
 }
 
@@ -2203,7 +2203,7 @@
 
 // 浅色模式
 :global([data-theme='white']) .summaryCards,
-:global([data-theme='light']) .summaryCards {
+:root:not([data-theme]) .summaryCards {
   .summaryCard {
     background: #ffffff;
     border: 1px solid #f0f0f0;
@@ -2462,7 +2462,7 @@
 
 // 浅色模式 SWR 刷新：保留旧数据，不降低容器透明度
 :global([data-theme='white']) .container.isFetching,
-:global([data-theme='light']) .container.isFetching {
+:root:not([data-theme]) .container.isFetching {
   // 不降低容器透明度，保持数据完全可见
 
   // 卡片在刷新时保持不透明
@@ -2530,7 +2530,7 @@
 
 // 1. 图表优化：曲线阴影填充
 :global([data-theme='white']) .container,
-:global([data-theme='light']) .container {
+:root:not([data-theme]) .container {
 
   // 图表容器背景
   .chartWrapper {
@@ -2713,7 +2713,7 @@
 
   // 8. 按钮与交互元素 - 使用 !important 确保优先级
   :global([data-theme='white']) :global(.btn-primary),
-  :global([data-theme='light']) :global(.btn-primary) {
+  :root:not([data-theme]) :global(.btn-primary) {
     background: #06b6d4 !important;
     color: #ffffff !important;
     border: none !important;
@@ -2724,7 +2724,7 @@
   }
 
   :global([data-theme='white']) :global(.btn-secondary),
-  :global([data-theme='light']) :global(.btn-secondary) {
+  :root:not([data-theme]) :global(.btn-secondary) {
     background: #ffffff !important;
     color: #374151 !important;
     border: 1px solid #d1d5db !important;
@@ -2736,7 +2736,7 @@
   }
 
   :global([data-theme='white']) :global(.btn-ghost),
-  :global([data-theme='light']) :global(.btn-ghost) {
+  :root:not([data-theme]) :global(.btn-ghost) {
     background: transparent !important;
     color: #6b7280 !important;
 
@@ -2747,7 +2747,7 @@
   }
 
   :global([data-theme='white']) :global(.btn-danger),
-  :global([data-theme='light']) :global(.btn-danger) {
+  :root:not([data-theme]) :global(.btn-danger) {
     background: #ef4444 !important;
     color: #ffffff !important;
 
@@ -2757,7 +2757,7 @@
   }
 
   :global([data-theme='white']) :global(.btn:disabled),
-  :global([data-theme='light']) :global(.btn:disabled) {
+  :root:not([data-theme]) :global(.btn:disabled) {
     opacity: 0.5 !important;
     cursor: not-allowed !important;
   }
@@ -2821,31 +2821,31 @@
 
   // 13.1 Select 组件触发器和下拉框
   :global([data-theme='white']) .trigger,
-  :global([data-theme='light']) .trigger {
+  :root:not([data-theme]) .trigger {
     background: #ffffff !important;
     border-color: #d1d5db !important;
     color: #374151 !important;
   }
 
   :global([data-theme='white']) .dropdown,
-  :global([data-theme='light']) .dropdown {
+  :root:not([data-theme]) .dropdown {
     background: #ffffff !important;
     border-color: #e5e7eb !important;
   }
 
   :global([data-theme='white']) .option,
-  :global([data-theme='light']) .option {
+  :root:not([data-theme]) .option {
     background: transparent !important;
     color: #374151 !important;
   }
 
   :global([data-theme='white']) .option:hover,
-  :global([data-theme='light']) .option:hover {
+  :root:not([data-theme]) .option:hover {
     background: #f3f4f6 !important;
   }
 
   :global([data-theme='white']) .triggerIcon,
-  :global([data-theme='light']) .triggerIcon {
+  :root:not([data-theme]) .triggerIcon {
     color: #6b7280 !important;
   }
 
@@ -2993,5 +2993,611 @@
     &:hover {
       background: #b0b0b0;
     }
+  }
+}
+
+// ============================================
+// 羊毛纸 (Parchment) 主题优化
+// ============================================
+
+// 羊毛纸主背景色
+$paper-bg: #F4F1EA;
+$paper-card-bg: rgba(255, 255, 255, 0.6);
+$paper-text: #4A4238;
+$paper-text-light: #6B6358;
+$paper-border: #E2DED0;
+$paper-shadow: rgba(0, 0, 0, 0.05);
+
+// 森林绿和砖红色（低饱和度）
+$forest-green: #2D5A27;
+$brick-red: #A52A2A;
+$navy-blue: #2A7B9B;
+
+// 羊毛纸主题覆盖
+:root:not([data-theme]) .container,
+:root:not([data-theme]) {
+  // 主背景
+  background-color: $paper-bg !important;
+
+  // 1. 卡片背景降噪 - 半透明白色 + 内阴影
+  .card,
+  .statCard,
+  .summaryCard,
+  .healthCard,
+  .chartWrapper,
+  .detailsFixedCard {
+    background: $paper-card-bg !important;
+    border: 1px solid $paper-border !important;
+    box-shadow: 
+      2px 2px 8px $paper-shadow,
+      inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  // 顶部指标卡片 - 纸张凹陷效果
+  .summaryCard {
+    background: rgba(255, 252, 245, 0.8) !important;
+    box-shadow: 
+      2px 2px 6px rgba(0, 0, 0, 0.04),
+      inset 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    
+    &:hover {
+      background: rgba(255, 252, 245, 0.95) !important;
+      transform: translateY(-1px);
+    }
+  }
+
+  // 2. 文字颜色 - 深褐色
+  .statValue,
+  .summaryCardValue,
+  .pageTitle {
+    color: $paper-text !important;
+    font-weight: 700;
+  }
+
+  .statLabel,
+  .summaryCardLabel {
+    color: $paper-text-light !important;
+    font-weight: 500;
+  }
+
+  .statMetaItem,
+  .hint,
+  .note {
+    color: darken($paper-text-light, 10%) !important;
+  }
+
+  // 3. 图表配置
+  .chartWrapper {
+    background: rgba(255, 255, 255, 0.7) !important;
+    border: 1px solid $paper-border !important;
+    
+    canvas {
+      // 图表线条使用更深的蓝色
+      filter: saturate(1.2);
+    }
+  }
+
+  // 图表标题
+  .chartTitle,
+  .section-title {
+    color: $paper-text !important;
+    font-weight: 600;
+  }
+
+  // 图表图例
+  .chartLegend {
+    color: $paper-text-light !important;
+    background: transparent !important;
+  }
+
+  // 4. 状态颜色重映射 - 低饱和度
+  .statSuccess,
+  .success-tag,
+  .status-success {
+    color: $forest-green !important;
+    background: rgba(45, 90, 39, 0.1) !important;
+    border: 1px solid rgba(45, 90, 39, 0.3) !important;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .statFailure,
+  .failure-tag,
+  .status-failure {
+    color: $brick-red !important;
+    background: rgba(165, 42, 42, 0.1) !important;
+    border: 1px solid rgba(165, 42, 42, 0.3) !important;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  // 成功率颜色区分
+  .success-rate {
+    &.high {
+      color: $forest-green !important;
+    }
+    
+    &.medium {
+      color: darken(#D97706, 10%) !important;
+    }
+    
+    &.low {
+      color: $brick-red !important;
+    }
+  }
+
+  // 5. 表格优化
+  .table,
+  .requestEventTable,
+  table {
+    background: transparent !important;
+    border: 1px solid $paper-border;
+    border-radius: 8px;
+    overflow: hidden;
+
+    thead th {
+      background: rgba(0, 0, 0, 0.03) !important;
+      color: $paper-text !important;
+      font-weight: 600;
+      border-bottom: 2px solid $paper-border !important;
+    }
+
+    tbody tr:nth-child(odd) {
+      background: rgba(255, 255, 255, 0.5);
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(255, 252, 245, 0.7);
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 252, 240, 0.9) !important;
+    }
+
+    td {
+      color: $paper-text !important;
+      border-bottom: 1px solid rgba($paper-border, 0.5);
+    }
+  }
+
+  // 6. 侧边栏活动项 - 暗金色
+  .nav-item.active {
+    border-left: 3px solid darken(#C4A35A, 15%);
+    background: rgba(196, 163, 90, 0.15) !important;
+    
+    .nav-icon {
+      color: darken(#C4A35A, 20%);
+    }
+    
+    .nav-label {
+      color: darken(#4A4238, 5%);
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+  }
+
+  // 侧边栏未选中项
+  .nav-item .nav-icon {
+    color: $paper-text-light;
+  }
+
+  // 7. 按钮样式
+  .btn-primary {
+    background: darken($navy-blue, 5%);
+    color: #ffffff;
+    border: none;
+    
+    &:hover {
+      background: darken($navy-blue, 12%);
+    }
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.7);
+    color: $paper-text;
+    border: 1px solid $paper-border;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: darken($paper-border, 10%);
+    }
+  }
+
+  // 8. 凭证类型标签
+  .credentialType {
+    background: rgba(0, 0, 0, 0.04);
+    color: $paper-text-light;
+    border: 1px solid $paper-border;
+  }
+
+  // 9. Select 下拉框
+  .ant-select-selector,
+  select {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-color: $paper-border !important;
+    color: $paper-text !important;
+  }
+
+  // 10. 曲线选择器面板
+  .chartLineSelector {
+    background: rgba(255, 255, 255, 0.5) !important;
+    border: 1px solid $paper-border !important;
+  }
+
+  // 11. 健康图例
+  .healthCard {
+    background: $paper-card-bg !important;
+  }
+
+  .healthLegendBlock {
+    border: 1px solid $paper-border;
+  }
+
+  // 12. 价格设置卡片
+  .priceSettingsCard {
+    background: $paper-card-bg !important;
+    border: 1px solid $paper-border !important;
+  }
+
+  // 13. 输入框
+  input,
+  textarea {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid $paper-border !important;
+    color: $paper-text !important;
+    
+    &:focus {
+      border-color: darken($navy-blue, 10%) !important;
+      box-shadow: 0 0 0 3px rgba(42, 123, 155, 0.15) !important;
+    }
+  }
+
+  // 14. 延迟列高亮
+  .latencyCell {
+    color: darken(#D97706, 15%) !important;
+    font-weight: 600;
+  }
+
+  // 15. Token 列高亮
+  .tokenCell {
+    color: $navy-blue !important;
+    font-weight: 600;
+  }
+
+  // 16. 空状态
+  .empty-state {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px dashed $paper-border;
+    color: $paper-text-light;
+  }
+}
+
+// ============================================
+// 羊毛纸主题图表颜色优化
+// ============================================
+:root:not([data-theme]) .container {
+  // 图表线条和填充色
+  --chart-primary: #2A7B9B;      // 海军蓝
+  --chart-secondary: #6B8E6B;    // 橄榄绿
+  --chart-accent: #C4A35A;       // 暗金色
+  --chart-grid: #E2DED0;          // 淡米色网格
+  --chart-axis: #5C5C5C;          // 深灰坐标轴
+}
+// ============================================
+// 羊毛纸主题全局覆盖 - 高优先级
+// ============================================
+
+// 直接在 data-theme 上定义，覆盖所有嵌套选择器
+[data-theme='light'] {
+  // 主背景
+  background-color: #F4F1EA !important;
+  
+  // 所有卡片容器
+  .card, .statCard, .summaryCard, .healthCard, .chartWrapper,
+  .detailsFixedCard, .tableWrapper, .priceSettingsCard {
+    background: rgba(255, 252, 245, 0.95) !important;
+    border: 1px solid #E2DED0 !important;
+    box-shadow: 0 2px 8px rgba(74, 66, 56, 0.08) !important;
+  }
+  
+  // 表格
+  .table, table, .requestEventTable {
+    background: transparent !important;
+    border: 1px solid #E2DED0;
+    
+    thead th {
+      background: rgba(0, 0, 0, 0.04) !important;
+      color: #4A4238 !important;
+      font-weight: 600;
+      border-bottom: 2px solid #D4D0C5 !important;
+    }
+    
+    tbody tr:nth-child(odd) {
+      background: rgba(255, 252, 245, 0.7) !important;
+    }
+    
+    tbody tr:nth-child(even) {
+      background: rgba(244, 241, 234, 0.5) !important;
+    }
+    
+    tbody tr:hover {
+      background: rgba(255, 250, 235, 0.95) !important;
+    }
+    
+    td {
+      color: #4A4238 !important;
+      border-bottom: 1px solid #E8E4DB !important;
+    }
+  }
+  
+  // 统计数值
+  .statValue, .summaryCardValue, .pageTitle {
+    color: #4A4238 !important;
+  }
+  
+  .statLabel, .summaryCardLabel {
+    color: #6B6358 !important;
+  }
+  
+  .statMetaItem, .hint {
+    color: #8C8578 !important;
+  }
+  
+  // 成功/失败状态 - 低饱和度
+  .statSuccess, .success-tag {
+    color: #2D5A27 !important;
+    background: rgba(45, 90, 39, 0.12) !important;
+    border: 1px solid rgba(45, 90, 39, 0.3) !important;
+  }
+  
+  .statFailure, .failure-tag {
+    color: #A52A2A !important;
+    background: rgba(165, 42, 42, 0.1) !important;
+    border: 1px solid rgba(165, 42, 42, 0.25) !important;
+  }
+  
+  // 侧边栏
+  .nav-item.active {
+    border-left: 3px solid #C4A35A !important;
+    background: rgba(196, 163, 90, 0.15) !important;
+    
+    .nav-icon { color: #8B7355 !important; }
+    .nav-label { color: #4A4238 !important; font-weight: 600; }
+  }
+  
+  .nav-icon { color: #6B6358 !important; }
+  
+  // 按钮
+  .btn-primary {
+    background: #2A7B9B !important;
+    &:hover { background: #236B85 !important; }
+  }
+  
+  .btn-secondary {
+    background: rgba(255, 252, 245, 0.9) !important;
+    color: #4A4238 !important;
+    border: 1px solid #D4D0C5 !important;
+  }
+  
+  // 输入框
+  input, select, textarea {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid #D4D0C5 !important;
+    color: #4A4238 !important;
+    
+    &:focus {
+      border-color: #2A7B9B !important;
+      box-shadow: 0 0 0 3px rgba(42, 123, 155, 0.15) !important;
+    }
+  }
+  
+  // Select 下拉框
+  .ant-select-selector {
+    background: rgba(255, 255, 255, 0.8) !important;
+    border-color: #D4D0C5 !important;
+  }
+  
+  // 凭证类型标签
+  .credentialType {
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: #6B6358 !important;
+    border: 1px solid #E2DED0 !important;
+  }
+  
+  // 延迟列
+  .latencyCell {
+    color: #8B6914 !important;
+    font-weight: 600;
+  }
+  
+  // Token 列
+  .tokenCell {
+    color: #2A7B9B !important;
+    font-weight: 600;
+  }
+  
+  // 曲线选择器
+  .chartLineSelector {
+    background: rgba(255, 252, 245, 0.8) !important;
+    border: 1px solid #E2DED0 !important;
+  }
+  
+  // 图表图例
+  .chartLegend {
+    color: #6B6358 !important;
+  }
+  
+  // 健康图例
+  .healthLegendBlock {
+    border: 1px solid #D4D0C5;
+  }
+  
+  // 空状态
+  .empty-state {
+    background: rgba(255, 252, 245, 0.7);
+    border: 1px dashed #D4D0C5;
+    color: #8C8578;
+  }
+}
+
+// 使用统计页面容器
+.UsagePage-module__container___,
+[data-theme='light'] .container,
+.UsagePage-module__summaryCards___,
+.UsagePage-module__statsGrid___ {
+  background-color: #F4F1EA !important;
+}
+
+// ============================================
+// 羊毛纸主题 - 图表和标签专项修复
+// ============================================
+[data-theme='light'] {
+  // 1. 图表容器背景和边框
+  .chartWrapper {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  
+  // 2. 图表画布背景透明
+  .chartWrapper canvas,
+  .chartWrapper svg,
+  .sparkline canvas,
+  .sparkline svg,
+  canvas {
+    background: transparent !important;
+  }
+  
+  // 3. 图表图例
+  .chartLegend {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+  }
+  
+  // 4. 标签/徽章样式 - 使用主题变量
+  .credentialType {
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+  }
+  
+  // 5. 成功/失败徽章 - 低饱和度
+  .statSuccess,
+  .success-tag,
+  .success-badge {
+    color: #2D5A27 !important;
+    background: rgba(45, 90, 39, 0.12) !important;
+    border: 1px solid rgba(45, 90, 39, 0.3) !important;
+  }
+  
+  .statFailure,
+  .failure-tag,
+  .failure-badge {
+    color: #A52A2A !important;
+    background: rgba(165, 42, 42, 0.1) !important;
+    border: 1px solid rgba(165, 42, 42, 0.25) !important;
+  }
+  
+  // 6. 成功/失败徽章（备用类名）
+  [class*="success"] {
+    color: #2D5A27 !important;
+  }
+  
+  [class*="failure"],
+  [class*="error"] {
+    color: #A52A2A !important;
+  }
+  
+  // 7. 图表线条选择器
+  .chartLineSelector {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+  
+  // 8. Select 下拉框
+  .ant-select-selector,
+  select {
+    background: var(--bg-primary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  // 9. 输入框
+  input,
+  textarea {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  // 10. 曲线数量选择器标签
+  .chartLineLabel {
+    color: var(--text-primary) !important;
+  }
+  
+  .chartLineCount {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+  }
+  
+  // 11. 图表滚动区域
+  .chartScroller {
+    background: transparent !important;
+  }
+  
+  // 12. 图表区域
+  .chartArea {
+    background: transparent !important;
+  }
+  
+  // 13. 图表头部
+  .chartLineHeader {
+    color: var(--text-primary) !important;
+  }
+  
+  // 14. 图表项
+  .chartLineItem {
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-color) !important;
+    
+    &:hover {
+      background: var(--bg-hover) !important;
+    }
+  }
+  
+  // 15. 健康卡片图例
+  .healthLegendBlock {
+    border: 1px solid var(--border-color) !important;
+  }
+  
+  // 16. 价格设置卡片
+  .priceSettingsCard {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+  
+  // 17. 统计卡片头部
+  .statCardHeader {
+    background: transparent !important;
+  }
+  
+  // 18. 统计提示
+  .statHint {
+    color: var(--text-tertiary) !important;
+  }
+  
+  // 19. 延迟列
+  .latencyCell {
+    color: #8B6914 !important;
+    font-weight: 600 !important;
+  }
+  
+  // 20. Token 列
+  .tokenCell {
+    color: #2A7B9B !important;
+    font-weight: 600 !important;
   }
 }
