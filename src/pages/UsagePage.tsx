@@ -21,6 +21,7 @@ import { providersApi } from '@/services/api';
 import { useThemeStore, useConfigStore } from '@/stores';
 import type { OpenAIProviderConfig } from '@/types';
 import {
+  SummaryCards,
   StatCards,
   UsageChart,
   ChartLineSelector,
@@ -252,12 +253,13 @@ export function UsagePage() {
   const hasPrices = Object.keys(modelPrices).length > 0;
 
   return (
-    <div className={styles.container}>
+    <div className={loading ? (usage ? `${styles.container} ${styles.isFetching}` : `${styles.container}`) : styles.container}>
+      <div className={`${styles.progressBar} ${loading ? styles.visible : ''}`} />
       {loading && !usage && (
         <div className={styles.loadingOverlay} aria-busy="true">
           <div className={styles.loadingOverlayContent}>
             <LoadingSpinner size={28} className={styles.loadingOverlaySpinner} />
-            <span className={styles.loadingOverlayText}>{t('common.loading')}</span>
+            <span className={styles.loadingOverlayTextHidden}>{t('common.loading')}</span>
           </div>
         </div>
       )}
@@ -300,7 +302,7 @@ export function UsagePage() {
             onClick={() => void loadUsage().catch(() => {})}
             disabled={loading || exporting || importing}
           >
-            {loading ? t('common.loading') : t('usage_stats.refresh')}
+            {loading ? '' : t('usage_stats.refresh')}
           </Button>
           <input
             ref={importInputRef}
@@ -318,6 +320,13 @@ export function UsagePage() {
       </div>
 
       {error && <div className={styles.errorBox}>{error}</div>}
+
+      {/* Summary Cards - Top 4 KPIs */}
+      <SummaryCards
+        usage={filteredUsage}
+        loading={loading}
+        modelPrices={modelPrices}
+      />
 
       {/* Stats Overview Cards */}
       <StatCards
@@ -356,6 +365,7 @@ export function UsagePage() {
           loading={loading}
           isMobile={isMobile}
           emptyText={t('usage_stats.no_data')}
+          isDark={isDark}
         />
         <UsageChart
           title={t('usage_stats.tokens_trend')}
@@ -366,6 +376,7 @@ export function UsagePage() {
           loading={loading}
           isMobile={isMobile}
           emptyText={t('usage_stats.no_data')}
+          isDark={isDark}
         />
       </div>
 
