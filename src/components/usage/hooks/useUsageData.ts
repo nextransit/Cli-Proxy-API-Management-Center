@@ -5,6 +5,8 @@ import { usageApi } from '@/services/api/usage';
 import { downloadBlob } from '@/utils/download';
 import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
 
+const AUTO_REFRESH_INTERVAL_MS = 30_000;
+
 export interface UsagePayload {
   total_requests?: number;
   success_count?: number;
@@ -51,6 +53,19 @@ export function useUsageData(): UseUsageDataReturn {
   useEffect(() => {
     void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
     setModelPrices(loadModelPrices());
+  }, [loadUsageStats]);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+      void loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
   }, [loadUsageStats]);
 
   const handleExport = async () => {

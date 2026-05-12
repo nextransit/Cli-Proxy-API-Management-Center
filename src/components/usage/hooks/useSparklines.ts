@@ -79,7 +79,11 @@ export function useSparklines({ usage, loading, nowMs }: UseSparklinesOptions): 
       color: string,
       backgroundColor: string
     ): SparklineBundle | null => {
-      if (loading || !series?.data?.length) {
+      // 只有在首次加载且没有数据时才返回 null，刷新时保留旧数据
+      if (!series?.data?.length && loading) {
+        return null;
+      }
+      if (!series?.data?.length) {
         return null;
       }
       const sliceStart = Math.max(series.data.length - 60, 0);
