@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/icons';
 import { useAuthStore, useConfigStore, useModelsStore } from '@/stores';
 import { apiKeysApi, providersApi, authFilesApi } from '@/services/api';
+import { formatDateOrFallback } from '@/utils/format';
 import styles from './DashboardPage.module.scss';
 
 interface QuickStat {
@@ -275,6 +276,7 @@ export function DashboardPage() {
     hour: '2-digit',
     minute: '2-digit'
   });
+  const formattedBuildDate = formatDateOrFallback(serverBuildDate, i18n.language);
 
   return (
     <div className={styles.dashboard}>
@@ -321,9 +323,9 @@ export function DashboardPage() {
                   )}
             </span>
           </div>
-          {serverBuildDate && (
+          {formattedBuildDate && (
             <span className={styles.buildDate}>
-              {new Date(serverBuildDate).toLocaleDateString(i18n.language)}
+              {formattedBuildDate}
             </span>
           )}
         </div>

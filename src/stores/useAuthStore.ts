@@ -1,12 +1,12 @@
 /**
- * 认证状态管理
- * 从原项目 src/modules/login.js 和 src/core/connection.js 迁移
+ * Authentication state store migrated from the original login and connection modules.
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthState, LoginCredentials, ConnectionStatus } from '@/types';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
+import { parseValidDate } from '@/utils/format';
 import { obfuscatedStorage } from '@/services/storage/secureStorage';
 import { apiClient } from '@/services/api/client';
 import { useConfigStore } from './useConfigStore';
@@ -18,7 +18,7 @@ interface AuthStoreState extends AuthState {
   connectionStatus: ConnectionStatus;
   connectionError: string | null;
 
-  // 操作
+  // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<boolean>;
@@ -32,7 +32,7 @@ let restoreSessionPromise: Promise<boolean> | null = null;
 export const useAuthStore = create<AuthStoreState>()(
   persist(
     (set, get) => ({
-      // 初始状态
+      // Initial state
       isAuthenticated: false,
       apiBase: '',
       managementKey: '',
@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthStoreState>()(
       connectionStatus: 'disconnected',
       connectionError: null,
 
-      // 恢复会话并自动登录
+      // Restore the session and auto-login when possible.
       restoreSession: () => {
         if (restoreSessionPromise) return restoreSessionPromise;
 
@@ -87,7 +87,7 @@ export const useAuthStore = create<AuthStoreState>()(
         return restoreSessionPromise;
       },
 
-      // 登录
+      // Login
       login: async (credentials) => {
         const apiBase = normalizeApiBase(credentials.apiBase);
         const managementKey = credentials.managementKey.trim();
@@ -97,16 +97,16 @@ export const useAuthStore = create<AuthStoreState>()(
           set({ connectionStatus: 'connecting' });
           useModelsStore.getState().clearCache();
 
-          // 配置 API 客户端
+          // Configure the API client.
           apiClient.setConfig({
             apiBase,
             managementKey
           });
 
-          // 测试连接 - 获取配置
+          // Test the connection by fetching config.
           await useConfigStore.getState().fetchConfig(undefined, true);
 
-          // 登录成功
+          // Login succeeded.
           set({
             isAuthenticated: true,
             apiBase,
@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthStoreState>()(
         }
       },
 
-      // 登出
+      // Logout
       logout: () => {
         restoreSessionPromise = null;
         useConfigStore.getState().clearCache();
@@ -153,7 +153,7 @@ export const useAuthStore = create<AuthStoreState>()(
         localStorage.removeItem('isLoggedIn');
       },
 
-      // 检查认证状态
+      // Check authentication status.
       checkAuth: async () => {
         const { managementKey, apiBase } = get();
 
@@ -162,10 +162,10 @@ export const useAuthStore = create<AuthStoreState>()(
         }
 
         try {
-          // 重新配置客户端
+          // Reconfigure the API client.
           apiClient.setConfig({ apiBase, managementKey });
 
-          // 验证连接
+          // Verify connection.
           await useConfigStore.getState().fetchConfig();
 
           set({
@@ -183,12 +183,13 @@ export const useAuthStore = create<AuthStoreState>()(
         }
       },
 
-      // 更新服务器版本
+      // Update server version metadata.
       updateServerVersion: (version, buildDate) => {
-        set({ serverVersion: version || null, serverBuildDate: buildDate || null });
+        const normalizedBuildDate = parseValidDate(buildDate)?.toISOString() ?? null;
+        set({ serverVersion: version || null, serverBuildDate: normalizedBuildDate });
       },
 
-      // 更新连接状态
+      // Update connection status.
       updateConnectionStatus: (status, error = null) => {
         set({
           connectionStatus: status,
@@ -221,7 +222,7 @@ export const useAuthStore = create<AuthStoreState>()(
   )
 );
 
-// 监听全局未授权事件
+// Listen for global unauthorized events.
 if (typeof window !== 'undefined') {
   window.addEventListener('unauthorized', () => {
     useAuthStore.getState().logout();

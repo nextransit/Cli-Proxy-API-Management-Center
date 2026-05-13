@@ -1,8 +1,7 @@
 import { parseTimestamp } from './timestamp';
 
 /**
- * 格式化工具函数
- * 从原项目 src/utils/string.js 迁移
+ * Formatting utilities migrated from the original string helpers.
  */
 
 const resolveDefaultLocale = (): string | undefined => {
@@ -13,8 +12,19 @@ const resolveDefaultLocale = (): string | undefined => {
   return fromNavigator || undefined;
 };
 
+export function parseValidDate(value: unknown): Date | null {
+  if (value === null || value === undefined) return null;
+
+  const date =
+    value instanceof Date
+      ? value
+      : parseTimestamp(value) ?? new Date(String(value));
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 /**
- * 隐藏 API Key 中间部分，仅保留前后两位
+ * Hide the middle part of an API key and keep only the first and last characters.
  */
 export function maskApiKey(key: string): string {
   const trimmed = String(key || '').trim();
@@ -33,7 +43,7 @@ export function maskApiKey(key: string): string {
 }
 
 /**
- * 格式化文件大小
+ * Format a byte count as a human-readable file size.
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
@@ -46,13 +56,13 @@ export function formatFileSize(bytes: number): string {
 }
 
 /**
- * 格式化日期时间
+ * Format a date and time value.
  */
 export function formatDateTime(date: string | Date, locale?: string): string {
   const d = typeof date === 'string' ? parseTimestamp(date) ?? new Date(date) : date;
 
   if (isNaN(d.getTime())) {
-    return 'Invalid Date';
+    return '';
   }
 
   const resolvedLocale = locale?.trim() || resolveDefaultLocale();
@@ -67,7 +77,44 @@ export function formatDateTime(date: string | Date, locale?: string): string {
 }
 
 /**
- * 将 Unix 时间戳（秒/毫秒/微秒/纳秒）格式化为本地时间字符串
+ * Format a date-like value and return an explicit fallback when the value is absent or invalid.
+ */
+export function formatDateTimeOrFallback(
+  value: unknown,
+  locale?: string,
+  fallback = '-'
+): string {
+  const date = parseValidDate(value);
+  if (!date) return fallback;
+
+  const resolvedLocale = locale?.trim() || resolveDefaultLocale();
+  return date.toLocaleString(resolvedLocale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+/**
+ * Format a date-like value as a calendar date and hide invalid build metadata.
+ */
+export function formatDateOrFallback(
+  value: unknown,
+  locale?: string,
+  fallback = ''
+): string {
+  const date = parseValidDate(value);
+  if (!date) return fallback;
+
+  const resolvedLocale = locale?.trim() || resolveDefaultLocale();
+  return date.toLocaleDateString(resolvedLocale);
+}
+
+/**
+ * Format Unix timestamps in seconds, milliseconds, microseconds, or nanoseconds.
  */
 export function formatUnixTimestamp(value: unknown, locale?: string): string {
   if (value === null || value === undefined || value === '') return '';
@@ -98,7 +145,7 @@ export function formatUnixTimestamp(value: unknown, locale?: string): string {
 }
 
 /**
- * 格式化数字（添加千位分隔符）
+ * Format a number with locale-aware grouping.
  */
 export function formatNumber(num: number, locale?: string): string {
   const resolvedLocale = locale?.trim() || resolveDefaultLocale();
@@ -106,7 +153,7 @@ export function formatNumber(num: number, locale?: string): string {
 }
 
 /**
- * 截断长文本
+ * Truncate long text and append an ellipsis.
  */
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) {

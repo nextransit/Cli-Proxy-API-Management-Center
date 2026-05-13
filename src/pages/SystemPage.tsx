@@ -18,6 +18,7 @@ import { configApi, versionApi } from '@/services/api';
 import { apiKeysApi, type APIKeyEntry, type APIKeyRuntimeEntry } from '@/services/api/apiKeys';
 import { classifyModels } from '@/utils/models';
 import { STORAGE_KEY_AUTH } from '@/utils/constants';
+import { formatDateTimeOrFallback } from '@/utils/format';
 import { INLINE_LOGO_JPEG } from '@/assets/logoInline';
 import iconGemini from '@/assets/icons/gemini.svg';
 import iconClaude from '@/assets/icons/claude.svg';
@@ -352,9 +353,11 @@ export function SystemPage() {
 
   const appVersion = __APP_VERSION__ || t('system_info.version_unknown');
   const apiVersion = auth.serverVersion || t('system_info.version_unknown');
-  const buildTime = auth.serverBuildDate
-    ? new Date(auth.serverBuildDate).toLocaleString(i18n.language)
-    : t('system_info.version_unknown');
+  const buildTime = formatDateTimeOrFallback(
+    auth.serverBuildDate,
+    i18n.language,
+    t('system_info.version_unknown')
+  );
 
   const getIconForCategory = (categoryId: string): string | null => {
     const iconEntry = MODEL_CATEGORY_ICONS[categoryId];

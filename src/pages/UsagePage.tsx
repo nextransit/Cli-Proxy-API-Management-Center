@@ -723,16 +723,24 @@ export function UsagePage() {
     () => credentialRows.filter((row) => row.requests > 0).slice(0, 3),
     [credentialRows]
   );
+  const isInitialLoading = loading && !usage;
+  const isRefreshing = loading && Boolean(usage);
 
   return (
-    <div className={loading ? (usage ? `${styles.container} ${styles.isFetching}` : `${styles.container}`) : styles.container}>
+    <div className={isRefreshing ? `${styles.container} ${styles.isFetching}` : styles.container}>
       <div className={`${styles.progressBar} ${loading ? styles.visible : ''}`} />
-      {loading && !usage && (
+      {isInitialLoading && (
         <div className={styles.loadingOverlay} aria-busy="true">
           <div className={styles.loadingOverlayContent}>
             <LoadingSpinner size={28} className={styles.loadingOverlaySpinner} />
             <span className={styles.loadingOverlayTextHidden}>{t('common.loading')}</span>
           </div>
+        </div>
+      )}
+      {isRefreshing && (
+        <div className={styles.refreshIndicator} aria-live="polite" aria-busy="true">
+          <LoadingSpinner size={14} className={styles.refreshIndicatorSpinner} />
+          <span>{t('usage_stats.refreshing_data')}</span>
         </div>
       )}
 
@@ -812,7 +820,7 @@ export function UsagePage() {
             size="sm"
             onClick={handleExport}
             loading={exporting}
-            disabled={loading || importing}
+            disabled={isInitialLoading || importing}
           >
             {t('usage_stats.export')}
           </Button>
@@ -821,7 +829,7 @@ export function UsagePage() {
             size="sm"
             onClick={handleImport}
             loading={importing}
-            disabled={loading || exporting}
+            disabled={isInitialLoading || exporting}
           >
             {t('usage_stats.import')}
           </Button>
@@ -829,8 +837,8 @@ export function UsagePage() {
             variant="secondary"
             size="sm"
             onClick={() => void loadUsage().catch(() => {})}
-            loading={loading}
-            disabled={loading || exporting || importing}
+            loading={isRefreshing}
+            disabled={isInitialLoading || exporting || importing}
           >
             {t('usage_stats.refresh')}
           </Button>
@@ -854,7 +862,7 @@ export function UsagePage() {
       <div className={styles.topStatusRow}>
         <ServiceHealthCard
           usage={usage}
-          loading={loading}
+          loading={isInitialLoading}
           collapsible={true}
           defaultCollapsed={true}
         />
@@ -863,7 +871,7 @@ export function UsagePage() {
       {/* Summary Cards - Top 4 KPIs */}
       <SummaryCards
         usage={scopedUsage}
-        loading={loading}
+        loading={isInitialLoading}
         modelPrices={modelPrices}
       />
 
@@ -885,7 +893,7 @@ export function UsagePage() {
           showPeriodControls={false}
           chartData={requestsChartData}
           chartOptions={requestsChartOptions}
-          loading={loading}
+          loading={isInitialLoading}
           isMobile={isMobile}
           isDark={isDark}
           emptyText={t('usage_stats.no_data')}
@@ -908,7 +916,7 @@ export function UsagePage() {
           showPeriodControls={false}
           chartData={tokensChartData}
           chartOptions={tokensChartOptions}
-          loading={loading}
+          loading={isInitialLoading}
           isMobile={isMobile}
           isDark={isDark}
           emptyText={t('usage_stats.no_data')}
@@ -920,7 +928,7 @@ export function UsagePage() {
           showPeriodControls={false}
           chartData={costChartData}
           chartOptions={costChartOptions}
-          loading={loading}
+          loading={isInitialLoading}
           isMobile={isMobile}
           isDark={isDark}
           emptyText={hasPrices ? t('usage_stats.cost_no_data') : t('usage_stats.cost_need_price')}
@@ -930,7 +938,7 @@ export function UsagePage() {
       {/* Request Events Details */}
       <RequestEventsDetailsCard
         usage={scopedUsage}
-        loading={loading}
+        loading={isInitialLoading}
         geminiKeys={config?.geminiApiKeys || []}
         claudeConfigs={config?.claudeApiKeys || []}
         codexConfigs={config?.codexApiKeys || []}
@@ -969,11 +977,11 @@ export function UsagePage() {
           </button>
         </div>
         {modelPanelTab === 'stats' ? (
-          <ModelStatsCard modelStats={modelStats} loading={loading} hasPrices={hasPrices} />
+          <ModelStatsCard modelStats={modelStats} loading={isInitialLoading} hasPrices={hasPrices} />
         ) : modelPanelTab === 'credentials' ? (
           <CredentialStatsCard
             usage={scopedUsage}
-            loading={loading}
+            loading={isInitialLoading}
             apiKeyEntries={clientApiKeys}
             modelPrices={modelPrices}
           />

@@ -6,12 +6,13 @@
   --usage-accent: #06b6d4;
   --usage-accent-soft: rgba(6, 182, 212, 0.13);
   --usage-accent-border: rgba(6, 182, 212, 0.4);
+  --usage-section-gap: 24px;
 
   width: 100%;
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--usage-section-gap);
   position: relative;
   padding: 6px 0 22px;
   isolation: isolate;
@@ -2715,6 +2716,40 @@
   }
 }
 
+.refreshIndicator {
+  position: sticky;
+  top: 10px;
+  z-index: 35;
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin: -8px 0 -14px auto;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--usage-accent) 28%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.refreshIndicatorSpinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  border-color: color-mix(in srgb, var(--usage-accent) 24%, transparent);
+  border-top-color: var(--usage-accent);
+}
+
 @keyframes progressShimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
@@ -2777,6 +2812,14 @@
   .skeleton {
     opacity: 0.7;
   }
+}
+
+:global([data-theme='white']) .refreshIndicator,
+:global([data-theme='light']) .refreshIndicator,
+:root:not([data-theme]) .refreshIndicator {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(6, 182, 212, 0.18);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
 }
 
 // 固定容器高度，防止布局塌陷
@@ -5832,7 +5875,7 @@ $navy-blue: #2A7B9B;
 }
 
 .topStatusRow {
-  margin-bottom: -8px;
+  margin-bottom: 0;
 
   :global(.card) {
     padding: 18px 20px;
@@ -6910,4 +6953,23 @@ $navy-blue: #2A7B9B;
     grid-template-columns: 1fr !important;
     overflow-x: visible;
   }
+}
+
+// Final page-level vertical rhythm. The usage page stacks sections with the
+// container gap, so direct section margins must not add uneven extra space.
+.container {
+  --usage-section-gap: 24px;
+  gap: var(--usage-section-gap) !important;
+}
+
+.container > .header,
+.container > .topStatusRow,
+.container > .summaryCards,
+.container > .statsGrid,
+.container > .chartsGrid,
+.container > .detailsGrid,
+.container > .modelPanel,
+.container > .healthCard,
+.container > :global(.card) {
+  margin-block: 0 !important;
 }

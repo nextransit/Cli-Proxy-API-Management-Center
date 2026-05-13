@@ -1078,7 +1078,8 @@
     "chart_granularity": "Гранулярность",
     "chart_granularity_all": "Все",
     "top_key": "TOP ключ",
-    "top_key_quick_filter": "Быстрый фильтр"
+    "top_key_quick_filter": "Быстрый фильтр",
+    "refreshing_data": "Обновление данных"
   },
   "stats": {
     "success": "Успех",

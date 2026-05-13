@@ -1107,7 +1107,8 @@
     "chart_granularity": "粒度",
     "chart_granularity_all": "全部",
     "top_key": "TOP 密鑰",
-    "top_key_quick_filter": "快速篩選"
+    "top_key_quick_filter": "快速篩選",
+    "refreshing_data": "正在更新資料"
   },
   "stats": {
     "success": "成功",
