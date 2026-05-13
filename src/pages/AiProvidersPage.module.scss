@@ -1236,9 +1236,9 @@ $openai-toolbar-control-height: 36px;
 // 表头
 .keyTableHeader {
   display: grid;
-  grid-template-columns: 46px 56px minmax(220px, 1.4fr) minmax(200px, 1.1fr) 180px;
+  grid-template-columns: 46px minmax(320px, 1fr) 120px 120px;
   gap: $spacing-sm;
-  min-width: 760px;
+  min-width: 700px;
   padding: 10px $spacing-md;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
@@ -1255,9 +1255,9 @@ $openai-toolbar-control-height: 36px;
 // 数据行
 .keyTableRow {
   display: grid;
-  grid-template-columns: 46px 56px minmax(220px, 1.4fr) minmax(200px, 1.1fr) 180px;
+  grid-template-columns: 46px minmax(320px, 1fr) 120px 120px;
   gap: $spacing-sm;
-  min-width: 760px;
+  min-width: 700px;
   padding: 10px $spacing-md;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -1432,5 +1432,94 @@ $openai-toolbar-control-height: 36px;
   .statusRateLow {
     background: rgba($error-color, 0.24);
     color: #f1b0a6;
+  }
+}
+
+// Codex Provider Cards
+.codexProviderList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.codexProviderCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.codexProviderMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.codexProviderTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.codexKeysSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.codexKeysLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.codexKeyList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.codexKeyEntryCard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.codexEntryActions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+// Dark theme overrides
+[data-theme='dark'] {
+  .codexProviderCard {
+    background: rgba(22, 27, 34, 0.6);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .codexProviderTitle {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .codexKeysSection {
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .codexKeyEntryCard {
+    background: rgba(22, 27, 34, 0.4);
+    border-color: rgba(255, 255, 255, 0.04);
   }
 }

@@ -26,8 +26,12 @@ import styles from './AiProvidersPage.module.scss';
 
 type LocationState = { fromAiProviders?: boolean } | null;
 
-const buildEmptyForm = (): ProviderFormState => ({
-  apiKey: '',
+interface CodexEditFormState extends Omit<ProviderFormState, 'apiKey'> {
+  apiKeys: string[];
+}
+
+const buildEmptyForm = (): CodexEditFormState => ({
+  apiKeys: [''],
   priority: undefined,
   prefix: '',
   baseUrl: '',
@@ -65,7 +69,7 @@ const normalizeModelEntries = (entries: Array<{ name: string; alias: string }>) 
   }, []);
 
 type CodexFormBaseline = {
-  apiKey: string;
+  apiKeys: string[];
   priority: number | null;
   prefix: string;
   baseUrl: string;
@@ -76,8 +80,8 @@ type CodexFormBaseline = {
   excludedModels: string[];
 };
 
-const buildCodexBaseline = (form: ProviderFormState): CodexFormBaseline => ({
-  apiKey: String(form.apiKey ?? '').trim(),
+const buildCodexBaseline = (form: CodexEditFormState): CodexFormBaseline => ({
+  apiKeys: form.apiKeys.map((k) => k.trim()),
   priority:
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
@@ -107,7 +111,7 @@ export function AiProvidersCodexEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState<ProviderFormState>(() => buildEmptyForm());
+  const [form, setForm] = useState<CodexEditFormState>(() => buildEmptyForm());
   const [baseline, setBaseline] = useState(() => buildCodexBaseline(buildEmptyForm()));
 
   const [modelDiscoveryOpen, setModelDiscoveryOpen] = useState(false);
@@ -186,12 +190,13 @@ export function AiProvidersCodexEditPage() {
     if (loading) return;
 
     if (initialData) {
-      const nextForm: ProviderFormState = {
+      const nextForm: CodexEditFormState = {
         ...initialData,
         websockets: Boolean(initialData.websockets),
         headers: headersToEntries(initialData.headers),
         modelEntries: modelsToEntries(initialData.models),
         excludedText: excludedModelsToText(initialData.excludedModels),
+        apiKeys: [initialData.apiKey],
       };
       setForm(nextForm);
       setBaseline(buildCodexBaseline(nextForm));
@@ -228,8 +233,17 @@ export function AiProvidersCodexEditPage() {
     () => !areStringArraysEqual(baseline.excludedModels, normalizedExcludedModels),
     [baseline.excludedModels, normalizedExcludedModels]
   );
+  const isApiKeysDirty = useMemo(
+    () => {
+      const baselineKeys = baseline.apiKeys;
+      const formKeys = form.apiKeys.map((k) => k.trim());
+      if (baselineKeys.length !== formKeys.length) return true;
+      return baselineKeys.some((k, i) => k !== formKeys[i]);
+    },
+    [baseline.apiKeys, form.apiKeys]
+  );
   const isDirty =
-    baseline.apiKey !== form.apiKey.trim() ||
+    isApiKeysDirty ||
     baseline.priority !== normalizedPriority ||
     baseline.prefix !== String(form.prefix ?? '').trim() ||
     baseline.baseUrl !== String(form.baseUrl ?? '').trim() ||
@@ -325,7 +339,7 @@ export function AiProvidersCodexEditPage() {
       const hasCustomAuthorization = Object.keys(headerObject).some(
         (key) => key.toLowerCase() === 'authorization'
       );
-      const apiKey = form.apiKey.trim() || undefined;
+      const apiKey = form.apiKeys[0]?.trim() || undefined;
       const list = await modelsApi.fetchV1ModelsViaApiCall(
         form.baseUrl ?? '',
         hasCustomAuthorization ? undefined : apiKey,
@@ -343,7 +357,7 @@ export function AiProvidersCodexEditPage() {
         setModelDiscoveryFetching(false);
       }
     }
-  }, [form.apiKey, form.baseUrl, form.headers, t]);
+  }, [form.apiKeys, form.baseUrl, form.headers, t]);
 
   useEffect(() => {
     if (!modelDiscoveryOpen) {
@@ -366,7 +380,7 @@ export function AiProvidersCodexEditPage() {
     const hasCustomAuthorization = Object.keys(headerObject).some(
       (key) => key.toLowerCase() === 'authorization'
     );
-    const hasApiKeyField = Boolean(form.apiKey.trim());
+    const hasApiKeyField = Boolean(form.apiKeys[0]?.trim());
     const canAutoFetch = hasApiKeyField || hasCustomAuthorization;
 
     if (!canAutoFetch) return;
@@ -375,12 +389,12 @@ export function AiProvidersCodexEditPage() {
       .sort(([a], [b]) => a.toLowerCase().localeCompare(b.toLowerCase()))
       .map(([key, value]) => `${key}:${value}`)
       .join('|');
-    const signature = `${nextEndpoint}||${form.apiKey.trim()}||${headerSignature}`;
+    const signature = `${nextEndpoint}||${form.apiKeys[0]?.trim() || ''}||${headerSignature}`;
     if (autoFetchSignatureRef.current === signature) return;
     autoFetchSignatureRef.current = signature;
 
     void fetchCodexModelDiscovery();
-  }, [fetchCodexModelDiscovery, form.apiKey, form.baseUrl, form.headers, modelDiscoveryOpen]);
+  }, [fetchCodexModelDiscovery, form.apiKeys, form.baseUrl, form.headers, modelDiscoveryOpen]);
 
   useEffect(() => {
     const availableNames = new Set(discoveredModels.map((model) => model.name));
@@ -442,11 +456,17 @@ export function AiProvidersCodexEditPage() {
       return;
     }
 
+    const validApiKeys = form.apiKeys.filter((k) => k.trim());
+    if (validApiKeys.length === 0) {
+      showNotification(t('notification.codex_api_key_required'), 'error');
+      return;
+    }
+
     setSaving(true);
     setError('');
     try {
-      const payload: ProviderKeyConfig = {
-        apiKey: form.apiKey.trim(),
+      // Build shared config properties
+      const sharedConfig = {
         priority: form.priority !== undefined ? Math.trunc(form.priority) : undefined,
         prefix: form.prefix?.trim() || undefined,
         baseUrl,
@@ -457,10 +477,34 @@ export function AiProvidersCodexEditPage() {
         excludedModels: parseExcludedModels(form.excludedText),
       };
 
-      const nextList =
-        editIndex !== null
-          ? configs.map((item, idx) => (idx === editIndex ? payload : item))
-          : [...configs, payload];
+      // Create one config per API key
+      const newConfigs: ProviderKeyConfig[] = validApiKeys.map((apiKey) => ({
+        apiKey: apiKey.trim(),
+        ...sharedConfig,
+      }));
+
+      let nextList: ProviderKeyConfig[];
+      if (editIndex !== null) {
+        // Find the range of configs with the same baseUrl starting at editIndex
+        const editBaseUrl = configs[editIndex]?.baseUrl || '';
+        let endIndex = editIndex;
+        for (let i = editIndex + 1; i < configs.length; i++) {
+          if (configs[i].baseUrl === editBaseUrl) {
+            endIndex = i;
+          } else {
+            break;
+          }
+        }
+        // Replace the range with new configs
+        nextList = [
+          ...configs.slice(0, editIndex),
+          ...newConfigs,
+          ...configs.slice(endIndex + 1),
+        ];
+      } else {
+        // Adding new configs
+        nextList = [...configs, ...newConfigs];
+      }
 
       await providersApi.saveCodexConfigs(nextList);
       updateConfigValue('codex-api-key', nextList);
@@ -544,12 +588,73 @@ export function AiProvidersCodexEditPage() {
           <div className="hint">{t('common.invalid_provider_index')}</div>
         ) : (
           <>
-            <Input
-              label={t('ai_providers.codex_add_modal_key_label')}
-              value={form.apiKey}
-              onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
-              disabled={disableControls || saving}
-            />
+            <div className={styles.keyEntriesSection}>
+              <div className={styles.keyEntriesHeader}>
+                <label className={styles.keyEntriesTitle}>{t('ai_providers.codex_add_modal_keys_label')}</label>
+                <span className={styles.keyEntriesHint}>{t('ai_providers.codex_keys_hint')}</span>
+              </div>
+              <div className={styles.keyEntriesList}>
+                <div className={styles.keyEntriesToolbar}>
+                  <span className={styles.keyEntriesCount}>
+                    {t('ai_providers.codex_keys_count')}: {form.apiKeys.length}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }))}
+                    disabled={saving || disableControls}
+                    className={styles.addKeyButton}
+                  >
+                    {t('ai_providers.codex_keys_add_btn')}
+                  </Button>
+                </div>
+                <div className={styles.keyTableShell}>
+                  <div className={styles.keyTableHeader}>
+                    <div className={styles.keyTableColIndex}>#</div>
+                    <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
+                    <div className={styles.keyTableColProxy}>{t('common.proxy_url')}</div>
+                    <div className={styles.keyTableColAction}>{t('common.action')}</div>
+                  </div>
+                  {form.apiKeys.map((apiKey, index) => (
+                    <div key={index} className={styles.keyTableRow}>
+                      <div className={styles.keyTableColIndex}>{index + 1}</div>
+                      <div className={styles.keyTableColKey}>
+                        <input
+                          type="text"
+                          value={apiKey}
+                          onChange={(e) => {
+                            const newKeys = [...form.apiKeys];
+                            newKeys[index] = e.target.value;
+                            setForm((prev) => ({ ...prev, apiKeys: newKeys }));
+                          }}
+                          disabled={saving || disableControls}
+                          className={`input ${styles.keyTableInput}`}
+                          placeholder={t('ai_providers.codex_add_modal_key_placeholder')}
+                        />
+                      </div>
+                      <div className={styles.keyTableColProxy}>
+                        <span className={styles.keyTableProxyHint}>
+                          {t('ai_providers.codex_keys_same_proxy_hint')}
+                        </span>
+                      </div>
+                      <div className={styles.keyTableColAction}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newKeys = form.apiKeys.filter((_, i) => i !== index);
+                            setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
+                          }}
+                          disabled={saving || disableControls || form.apiKeys.length <= 1}
+                        >
+                          {t('common.delete')}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             <Input
               label={t('ai_providers.priority_label')}
               hint={t('ai_providers.priority_hint')}

@@ -1,20 +1,15 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { IconChevronDown, IconChevronUp } from '@/components/ui/icons';
+import { IconCheck, IconChevronDown, IconChevronUp, IconX } from '@/components/ui/icons';
 import iconCodex from '@/assets/icons/codex.svg';
 import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
-import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
+import { type KeyStats } from '@/utils/usage';
 import styles from '@/pages/AiProvidersPage.module.scss';
-import { ProviderList } from '../ProviderList';
-import { ProviderStatusBar } from '../ProviderStatusBar';
 import {
-  collectUsageDetailsForIdentity,
-  getProviderConfigKey,
   getStatsForIdentity,
   hasDisableAllModelsRule,
 } from '../utils';
@@ -22,8 +17,6 @@ import {
 interface CodexSectionProps {
   configs: ProviderKeyConfig[];
   keyStats: KeyStats;
-  usageDetailsBySource: UsageDetailsBySource;
-  usageDetailsByAuthIndex: UsageDetailsByAuthIndex;
   loading: boolean;
   disableControls: boolean;
   isSwitching: boolean;
@@ -33,11 +26,14 @@ interface CodexSectionProps {
   onToggle: (index: number, enabled: boolean) => void;
 }
 
+interface GroupedConfigs {
+  baseUrl: string;
+  items: Array<{ config: ProviderKeyConfig; index: number }>;
+}
+
 export function CodexSection({
   configs,
   keyStats,
-  usageDetailsBySource,
-  usageDetailsByAuthIndex,
   loading,
   disableControls,
   isSwitching,
@@ -51,26 +47,184 @@ export function CodexSection({
   const actionsDisabled = disableControls || loading || isSwitching;
   const toggleDisabled = disableControls || loading || isSwitching;
 
-  const statusBarCache = useMemo(() => {
-    const cache = new Map<string, ReturnType<typeof calculateStatusBarData>>();
+  // Group configs by baseUrl
+  const groupedConfigs = useMemo<GroupedConfigs[]>(() => {
+    const groups = new Map<string, Array<{ config: ProviderKeyConfig; index: number }>>();
 
     configs.forEach((config, index) => {
-      if (!config.apiKey) return;
-      const configKey = getProviderConfigKey(config, index);
-      cache.set(
-        configKey,
-        calculateStatusBarData(
-          collectUsageDetailsForIdentity(
-            { authIndex: config.authIndex, apiKey: config.apiKey, prefix: config.prefix },
-            usageDetailsBySource,
-            usageDetailsByAuthIndex
-          )
-        )
-      );
+      const baseUrl = config.baseUrl || '';
+      if (!groups.has(baseUrl)) {
+        groups.set(baseUrl, []);
+      }
+      groups.get(baseUrl)!.push({ config, index });
     });
 
-    return cache;
-  }, [configs, usageDetailsByAuthIndex, usageDetailsBySource]);
+    return Array.from(groups.entries()).map(([baseUrl, items]) => ({
+      baseUrl,
+      items,
+    }));
+  }, [configs]);
+
+  const renderProviderCard = ({ config, index }: { config: ProviderKeyConfig; index: number }) => {
+    const stats = getStatsForIdentity(
+      { authIndex: config.authIndex, apiKey: config.apiKey, prefix: config.prefix },
+      keyStats
+    );
+    const configDisabled = hasDisableAllModelsRule(config.excludedModels);
+
+    return (
+      <div
+        key={`codex-entry-${index}`}
+        className={styles.codexKeyEntryCard}
+        style={actionsDisabled ? { opacity: 0.6 } : undefined}
+      >
+        <span className={styles.apiKeyEntryIndex}>{index + 1}</span>
+        <span className={styles.apiKeyEntryKey}>{maskApiKey(config.apiKey)}</span>
+        {config.proxyUrl && (
+          <span className={styles.apiKeyEntryProxy}>{config.proxyUrl}</span>
+        )}
+        <div className={styles.apiKeyEntryStats}>
+          <span className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatSuccess}`}>
+            <IconCheck size={12} /> {stats.success}
+          </span>
+          <span className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatFailure}`}>
+            <IconX size={12} /> {stats.failure}
+          </span>
+        </div>
+        <div className={styles.codexEntryActions}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onEdit(index)}
+            disabled={actionsDisabled}
+          >
+            {t('common.edit')}
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => onDelete(index)}
+            disabled={actionsDisabled}
+          >
+            {t('common.delete')}
+          </Button>
+          <ToggleSwitch
+            label={t('ai_providers.config_toggle_label')}
+            checked={!configDisabled}
+            disabled={toggleDisabled}
+            onChange={(value) => void onToggle(index, value)}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderGroupedCard = (group: GroupedConfigs) => {
+    const firstConfig = group.items[0]?.config;
+    if (!firstConfig) return null;
+
+    const headerEntries = Object.entries(firstConfig.headers || {});
+    const configDisabled = hasDisableAllModelsRule(firstConfig.excludedModels);
+    const excludedModels = firstConfig.excludedModels ?? [];
+    const isGroupDisabled = configDisabled;
+
+    return (
+      <div
+        key={`codex-group-${group.baseUrl || 'default'}`}
+        className={styles.codexProviderCard}
+        style={actionsDisabled ? { opacity: 0.6 } : undefined}
+      >
+        <div className={styles.codexProviderMeta}>
+          <div className={styles.codexProviderTitle}>
+            {group.baseUrl || t('ai_providers.codex_default_base')}
+          </div>
+          {firstConfig.priority !== undefined && (
+            <div className={styles.fieldRow}>
+              <span className={styles.fieldLabel}>{t('common.priority')}:</span>
+              <span className={styles.fieldValue}>{firstConfig.priority}</span>
+            </div>
+          )}
+          {firstConfig.prefix && (
+            <div className={styles.fieldRow}>
+              <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
+              <span className={styles.fieldValue}>{firstConfig.prefix}</span>
+            </div>
+          )}
+          <div className={styles.fieldRow}>
+            <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
+            <span className={styles.fieldValue}>{group.baseUrl || '-'}</span>
+          </div>
+          {firstConfig.proxyUrl && (
+            <div className={styles.fieldRow}>
+              <span className={styles.fieldLabel}>{t('common.proxy_url')}:</span>
+              <span className={styles.fieldValue}>{firstConfig.proxyUrl}</span>
+            </div>
+          )}
+          {firstConfig.websockets !== undefined && (
+            <div className={styles.fieldRow}>
+              <span className={styles.fieldLabel}>{t('ai_providers.codex_websockets_label')}:</span>
+              <span className={styles.fieldValue}>
+                {firstConfig.websockets ? t('common.yes') : t('common.no')}
+              </span>
+            </div>
+          )}
+          {isGroupDisabled && (
+            <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
+              {t('ai_providers.config_disabled_badge')}
+            </div>
+          )}
+          {headerEntries.length > 0 && (
+            <div className={styles.headerBadgeList}>
+              {headerEntries.map(([key, value]) => (
+                <span key={key} className={styles.headerBadge}>
+                  <strong>{key}:</strong> {value}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={styles.codexKeysSection}>
+          <div className={styles.codexKeysLabel}>
+            {t('ai_providers.codex_keys_count')}: {group.items.length}
+          </div>
+          <div className={styles.codexKeyList}>
+            {group.items.map(({ config, index }) => renderProviderCard({ config, index }))}
+          </div>
+        </div>
+
+        {firstConfig.models?.length ? (
+          <div className={styles.modelTagList}>
+            <span className={styles.modelCountLabel}>
+              {t('ai_providers.codex_models_count')}: {firstConfig.models.length}
+            </span>
+            {firstConfig.models.map((model) => (
+              <span key={model.name} className={styles.modelTag}>
+                <span className={styles.modelName}>{model.name}</span>
+                {model.alias && model.alias !== model.name && (
+                  <span className={styles.modelAlias}>{model.alias}</span>
+                )}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {excludedModels.length ? (
+          <div className={styles.excludedModelsSection}>
+            <div className={styles.excludedModelsLabel}>
+              {t('ai_providers.excluded_models_count', { count: excludedModels.length })}
+            </div>
+            <div className={styles.modelTagList}>
+              {excludedModels.map((model) => (
+                <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
+                  <span className={styles.modelName}>{model}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -105,130 +259,13 @@ export function CodexSection({
           </div>
         }
       >
-        {!collapsed && (
-          <ProviderList<ProviderKeyConfig>
-            items={configs}
-            loading={loading}
-            keyField={(item, index) => getProviderConfigKey(item, index)}
-            emptyTitle={t('ai_providers.codex_empty_title')}
-            emptyDescription={t('ai_providers.codex_empty_desc')}
-            onEdit={(_, index) => onEdit(index)}
-            onDelete={(_, index) => onDelete(index)}
-            actionsDisabled={actionsDisabled}
-            getRowDisabled={(item) => hasDisableAllModelsRule(item.excludedModels)}
-            renderExtraActions={(item, index) => (
-              <ToggleSwitch
-                label={t('ai_providers.config_toggle_label')}
-                checked={!hasDisableAllModelsRule(item.excludedModels)}
-                disabled={toggleDisabled}
-                onChange={(value) => void onToggle(index, value)}
-              />
-            )}
-            renderContent={(item, index) => {
-              const stats = getStatsForIdentity(
-                { authIndex: item.authIndex, apiKey: item.apiKey, prefix: item.prefix },
-                keyStats
-              );
-              const headerEntries = Object.entries(item.headers || {});
-              const configDisabled = hasDisableAllModelsRule(item.excludedModels);
-              const excludedModels = item.excludedModels ?? [];
-              const statusData =
-                statusBarCache.get(getProviderConfigKey(item, index)) || calculateStatusBarData([]);
-
-              return (
-                <Fragment>
-                  <div className="item-title">{t('ai_providers.codex_item_title')}</div>
-                  <div className={styles.fieldRow}>
-                    <span className={styles.fieldLabel}>{t('common.api_key')}:</span>
-                    <span className={styles.fieldValue}>{maskApiKey(item.apiKey)}</span>
-                  </div>
-                  {item.priority !== undefined && (
-                    <div className={styles.fieldRow}>
-                      <span className={styles.fieldLabel}>{t('common.priority')}:</span>
-                      <span className={styles.fieldValue}>{item.priority}</span>
-                    </div>
-                  )}
-                  {item.prefix && (
-                    <div className={styles.fieldRow}>
-                      <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
-                      <span className={styles.fieldValue}>{item.prefix}</span>
-                    </div>
-                  )}
-                  {item.baseUrl && (
-                    <div className={styles.fieldRow}>
-                      <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
-                      <span className={styles.fieldValue}>{item.baseUrl}</span>
-                    </div>
-                  )}
-                  {item.proxyUrl && (
-                    <div className={styles.fieldRow}>
-                      <span className={styles.fieldLabel}>{t('common.proxy_url')}:</span>
-                      <span className={styles.fieldValue}>{item.proxyUrl}</span>
-                    </div>
-                  )}
-                  {item.websockets !== undefined && (
-                    <div className={styles.fieldRow}>
-                      <span className={styles.fieldLabel}>{t('ai_providers.codex_websockets_label')}:</span>
-                      <span className={styles.fieldValue}>{item.websockets ? t('common.yes') : t('common.no')}</span>
-                    </div>
-                  )}
-                  {headerEntries.length > 0 && (
-                    <div className={styles.headerBadgeList}>
-                      {headerEntries.map(([key, value]) => (
-                        <span key={key} className={styles.headerBadge}>
-                          <strong>{key}:</strong> {value}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {configDisabled && (
-                    <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
-                      {t('ai_providers.config_disabled_badge')}
-                    </div>
-                  )}
-                  {item.models?.length ? (
-                    <div className={styles.modelTagList}>
-                      <span className={styles.modelCountLabel}>
-                        {t('ai_providers.codex_models_count')}: {item.models.length}
-                      </span>
-                      {item.models.map((model) => (
-                        <span key={model.name} className={styles.modelTag}>
-                          <span className={styles.modelName}>{model.name}</span>
-                          {model.alias && model.alias !== model.name && (
-                            <span className={styles.modelAlias}>{model.alias}</span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {excludedModels.length ? (
-                    <div className={styles.excludedModelsSection}>
-                      <div className={styles.excludedModelsLabel}>
-                        {t('ai_providers.excluded_models_count', { count: excludedModels.length })}
-                      </div>
-                      <div className={styles.modelTagList}>
-                        {excludedModels.map((model) => (
-                          <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
-                            <span className={styles.modelName}>{model}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className={styles.cardStats}>
-                    <span className={`${styles.statPill} ${styles.statSuccess}`}>
-                      {t('stats.success')}: {stats.success}
-                    </span>
-                    <span className={`${styles.statPill} ${styles.statFailure}`}>
-                      {t('stats.failure')}: {stats.failure}
-                    </span>
-                  </div>
-                  <ProviderStatusBar statusData={statusData} />
-                </Fragment>
-              );
-            }}
-          />
-        )}
+        {!collapsed && (configs.length === 0 ? (
+          <div className="hint">{t('ai_providers.codex_empty_title')}</div>
+        ) : (
+          <div className={styles.codexProviderList}>
+            {groupedConfigs.map(renderGroupedCard)}
+          </div>
+        ))}
       </Card>
     </>
   );

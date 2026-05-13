@@ -65,7 +65,7 @@ export function AiProvidersClaudeModelsPage() {
     try {
       const list = await modelsApi.fetchClaudeModelsViaApiCall(
         form.baseUrl ?? '',
-        form.apiKey.trim() || undefined,
+        form.apiKeys[0]?.trim() || undefined,
         headerObject
       );
       setModels(list);
@@ -81,7 +81,7 @@ export function AiProvidersClaudeModelsPage() {
       const shouldAttachDiag =
         message.toLowerCase().includes('x-api-key') || message.includes('401');
       const diag = shouldAttachDiag
-        ? ` [diag: apiKeyField=${form.apiKey.trim() ? 'yes' : 'no'}, customXApiKey=${
+        ? ` [diag: apiKeyField=${form.apiKeys[0]?.trim() ? 'yes' : 'no'}, customXApiKey=${
             hasCustomXApiKey ? 'yes' : 'no'
           }, customAuthorization=${hasAuthorization ? 'yes' : 'no'}]`
         : '';
@@ -89,7 +89,7 @@ export function AiProvidersClaudeModelsPage() {
     } finally {
       setFetching(false);
     }
-  }, [form.apiKey, form.baseUrl, form.headers, t]);
+  }, [form.apiKeys, form.baseUrl, form.headers, t]);
 
   useEffect(() => {
     if (initialLoading) return;
@@ -108,7 +108,7 @@ export function AiProvidersClaudeModelsPage() {
     const hasAuthorization = Object.keys(headerObject).some(
       (key) => key.toLowerCase() === 'authorization'
     );
-    const hasApiKeyField = Boolean(form.apiKey.trim());
+    const hasApiKeyField = Boolean(form.apiKeys[0]?.trim());
     const canAutoFetch = hasApiKeyField || hasCustomXApiKey || hasAuthorization;
 
     // Avoid firing a guaranteed 401 on initial render (common while the parent form is still
@@ -119,12 +119,12 @@ export function AiProvidersClaudeModelsPage() {
       .sort(([a], [b]) => a.toLowerCase().localeCompare(b.toLowerCase()))
       .map(([key, value]) => `${key}:${value}`)
       .join('|');
-    const signature = `${nextEndpoint}||${form.apiKey.trim()}||${headerSignature}`;
+    const signature = `${nextEndpoint}||${form.apiKeys[0]?.trim() || ''}||${headerSignature}`;
     if (autoFetchSignatureRef.current === signature) return;
     autoFetchSignatureRef.current = signature;
 
     void fetchClaudeModelDiscovery();
-  }, [fetchClaudeModelDiscovery, form.apiKey, form.baseUrl, form.headers, initialLoading]);
+  }, [fetchClaudeModelDiscovery, form.apiKeys, form.baseUrl, form.headers, initialLoading]);
 
   useEffect(() => {
     const availableNames = new Set(models.map((model) => model.name));

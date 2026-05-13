@@ -7,12 +7,12 @@ import { providersApi } from '@/services/api';
 import { useAuthStore, useClaudeEditDraftStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { ProviderKeyConfig } from '@/types';
 import type { ModelInfo } from '@/utils/models';
-import type { ModelEntry, ProviderFormState } from '@/components/providers/types';
+import type { ModelEntry } from '@/components/providers/types';
 import { buildHeaderObject, headersToEntries, normalizeHeaderEntries } from '@/utils/headers';
 import { areKeyValueEntriesEqual, areModelEntriesEqual, areStringArraysEqual } from '@/utils/compare';
 import { excludedModelsToText, parseExcludedModels } from '@/components/providers/utils';
 import { modelsToEntries } from '@/components/ui/modelInputListUtils';
-import type { ClaudeEditBaseline } from '@/stores/useClaudeEditDraftStore';
+import type { ClaudeEditBaseline, ClaudeEditFormState } from '@/stores/useClaudeEditDraftStore';
 
 type LocationState = { fromAiProviders?: boolean } | null;
 
@@ -26,8 +26,8 @@ export type ClaudeEditOutletContext = {
   disableControls: boolean;
   loading: boolean;
   saving: boolean;
-  form: ProviderFormState;
-  setForm: Dispatch<SetStateAction<ProviderFormState>>;
+  form: ClaudeEditFormState;
+  setForm: Dispatch<SetStateAction<ClaudeEditFormState>>;
   testModel: string;
   setTestModel: Dispatch<SetStateAction<string>>;
   testStatus: TestStatus;
@@ -40,8 +40,8 @@ export type ClaudeEditOutletContext = {
   mergeDiscoveredModels: (selectedModels: ModelInfo[]) => void;
 };
 
-const buildEmptyForm = (): ProviderFormState => ({
-  apiKey: '',
+const buildEmptyForm = (): ClaudeEditFormState => ({
+  apiKeys: [''],
   priority: undefined,
   prefix: '',
   baseUrl: '',
@@ -77,7 +77,7 @@ const normalizeClaudeModelEntries = (entries: Array<{ name: string; alias: strin
     return acc;
   }, []);
 
-const normalizeCloakConfig = (cloak: ProviderFormState['cloak']) => {
+const normalizeCloakConfig = (cloak: ClaudeEditFormState['cloak']) => {
   if (!cloak) return null;
   const mode = String(cloak.mode ?? '').trim().toLowerCase() || 'auto';
   const strictMode = Boolean(cloak.strictMode);
@@ -91,8 +91,8 @@ const normalizeCloakConfig = (cloak: ProviderFormState['cloak']) => {
   };
 };
 
-const buildClaudeBaseline = (form: ProviderFormState): ClaudeEditBaseline => ({
-  apiKey: String(form.apiKey ?? '').trim(),
+const buildClaudeBaseline = (form: ClaudeEditFormState): ClaudeEditBaseline => ({
+  apiKeys: form.apiKeys.map((k) => k.trim()),
   priority:
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
@@ -159,7 +159,7 @@ export function AiProvidersClaudeEditLayout() {
   const testStatus = draft?.testStatus ?? 'idle';
   const testMessage = draft?.testMessage ?? '';
 
-  const setForm: Dispatch<SetStateAction<ProviderFormState>> = useCallback(
+  const setForm: Dispatch<SetStateAction<ClaudeEditFormState>> = useCallback(
     (action) => {
       setDraftForm(draftKey, action);
     },
@@ -245,11 +245,12 @@ export function AiProvidersClaudeEditLayout() {
     if (draft?.initialized) return;
 
     if (initialData) {
-      const seededForm: ProviderFormState = {
+      const seededForm: ClaudeEditFormState = {
         ...initialData,
         headers: headersToEntries(initialData.headers),
         modelEntries: modelsToEntries(initialData.models),
         excludedText: excludedModelsToText(initialData.excludedModels),
+        apiKeys: [initialData.apiKey],
       };
       const available = seededForm.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
       const baseline = buildClaudeBaseline(seededForm);
@@ -306,10 +307,17 @@ export function AiProvidersClaudeEditLayout() {
     if (!baseline) return false;
     return !areCloakConfigsEqual(baseline.cloak, normalizedCloak);
   }, [baseline, normalizedCloak]);
+  const isApiKeysDirty = useMemo(() => {
+    if (!baseline) return false;
+    const baselineKeys = baseline.apiKeys;
+    const formKeys = form.apiKeys.map((k) => k.trim());
+    if (baselineKeys.length !== formKeys.length) return true;
+    return baselineKeys.some((k, i) => k !== formKeys[i]);
+  }, [baseline, form.apiKeys]);
   const isDirty =
     Boolean(draft?.initialized) &&
     baseline !== null &&
-    (baseline.apiKey !== form.apiKey.trim() ||
+    (isApiKeysDirty ||
       baseline.priority !== normalizedPriority ||
       baseline.prefix !== String(form.prefix ?? '').trim() ||
       baseline.baseUrl !== String(form.baseUrl ?? '').trim() ||
@@ -401,10 +409,16 @@ export function AiProvidersClaudeEditLayout() {
       !disableControls && !saving && !resolvedLoading && !invalidIndexParam && !invalidIndex;
     if (!canSave) return;
 
+    const validApiKeys = form.apiKeys.filter((k) => k.trim());
+    if (validApiKeys.length === 0) {
+      showNotification(t('notification.claude_api_key_required'), 'error');
+      return;
+    }
+
     setSaving(true);
     try {
-      const payload: ProviderKeyConfig = {
-        apiKey: form.apiKey.trim(),
+      // Build shared config properties
+      const sharedConfig = {
         priority: form.priority !== undefined ? Math.trunc(form.priority) : undefined,
         prefix: form.prefix?.trim() || undefined,
         baseUrl: (form.baseUrl ?? '').trim() || undefined,
@@ -422,10 +436,34 @@ export function AiProvidersClaudeEditLayout() {
         cloak: form.cloak,
       };
 
-      const nextList =
-        editIndex !== null
-          ? configs.map((item, idx) => (idx === editIndex ? payload : item))
-          : [...configs, payload];
+      // Create one config per API key
+      const newConfigs: ProviderKeyConfig[] = validApiKeys.map((apiKey) => ({
+        apiKey: apiKey.trim(),
+        ...sharedConfig,
+      }));
+
+      let nextList: ProviderKeyConfig[];
+      if (editIndex !== null) {
+        // Find the range of configs with the same baseUrl starting at editIndex
+        const editBaseUrl = configs[editIndex]?.baseUrl || '';
+        let endIndex = editIndex;
+        for (let i = editIndex + 1; i < configs.length; i++) {
+          if (configs[i].baseUrl === editBaseUrl) {
+            endIndex = i;
+          } else {
+            break;
+          }
+        }
+        // Replace the range with new configs
+        nextList = [
+          ...configs.slice(0, editIndex),
+          ...newConfigs,
+          ...configs.slice(endIndex + 1),
+        ];
+      } else {
+        // Adding new configs
+        nextList = [...configs, ...newConfigs];
+      }
 
       await providersApi.saveClaudeConfigs(nextList);
       setConfigs(nextList);

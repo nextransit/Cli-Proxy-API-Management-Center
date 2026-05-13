@@ -11,6 +11,7 @@
 import type { SetStateAction } from 'react';
 import { create } from 'zustand';
 import type { ProviderFormState } from '@/components/providers/types';
+import type { CloakConfig } from '@/types';
 
 export type ClaudeTestStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -20,8 +21,14 @@ export type ClaudeCloakBaseline = {
   sensitiveWords: string[] | null;
 } | null;
 
+// Extended form state that supports multiple API keys
+export type ClaudeEditFormState = Omit<ProviderFormState, 'apiKey'> & {
+  apiKeys: string[];
+  cloak?: CloakConfig;
+};
+
 export type ClaudeEditBaseline = {
-  apiKey: string;
+  apiKeys: string[];
   priority: number | null;
   prefix: string;
   baseUrl: string;
@@ -35,7 +42,7 @@ export type ClaudeEditBaseline = {
 type ClaudeEditDraft = {
   initialized: boolean;
   baseline: ClaudeEditBaseline | null;
-  form: ProviderFormState;
+  form: ClaudeEditFormState;
   testModel: string;
   testStatus: ClaudeTestStatus;
   testMessage: string;
@@ -54,7 +61,7 @@ interface ClaudeEditDraftState {
   setDraftBaseline: (key: string, baseline: ClaudeEditBaseline) => void;
   setDraftForm: (
     key: string,
-    action: SetStateAction<ProviderFormState>
+    action: SetStateAction<ClaudeEditFormState>
   ) => void;
   setDraftTestModel: (key: string, action: SetStateAction<string>) => void;
   setDraftTestStatus: (
@@ -68,8 +75,8 @@ interface ClaudeEditDraftState {
 const resolveAction = <T,>(action: SetStateAction<T>, prev: T): T =>
   typeof action === 'function' ? (action as (previous: T) => T)(prev) : action;
 
-const buildEmptyForm = (): ProviderFormState => ({
-  apiKey: '',
+const buildEmptyForm = (): ClaudeEditFormState => ({
+  apiKeys: [''],
   prefix: '',
   baseUrl: '',
   proxyUrl: '',

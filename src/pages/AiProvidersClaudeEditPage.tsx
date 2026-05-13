@@ -131,13 +131,13 @@ export function AiProvidersClaudeEditPage() {
       .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
       .join('|');
     return [
-      form.apiKey.trim(),
+      form.apiKeys[0]?.trim() || '',
       form.baseUrl?.trim() ?? '',
       testModel.trim(),
       headersSignature,
       modelsSignature,
     ].join('||');
-  }, [form.apiKey, form.baseUrl, form.headers, form.modelEntries, testModel]);
+  }, [form.apiKeys, form.baseUrl, form.headers, form.modelEntries, testModel]);
 
   const previousConnectivityConfigRef = useRef(connectivityConfigSignature);
 
@@ -167,7 +167,7 @@ export function AiProvidersClaudeEditPage() {
     }
 
     const customHeaders = buildHeaderObject(form.headers);
-    const apiKey = form.apiKey.trim();
+    const apiKey = form.apiKeys[0]?.trim() || '';
     const hasApiKeyHeader = hasHeader(customHeaders, 'x-api-key');
     const apiKeyFromAuthorization = resolveBearerTokenFromAuthorization(customHeaders);
     const resolvedApiKey = apiKey || apiKeyFromAuthorization;
@@ -253,7 +253,7 @@ export function AiProvidersClaudeEditPage() {
     }
   }, [
     availableModels,
-    form.apiKey,
+    form.apiKeys,
     form.baseUrl,
     form.headers,
     isTesting,
@@ -303,12 +303,73 @@ export function AiProvidersClaudeEditPage() {
           <div className={styles.sectionHint}>{t('common.invalid_provider_index')}</div>
         ) : (
           <div className={styles.openaiEditForm}>
-            <Input
-              label={t('ai_providers.claude_add_modal_key_label')}
-              value={form.apiKey}
-              onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
-              disabled={saving || disableControls || isTesting}
-            />
+            <div className={styles.keyEntriesSection}>
+              <div className={styles.keyEntriesHeader}>
+                <label className={styles.keyEntriesTitle}>{t('ai_providers.claude_add_modal_keys_label')}</label>
+                <span className={styles.keyEntriesHint}>{t('ai_providers.claude_keys_hint')}</span>
+              </div>
+              <div className={styles.keyEntriesList}>
+                <div className={styles.keyEntriesToolbar}>
+                  <span className={styles.keyEntriesCount}>
+                    {t('ai_providers.claude_keys_count')}: {form.apiKeys.length}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }))}
+                    disabled={saving || disableControls || isTesting}
+                    className={styles.addKeyButton}
+                  >
+                    {t('ai_providers.claude_keys_add_btn')}
+                  </Button>
+                </div>
+                <div className={styles.keyTableShell}>
+                  <div className={styles.keyTableHeader}>
+                    <div className={styles.keyTableColIndex}>#</div>
+                    <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
+                    <div className={styles.keyTableColProxy}>{t('common.proxy_url')}</div>
+                    <div className={styles.keyTableColAction}>{t('common.action')}</div>
+                  </div>
+                  {form.apiKeys.map((apiKey, index) => (
+                    <div key={index} className={styles.keyTableRow}>
+                      <div className={styles.keyTableColIndex}>{index + 1}</div>
+                      <div className={styles.keyTableColKey}>
+                        <input
+                          type="text"
+                          value={apiKey}
+                          onChange={(e) => {
+                            const newKeys = [...form.apiKeys];
+                            newKeys[index] = e.target.value;
+                            setForm((prev) => ({ ...prev, apiKeys: newKeys }));
+                          }}
+                          disabled={saving || disableControls || isTesting}
+                          className={`input ${styles.keyTableInput}`}
+                          placeholder={t('ai_providers.claude_add_modal_key_placeholder')}
+                        />
+                      </div>
+                      <div className={styles.keyTableColProxy}>
+                        <span className={styles.keyTableProxyHint}>
+                          {t('ai_providers.claude_keys_same_proxy_hint')}
+                        </span>
+                      </div>
+                      <div className={styles.keyTableColAction}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newKeys = form.apiKeys.filter((_, i) => i !== index);
+                            setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
+                          }}
+                          disabled={saving || disableControls || isTesting || form.apiKeys.length <= 1}
+                        >
+                          {t('common.delete')}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             <Input
               label={t('ai_providers.priority_label')}
               hint={t('ai_providers.priority_hint')}
