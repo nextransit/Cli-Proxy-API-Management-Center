@@ -5750,17 +5750,17 @@ $navy-blue: #2A7B9B;
   // 延迟数据色彩分级
   .latency-fast,
   .latencyFast {
-    color: rgba(255, 255, 255, 0.5);
+    color: #34d399;
   }
 
   .latency-normal,
   .latencyNormal {
-    color: rgba(255, 255, 255, 0.85);
+    color: #fbbf24;
   }
 
   .latency-slow,
   .latencySlow {
-    color: #fbbf24;
+    color: #fb923c;
   }
 
   .latency-critical,
@@ -6320,19 +6320,19 @@ $navy-blue: #2A7B9B;
 }
 
 .latencyFast {
-  color: rgba(255, 255, 255, 0.5);
+  color: #34d399;
 }
 
 .latencyNormal {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.latencySlow {
   color: #fbbf24;
 }
 
-.latencyCritical {
+.latencySlow {
   color: #fb923c;
+}
+
+.latencyCritical {
+  color: #fb7185;
 }
 
 .thinkingXHigh,

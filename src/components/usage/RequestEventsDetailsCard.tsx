@@ -27,10 +27,10 @@ const ALL_FILTER = '__all__';
 const MAX_RENDERED_EVENTS = 500;
 
 // Latency severity classes for visual scanning.
-// Uses kebab-case class names to match SCSS definitions in [data-theme='dark'].
+// Uses green for fast responses (< 3s), yellow/orange/red for slower responses.
 const getLatencyClassName = (latencyMs: number | null): string => {
   if (latencyMs === null) return '';
-  if (latencyMs < 1000) return styles.latencyFast;
+  if (latencyMs < 3000) return styles.latencyFast;
   if (latencyMs < 5000) return styles.latencyNormal;
   if (latencyMs < 10000) return styles.latencySlow;
   return styles.latencyCritical;
