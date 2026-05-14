@@ -27,11 +27,16 @@ const ALL_FILTER = '__all__';
 const MAX_RENDERED_EVENTS = 500;
 
 // Latency severity classes for visual scanning.
-// Uses green for fast responses (< 3s), yellow/orange/red for slower responses.
+// < 1s: dimmed gray (likely failed, check result column)
+// 1-4s: green (smooth)
+// 4-6s: yellow (normal)
+// 6-10s: orange (slow)
+// >= 10s: red (severe)
 const getLatencyClassName = (latencyMs: number | null): string => {
   if (latencyMs === null) return '';
-  if (latencyMs < 3000) return styles.latencyFast;
-  if (latencyMs < 5000) return styles.latencyNormal;
+  if (latencyMs < 1000) return styles.latencyFast;
+  if (latencyMs < 4000) return styles.latencySmooth;
+  if (latencyMs < 6000) return styles.latencyNormal;
   if (latencyMs < 10000) return styles.latencySlow;
   return styles.latencyCritical;
 };

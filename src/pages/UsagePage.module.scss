@@ -5748,8 +5748,18 @@ $navy-blue: #2A7B9B;
 // ============================================
 [data-theme='dark'] {
   // 延迟数据色彩分级
+  // < 1s: dimmed (likely failed)
+  // 1-4s: green (smooth)
+  // 4-6s: yellow (normal)
+  // 6-10s: orange (slow)
+  // >= 10s: red (critical)
   .latency-fast,
   .latencyFast {
+    color: rgba(255, 255, 255, 0.3);
+  }
+
+  .latency-smooth,
+  .latencySmooth {
     color: #34d399;
   }
 
@@ -6320,6 +6330,10 @@ $navy-blue: #2A7B9B;
 }
 
 .latencyFast {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.latencySmooth {
   color: #34d399;
 }
 
