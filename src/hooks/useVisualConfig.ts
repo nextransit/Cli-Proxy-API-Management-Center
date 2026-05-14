@@ -36,15 +36,47 @@ function extractApiKeyValue(raw: unknown): string | null {
   return null;
 }
 
+interface ApiKeyEntryRaw {
+  key: string;
+  name?: string;
+  description?: string;
+}
+
+function extractApiKeyEntry(raw: unknown): ApiKeyEntryRaw | null {
+  const key = extractApiKeyValue(raw);
+  if (!key) return null;
+
+  if (typeof raw === 'string') {
+    return { key };
+  }
+
+  const record = asRecord(raw);
+  if (!record) return { key };
+
+  const name = String(record.name ?? record.Name ?? '').trim() || undefined;
+  const description = String(record.description ?? record.Description ?? '').trim() || undefined;
+
+  return { key, name, description };
+}
+
+const API_KEY_DELIMITER = '#';
+
+function serializeApiKeyEntry(entry: ApiKeyEntryRaw): string {
+  const parts = [entry.key];
+  if (entry.name) parts.push(entry.name);
+  if (entry.description) parts.push(entry.description);
+  return parts.join(API_KEY_DELIMITER);
+}
+
 function parseApiKeysText(raw: unknown): string {
   if (!Array.isArray(raw)) return '';
 
-  const keys: string[] = [];
+  const entries: ApiKeyEntryRaw[] = [];
   for (const item of raw) {
-    const key = extractApiKeyValue(item);
-    if (key) keys.push(key);
+    const entry = extractApiKeyEntry(item);
+    if (entry) entries.push(entry);
   }
-  return keys.join('\n');
+  return entries.map(serializeApiKeyEntry).join('\n');
 }
 
 function resolveApiKeysText(parsed: Record<string, unknown>): string {

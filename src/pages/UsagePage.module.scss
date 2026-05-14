@@ -2717,15 +2717,14 @@
 }
 
 .refreshIndicator {
-  position: sticky;
-  top: 10px;
+  position: fixed;
+  top: 80px;
+  right: 24px;
   z-index: 35;
-  align-self: flex-end;
   display: inline-flex;
   align-items: center;
   gap: 7px;
   width: fit-content;
-  margin: -8px 0 -14px auto;
   padding: 6px 10px;
   border: 1px solid color-mix(in srgb, var(--usage-accent) 28%, transparent);
   border-radius: 999px;
@@ -5749,19 +5748,23 @@ $navy-blue: #2A7B9B;
 // ============================================
 [data-theme='dark'] {
   // 延迟数据色彩分级
-  .latency-fast {
+  .latency-fast,
+  .latencyFast {
     color: rgba(255, 255, 255, 0.5);
   }
 
-  .latency-normal {
+  .latency-normal,
+  .latencyNormal {
     color: rgba(255, 255, 255, 0.85);
   }
 
-  .latency-slow {
+  .latency-slow,
+  .latencySlow {
     color: #fbbf24;
   }
 
-  .latency-critical {
+  .latency-critical,
+  .latencyCritical {
     color: #fb7185;
   }
 

@@ -26,7 +26,8 @@ import styles from '@/pages/UsagePage.module.scss';
 const ALL_FILTER = '__all__';
 const MAX_RENDERED_EVENTS = 500;
 
-// Latency severity classes for dark-mode visual scanning.
+// Latency severity classes for visual scanning.
+// Uses kebab-case class names to match SCSS definitions in [data-theme='dark'].
 const getLatencyClassName = (latencyMs: number | null): string => {
   if (latencyMs === null) return '';
   if (latencyMs < 1000) return styles.latencyFast;
