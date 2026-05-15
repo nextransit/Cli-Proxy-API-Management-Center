@@ -27,14 +27,15 @@ const ALL_FILTER = '__all__';
 const MAX_RENDERED_EVENTS = 500;
 
 // Latency severity classes for visual scanning.
-// < 1s: dimmed gray (likely failed, check result column)
-// 1-4s: green (smooth)
-// 4-6s: yellow (normal)
-// 6-10s: orange (slow)
-// >= 10s: red (severe)
-const getLatencyClassName = (latencyMs: number | null): string => {
+// - Failed results: dimmed gray (regardless of time)
+// - Success results:
+//   < 4s: green (smooth)
+//   < 6s: yellow (normal)
+//   < 10s: orange (slow)
+//   >= 10s: red (severe)
+const getLatencyClassName = (latencyMs: number | null, failed: boolean): string => {
   if (latencyMs === null) return '';
-  if (latencyMs < 1000) return styles.latencyFast;
+  if (failed) return styles.latencyFailed;
   if (latencyMs < 4000) return styles.latencySmooth;
   if (latencyMs < 6000) return styles.latencyNormal;
   if (latencyMs < 10000) return styles.latencySlow;
@@ -642,7 +643,7 @@ export function RequestEventsDetailsCard({
                       </span>
                     </td>
                     {hasLatencyData && (
-                      <td className={`${styles.durationCell} ${getLatencyClassName(row.latencyMs)}`}>{formatDurationMs(row.latencyMs)}</td>
+                      <td className={`${styles.durationCell} ${getLatencyClassName(row.latencyMs, row.failed)}`}>{formatDurationMs(row.latencyMs)}</td>
                     )}
                     <td
                       className={styles.tokenSummaryCell}

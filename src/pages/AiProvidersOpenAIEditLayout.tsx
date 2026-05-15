@@ -488,10 +488,19 @@ export function AiProvidersOpenAIEditLayout() {
       const models = entriesToModels(form.modelEntries);
       if (models.length) payload.models = models;
 
+      // Fetch the latest providers before saving to avoid stale data overwriting concurrent changes.
+      let latestProviders: OpenAIProviderConfig[];
+      try {
+        latestProviders = await providersApi.getOpenAIProviders();
+      } catch {
+        // If fetch fails, fall back to local state (risky but better than failing the save)
+        latestProviders = providers;
+      }
+
       const nextList =
         editIndex !== null
-          ? providers.map((item, idx) => (idx === editIndex ? payload : item))
-          : [...providers, payload];
+          ? latestProviders.map((item, idx) => (idx === editIndex ? payload : item))
+          : [...latestProviders, payload];
 
       await providersApi.saveOpenAIProviders(nextList);
 

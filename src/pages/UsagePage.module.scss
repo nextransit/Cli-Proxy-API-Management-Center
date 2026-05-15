@@ -5748,11 +5748,12 @@ $navy-blue: #2A7B9B;
 // ============================================
 [data-theme='dark'] {
   // 延迟数据色彩分级
-  // < 1s: dimmed (likely failed)
-  // 1-4s: green (smooth)
-  // 4-6s: yellow (normal)
-  // 6-10s: orange (slow)
-  // >= 10s: red (critical)
+  // - 失败结果: dimmed gray
+  // - 成功结果:
+  //   < 4s: green (smooth)
+  //   < 6s: yellow (normal)
+  //   < 10s: orange (slow)
+  //   >= 10s: red (critical)
   .latency-fast,
   .latencyFast {
     color: rgba(255, 255, 255, 0.3);
@@ -5776,6 +5777,11 @@ $navy-blue: #2A7B9B;
   .latency-critical,
   .latencyCritical {
     color: #fb7185;
+  }
+
+  .latency-failed,
+  .latencyFailed {
+    color: rgba(139, 148, 158, 0.5);
   }
 
   // TOKEN/花费高亮
@@ -6347,6 +6353,10 @@ $navy-blue: #2A7B9B;
 
 .latencyCritical {
   color: #fb7185;
+}
+
+.latencyFailed {
+  color: rgba(139, 148, 158, 0.5);
 }
 
 .thinkingXHigh,
