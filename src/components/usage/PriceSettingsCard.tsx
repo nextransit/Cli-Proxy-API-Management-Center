@@ -23,27 +23,27 @@ export function PriceSettingsCard({
 
   // Add form state
   const [selectedModel, setSelectedModel] = useState('');
-  const [promptPrice, setPromptPrice] = useState('');
-  const [completionPrice, setCompletionPrice] = useState('');
-  const [cachePrice, setCachePrice] = useState('');
+  const [inputPrice, setInputPrice] = useState('');
+  const [outputPrice, setOutputPrice] = useState('');
+  const [cachedInputPrice, setCachedInputPrice] = useState('');
 
   // Edit modal state
   const [editModel, setEditModel] = useState<string | null>(null);
-  const [editPrompt, setEditPrompt] = useState('');
-  const [editCompletion, setEditCompletion] = useState('');
-  const [editCache, setEditCache] = useState('');
+  const [editInput, setEditInput] = useState('');
+  const [editOutput, setEditOutput] = useState('');
+  const [editCachedInput, setEditCachedInput] = useState('');
 
   const handleSavePrice = () => {
     if (!selectedModel) return;
-    const prompt = parseFloat(promptPrice) || 0;
-    const completion = parseFloat(completionPrice) || 0;
-    const cache = cachePrice.trim() === '' ? prompt : parseFloat(cachePrice) || 0;
-    const newPrices = { ...modelPrices, [selectedModel]: { prompt, completion, cache } };
+    const input = parseFloat(inputPrice) || 0;
+    const output = parseFloat(outputPrice) || 0;
+    const cached_input = cachedInputPrice.trim() === '' ? input : parseFloat(cachedInputPrice) || 0;
+    const newPrices = { ...modelPrices, [selectedModel]: { input, output, cached_input } };
     onPricesChange(newPrices);
     setSelectedModel('');
-    setPromptPrice('');
-    setCompletionPrice('');
-    setCachePrice('');
+    setInputPrice('');
+    setOutputPrice('');
+    setCachedInputPrice('');
   };
 
   const handleDeletePrice = (model: string) => {
@@ -55,17 +55,17 @@ export function PriceSettingsCard({
   const handleOpenEdit = (model: string) => {
     const price = modelPrices[model];
     setEditModel(model);
-    setEditPrompt(price?.prompt?.toString() || '');
-    setEditCompletion(price?.completion?.toString() || '');
-    setEditCache(price?.cache?.toString() || '');
+    setEditInput(price?.input?.toString() || '');
+    setEditOutput(price?.output?.toString() || '');
+    setEditCachedInput(price?.cached_input?.toString() || '');
   };
 
   const handleSaveEdit = () => {
     if (!editModel) return;
-    const prompt = parseFloat(editPrompt) || 0;
-    const completion = parseFloat(editCompletion) || 0;
-    const cache = editCache.trim() === '' ? prompt : parseFloat(editCache) || 0;
-    const newPrices = { ...modelPrices, [editModel]: { prompt, completion, cache } };
+    const input = parseFloat(editInput) || 0;
+    const output = parseFloat(editOutput) || 0;
+    const cached_input = editCachedInput.trim() === '' ? input : parseFloat(editCachedInput) || 0;
+    const newPrices = { ...modelPrices, [editModel]: { input, output, cached_input } };
     onPricesChange(newPrices);
     setEditModel(null);
   };
@@ -74,13 +74,13 @@ export function PriceSettingsCard({
     setSelectedModel(value);
     const price = modelPrices[value];
     if (price) {
-      setPromptPrice(price.prompt.toString());
-      setCompletionPrice(price.completion.toString());
-      setCachePrice(price.cache.toString());
+      setInputPrice(price.input.toString());
+      setOutputPrice(price.output.toString());
+      setCachedInputPrice(price.cached_input.toString());
     } else {
-      setPromptPrice('');
-      setCompletionPrice('');
-      setCachePrice('');
+      setInputPrice('');
+      setOutputPrice('');
+      setCachedInputPrice('');
     }
   };
 
@@ -108,31 +108,31 @@ export function PriceSettingsCard({
               />
             </div>
             <div className={styles.formField}>
-              <label>{t('usage_stats.model_price_prompt')} ($/1M)</label>
+              <label>{t('usage_stats.model_price_input')} ($/1M)</label>
               <Input
                 type="number"
-                value={promptPrice}
-                onChange={(e) => setPromptPrice(e.target.value)}
+                value={inputPrice}
+                onChange={(e) => setInputPrice(e.target.value)}
                 placeholder="0.00"
                 step="0.0001"
               />
             </div>
             <div className={styles.formField}>
-              <label>{t('usage_stats.model_price_completion')} ($/1M)</label>
+              <label>{t('usage_stats.model_price_output')} ($/1M)</label>
               <Input
                 type="number"
-                value={completionPrice}
-                onChange={(e) => setCompletionPrice(e.target.value)}
+                value={outputPrice}
+                onChange={(e) => setOutputPrice(e.target.value)}
                 placeholder="0.00"
                 step="0.0001"
               />
             </div>
             <div className={styles.formField}>
-              <label>{t('usage_stats.model_price_cache')} ($/1M)</label>
+              <label>{t('usage_stats.model_price_cached_input')} ($/1M)</label>
               <Input
                 type="number"
-                value={cachePrice}
-                onChange={(e) => setCachePrice(e.target.value)}
+                value={cachedInputPrice}
+                onChange={(e) => setCachedInputPrice(e.target.value)}
                 placeholder="0.00"
                 step="0.0001"
               />
@@ -154,13 +154,13 @@ export function PriceSettingsCard({
                     <span className={styles.priceModel}>{model}</span>
                     <div className={styles.priceMeta}>
                       <span>
-                        {t('usage_stats.model_price_prompt')}: ${price.prompt.toFixed(4)}/1M
+                        {t('usage_stats.model_price_input')}: ${price.input.toFixed(4)}/1M
                       </span>
                       <span>
-                        {t('usage_stats.model_price_completion')}: ${price.completion.toFixed(4)}/1M
+                        {t('usage_stats.model_price_output')}: ${price.output.toFixed(4)}/1M
                       </span>
                       <span>
-                        {t('usage_stats.model_price_cache')}: ${price.cache.toFixed(4)}/1M
+                        {t('usage_stats.model_price_cached_input')}: ${price.cached_input.toFixed(4)}/1M
                       </span>
                     </div>
                   </div>
@@ -200,31 +200,31 @@ export function PriceSettingsCard({
       >
         <div className={styles.editModalBody}>
           <div className={styles.formField}>
-            <label>{t('usage_stats.model_price_prompt')} ($/1M)</label>
+            <label>{t('usage_stats.model_price_input')} ($/1M)</label>
             <Input
               type="number"
-              value={editPrompt}
-              onChange={(e) => setEditPrompt(e.target.value)}
+              value={editInput}
+              onChange={(e) => setEditInput(e.target.value)}
               placeholder="0.00"
               step="0.0001"
             />
           </div>
           <div className={styles.formField}>
-            <label>{t('usage_stats.model_price_completion')} ($/1M)</label>
+            <label>{t('usage_stats.model_price_output')} ($/1M)</label>
             <Input
               type="number"
-              value={editCompletion}
-              onChange={(e) => setEditCompletion(e.target.value)}
+              value={editOutput}
+              onChange={(e) => setEditOutput(e.target.value)}
               placeholder="0.00"
               step="0.0001"
             />
           </div>
           <div className={styles.formField}>
-            <label>{t('usage_stats.model_price_cache')} ($/1M)</label>
+            <label>{t('usage_stats.model_price_cached_input')} ($/1M)</label>
             <Input
               type="number"
-              value={editCache}
-              onChange={(e) => setEditCache(e.target.value)}
+              value={editCachedInput}
+              onChange={(e) => setEditCachedInput(e.target.value)}
               placeholder="0.00"
               step="0.0001"
             />

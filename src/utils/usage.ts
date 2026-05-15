@@ -55,9 +55,9 @@ export interface RateStats {
 }
 
 export interface ModelPrice {
-  prompt: number;
-  completion: number;
-  cache: number;
+  input: number;
+  output: number;
+  cached_input: number;
 }
 
 export interface UsageDetail {
@@ -930,11 +930,11 @@ export function calculateCost(
   );
   const promptTokens = Math.max(inputTokens - cachedTokens, 0);
 
-  const promptCost = (promptTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.prompt) || 0);
-  const cachedCost = (cachedTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.cache) || 0);
-  const completionCost =
-    (completionTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.completion) || 0);
-  const total = promptCost + cachedCost + completionCost;
+  const inputCost = (promptTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.input) || 0);
+  const cachedCost = (cachedTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.cached_input) || 0);
+  const outputCost =
+    (completionTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.output) || 0);
+  const total = inputCost + cachedCost + outputCost;
   return Number.isFinite(total) && total > 0 ? total : 0;
 }
 
@@ -972,31 +972,37 @@ export function loadModelPrices(): Record<string, ModelPrice> {
     Object.entries(parsed).forEach(([model, price]: [string, unknown]) => {
       if (!model) return;
       const priceRecord = isRecord(price) ? price : null;
-      const promptRaw = Number(priceRecord?.prompt);
-      const completionRaw = Number(priceRecord?.completion);
-      const cacheRaw = Number(priceRecord?.cache);
+
+      // Support both old field names (prompt/completion/cache) and new (input/output/cached_input)
+      const inputRaw = Number(
+        priceRecord?.input ?? priceRecord?.prompt
+      );
+      const outputRaw = Number(
+        priceRecord?.output ?? priceRecord?.completion
+      );
+      const cachedInputRaw = Number(
+        priceRecord?.cached_input ?? priceRecord?.cache
+      );
 
       if (
-        !Number.isFinite(promptRaw) &&
-        !Number.isFinite(completionRaw) &&
-        !Number.isFinite(cacheRaw)
+        !Number.isFinite(inputRaw) &&
+        !Number.isFinite(outputRaw) &&
+        !Number.isFinite(cachedInputRaw)
       ) {
         return;
       }
 
-      const prompt = Number.isFinite(promptRaw) && promptRaw >= 0 ? promptRaw : 0;
-      const completion = Number.isFinite(completionRaw) && completionRaw >= 0 ? completionRaw : 0;
-      const cache =
-        Number.isFinite(cacheRaw) && cacheRaw >= 0
-          ? cacheRaw
-          : Number.isFinite(promptRaw) && promptRaw >= 0
-            ? promptRaw
-            : prompt;
+      const input = Number.isFinite(inputRaw) && inputRaw >= 0 ? inputRaw : 0;
+      const output = Number.isFinite(outputRaw) && outputRaw >= 0 ? outputRaw : 0;
+      const cached_input =
+        Number.isFinite(cachedInputRaw) && cachedInputRaw >= 0
+          ? cachedInputRaw
+          : input; // default cached_input to input price
 
       normalized[model] = {
-        prompt,
-        completion,
-        cache,
+        input,
+        output,
+        cached_input,
       };
     });
     return normalized;
