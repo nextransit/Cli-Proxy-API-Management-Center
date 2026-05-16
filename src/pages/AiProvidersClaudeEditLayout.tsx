@@ -192,6 +192,14 @@ export function AiProvidersClaudeEditLayout() {
     return configs[editIndex];
   }, [configs, editIndex]);
 
+  // Collect all configs with the same baseUrl as the one being edited.
+  // This ensures all related API keys are loaded into the form for editing.
+  const sameBaseUrlConfigs = useMemo(() => {
+    if (editIndex === null || !initialData) return [];
+    const editBaseUrl = initialData.baseUrl || '';
+    return configs.filter((c) => c.baseUrl === editBaseUrl);
+  }, [configs, editIndex, initialData]);
+
   const invalidIndex = editIndex !== null && !initialData;
 
   const availableModels = useMemo(
@@ -245,12 +253,14 @@ export function AiProvidersClaudeEditLayout() {
     if (draft?.initialized) return;
 
     if (initialData) {
+      // Collect all API keys from configs with the same baseUrl
+      const apiKeysFromSameBaseUrl = sameBaseUrlConfigs.map((c) => c.apiKey);
       const seededForm: ClaudeEditFormState = {
         ...initialData,
         headers: headersToEntries(initialData.headers),
         modelEntries: modelsToEntries(initialData.models),
         excludedText: excludedModelsToText(initialData.excludedModels),
-        apiKeys: [initialData.apiKey],
+        apiKeys: apiKeysFromSameBaseUrl.length > 0 ? apiKeysFromSameBaseUrl : [initialData.apiKey],
       };
       const available = seededForm.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
       const baseline = buildClaudeBaseline(seededForm);
@@ -272,7 +282,7 @@ export function AiProvidersClaudeEditLayout() {
       testStatus: 'idle',
       testMessage: '',
     });
-  }, [draft?.initialized, draftKey, initDraft, initialData, loading]);
+  }, [draft?.initialized, draftKey, initDraft, initialData, loading, sameBaseUrlConfigs]);
 
   const resolvedLoading = !draft?.initialized;
   const baseline = draft?.baseline ?? null;
