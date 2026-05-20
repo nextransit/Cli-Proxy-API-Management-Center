@@ -35,6 +35,7 @@
     "prefix": "Prefix",
     "proxy_url": "Proxy",
     "priority": "Priority",
+    "weight": "Weight",
     "alias": "Alias",
     "failure": "Failure",
     "unknown_error": "Unknown error",

@@ -421,6 +421,7 @@ export function AiProvidersOpenAIEditPage() {
             <div className={styles.keyTableColStatus}>{t('common.status')}</div>
             <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
             <div className={styles.keyTableColProxy}>{t('common.proxy_url')}</div>
+            <div className={styles.keyTableColWeight}>{t('common.weight')}</div>
             <div className={styles.keyTableColAction}>{t('common.action')}</div>
           </div>
 
@@ -463,6 +464,20 @@ export function AiProvidersOpenAIEditPage() {
                     disabled={saving || disableControls || isTestingKeys}
                     className={`input ${styles.keyTableInput}`}
                     placeholder={t('ai_providers.openai_proxy_placeholder')}
+                  />
+                </div>
+
+                {/* Weight 输入框 */}
+                <div className={styles.keyTableColWeight}>
+                  <input
+                    type="number"
+                    min="0"
+                    value={entry.weight ?? 1}
+                    onChange={(e) => updateEntry(index, 'weight', e.target.value)}
+                    disabled={saving || disableControls || isTestingKeys}
+                    className={`input ${styles.keyTableInput}`}
+                    style={{ width: '60px' }}
+                    placeholder="1"
                   />
                 </div>
 

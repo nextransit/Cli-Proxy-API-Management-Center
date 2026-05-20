@@ -35,6 +35,7 @@
     "prefix": "Префикс",
     "proxy_url": "Прокси",
     "priority": "Приоритет",
+    "weight": "Вес",
     "alias": "Псевдоним",
     "failure": "Сбой",
     "unknown_error": "Неизвестная ошибка",

@@ -35,6 +35,7 @@
     "prefix": "前缀",
     "proxy_url": "代理",
     "priority": "优先级",
+    "weight": "权重",
     "alias": "别名",
     "failure": "失败",
     "unknown_error": "未知错误",
