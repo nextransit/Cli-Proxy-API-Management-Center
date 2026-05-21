@@ -42,3 +42,6 @@ export type { ServiceHealthCardProps } from './ServiceHealthCard';
 
 export { RequestEventsDetailsCard } from './RequestEventsDetailsCard';
 export type { RequestEventsDetailsCardProps } from './RequestEventsDetailsCard';
+
+export { ModelTokenDoughnut } from './ModelTokenDoughnut';
+export type { ModelTokenDoughnutProps } from './ModelTokenDoughnut';

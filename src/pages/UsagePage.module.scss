@@ -1214,6 +1214,112 @@
   gap: 6px;
 }
 
+// ---- Doughnut chart ----
+.doughnutLayout {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 220px;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+.doughnutChart {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+
+  @include mobile {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+.doughnutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.doughnutTotal {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+
+  @include mobile {
+    font-size: 18px;
+  }
+}
+
+.doughnutLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.doughnutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+
+  @include mobile {
+    width: 100%;
+  }
+}
+
+.doughnutLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.doughnutLegendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.doughnutLegendName {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.doughnutLegendValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
 .chartsGrid {
   display: grid;
   gap: 20px;

@@ -1087,7 +1087,9 @@
     "chart_granularity_all": "All",
     "top_key": "Top Key",
     "top_key_quick_filter": "Quick Filter",
-    "refreshing_data": "Updating data"
+    "refreshing_data": "Updating data",
+    "model_token_distribution": "Model Token Distribution",
+    "others": "Others"
   },
   "stats": {
     "success": "Success",

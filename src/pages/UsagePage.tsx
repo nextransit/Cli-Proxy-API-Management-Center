@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
+  ArcElement,
   BarElement,
   CategoryScale,
   LinearScale,
@@ -30,6 +31,7 @@ import {
   CredentialStatsCard,
   RequestEventsDetailsCard,
   ServiceHealthCard,
+  ModelTokenDoughnut,
   useUsageData,
 } from '@/components/usage';
 import {
@@ -53,6 +55,7 @@ import styles from './UsagePage.module.scss';
 
 // Register Chart.js components
 ChartJS.register(
+  ArcElement,
   BarElement,
   CategoryScale,
   LinearScale,
@@ -938,6 +941,14 @@ export function UsagePage() {
           emptyText={hasPrices ? t('usage_stats.cost_no_data') : t('usage_stats.cost_need_price')}
         />
       </div>
+
+      {/* Model Token Distribution Doughnut */}
+      <ModelTokenDoughnut
+        modelStats={modelStats}
+        hasPrices={hasPrices}
+        loading={isInitialLoading}
+        isDark={isDark}
+      />
 
       {/* Request Events Details */}
       <RequestEventsDetailsCard
