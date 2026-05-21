@@ -583,6 +583,7 @@ export function UsagePage() {
       });
 
       const selectedLines = chartLines.length > 0 ? chartLines : DEFAULT_CHART_LINES;
+      const multiLine = selectedLines.length > 1 && !selectedLines.includes(ALL_FILTER);
       const datasets = selectedLines.map((line, index) => {
         const isAll = line === ALL_FILTER;
         const data = isAll
@@ -603,11 +604,14 @@ export function UsagePage() {
             : lineLabels.get(line) || formatCredentialShortName(line),
           data,
           borderColor: color,
-          backgroundColor: withAlpha(color, 0.16),
+          // Multi-line: use semi-transparent fills so overlapping areas are visible.
+          // Single/"all": full opacity gradient fill.
+          backgroundColor: multiLine ? withAlpha(color, 0.08) : withAlpha(color, 0.18),
           pointBackgroundColor: color,
           pointBorderColor: color,
-          fill: selectedLines.length === 1 || isAll,
-          tension: 0.4,
+          // Enable fill for all datasets — stacked-like visual with translucent overlap
+          fill: true,
+          tension: 0.35,
         };
       });
 

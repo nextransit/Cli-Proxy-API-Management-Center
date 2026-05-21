@@ -24,7 +24,15 @@ export interface ChartConfigOptions {
 }
 
 /**
- * Build chart options with theme and responsive awareness
+ * Build chart options with theme and responsive awareness.
+ *
+ * Key optimizations:
+ * - Smooth curves (tension: 0.35) for organic-looking trend lines
+ * - Axis-triggered tooltip (mode: 'index', intersect: false) so hovering
+ *   shows all datasets at the same timestamp
+ * - Subtle grid lines for improved readability
+ * - Formatted tooltip labels with K/M suffixes
+ * - spanGaps enabled so missing data points don't break the curve
  */
 export function buildChartOptions({
   period,
@@ -41,11 +49,13 @@ export function buildChartOptions({
   const tooltipTitle = isDark ? '#ffffff' : '#111827';
   const tooltipBody = isDark ? 'rgba(238, 229, 255, 0.9)' : '#374151';
   const tooltipBorder = isDark ? 'rgba(6, 182, 212, 0.34)' : 'rgba(17, 24, 39, 0.10)';
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(17, 24, 39, 0.06)';
 
   return {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
+      // Axis-triggered: show tooltip for all datasets at the same x-index
       mode: 'index',
       intersect: false
     },
@@ -57,14 +67,36 @@ export function buildChartOptions({
         bodyColor: tooltipBody,
         borderColor: tooltipBorder,
         borderWidth: 1,
-        padding: 10,
+        padding: 12,
         displayColors: true,
-        usePointStyle: true
+        usePointStyle: true,
+        boxPadding: 4,
+        // Ensure tooltip shows all datasets at the same index
+        mode: 'index',
+        intersect: false,
+        callbacks: {
+          label: (ctx) => {
+            const label = ctx.dataset.label || '';
+            const value = Number(ctx.raw);
+            if (!Number.isFinite(value)) return label;
+            const formatted = value >= 1e6
+              ? (value / 1e6).toFixed(2) + 'M'
+              : value >= 1e3
+                ? (value / 1e3).toFixed(2) + 'K'
+                : value.toLocaleString();
+            return `  ${label}: ${formatted}`;
+          }
+        }
       }
     },
     scales: {
       x: {
-        grid: { display: false, drawTicks: false },
+        grid: {
+          display: true,
+          drawTicks: false,
+          color: gridColor,
+          lineWidth: 1
+        },
         border: {
           color: axisBorderColor
         },
@@ -101,7 +133,11 @@ export function buildChartOptions({
       },
       y: {
         beginAtZero: true,
-        grid: { display: false },
+        grid: {
+          display: true,
+          color: gridColor,
+          lineWidth: 1
+        },
         border: { display: false },
         ticks: {
           display: false,
@@ -112,13 +148,16 @@ export function buildChartOptions({
     },
     elements: {
       line: {
-        tension: 0.4,
-        borderWidth: isMobile ? 1.5 : 2
+        // Smoother curves: lower tension = more rounded interpolation
+        tension: 0.35,
+        borderWidth: isMobile ? 1.5 : 2,
+        // Prevent gaps when data points are missing
+        spanGaps: true
       },
       point: {
         borderWidth: 2,
         radius: pointRadius,
-        hoverRadius: 4
+        hoverRadius: 5
       }
     }
   };
