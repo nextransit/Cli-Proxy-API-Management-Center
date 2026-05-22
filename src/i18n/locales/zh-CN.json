@@ -1101,7 +1101,8 @@
     "top_key_quick_filter": "快速筛选",
     "refreshing_data": "正在更新数据",
     "model_token_distribution": "模型 Token 分布",
-    "others": "其他"
+    "others": "其他",
+    "trend_analysis": "趋势分析"
   },
   "stats": {
     "success": "成功",

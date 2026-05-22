@@ -45,3 +45,6 @@ export type { RequestEventsDetailsCardProps } from './RequestEventsDetailsCard';
 
 export { ModelTokenDoughnut } from './ModelTokenDoughnut';
 export type { ModelTokenDoughnutProps } from './ModelTokenDoughnut';
+
+export { TrendTabsCard } from './TrendTabsCard';
+export type { TrendTabsCardProps, TrendTab } from './TrendTabsCard';

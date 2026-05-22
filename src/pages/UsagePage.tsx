@@ -24,14 +24,13 @@ import type { OpenAIProviderConfig } from '@/types';
 import {
   SummaryCards,
   StatCards,
-  ChartLineSelector,
-  UsageChart,
   ModelStatsCard,
   PriceSettingsCard,
   CredentialStatsCard,
   RequestEventsDetailsCard,
   ServiceHealthCard,
   ModelTokenDoughnut,
+  TrendTabsCard,
   useUsageData,
 } from '@/components/usage';
 import {
@@ -307,6 +306,7 @@ export function UsagePage() {
   const [modelPanelTab, setModelPanelTab] = useState<'stats' | 'credentials' | 'prices'>('stats');
   const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
   const [chartGranularity, setChartGranularity] = useState<TrendGranularity>('hour');
+  const [activeTrendTab, setActiveTrendTab] = useState<string>('requests');
 
   useEffect(() => {
     let cancelled = false;
@@ -892,55 +892,63 @@ export function UsagePage() {
         tokensChartOptions={tokensChartOptions}
       />
 
-      <div className={styles.chartsGrid}>
-        <UsageChart
-          title={t('usage_stats.requests_trend')}
-          period={chartPeriod}
-          onPeriodChange={setChartGranularity}
-          showPeriodControls={false}
-          chartData={requestsChartData}
-          chartOptions={requestsChartOptions}
-          loading={isInitialLoading}
-          isMobile={isMobile}
-          isDark={isDark}
-          emptyText={t('usage_stats.no_data')}
-          extra={
-            <ChartLineSelector
-              chartLines={chartLines}
-              modelNames={modelNames}
-              credentialOptions={credentialOptions}
-              compareMode={chartCompareMode}
-              onCompareModeChange={setChartCompareMode}
-              maxLines={MAX_CHART_LINES}
-              onChange={handleChartLinesChange}
-            />
-          }
-        />
-        <UsageChart
-          title={t('usage_stats.tokens_trend')}
-          period={chartPeriod}
-          onPeriodChange={setChartGranularity}
-          showPeriodControls={false}
-          chartData={tokensChartData}
-          chartOptions={tokensChartOptions}
-          loading={isInitialLoading}
-          isMobile={isMobile}
-          isDark={isDark}
-          emptyText={t('usage_stats.no_data')}
-        />
-        <UsageChart
-          title={t('usage_stats.cost_trend')}
-          period={chartPeriod}
-          onPeriodChange={setChartGranularity}
-          showPeriodControls={false}
-          chartData={costChartData}
-          chartOptions={costChartOptions}
-          loading={isInitialLoading}
-          isMobile={isMobile}
-          isDark={isDark}
-          emptyText={hasPrices ? t('usage_stats.cost_no_data') : t('usage_stats.cost_need_price')}
-        />
-      </div>
+      <TrendTabsCard
+        tabs={[
+          {
+            key: 'requests',
+            label: t('usage_stats.requests_trend'),
+            chartProps: {
+              period: chartPeriod,
+              onPeriodChange: setChartGranularity,
+              chartData: requestsChartData,
+              chartOptions: requestsChartOptions,
+              loading: isInitialLoading,
+              isMobile,
+              isDark,
+              emptyText: t('usage_stats.no_data'),
+            },
+          },
+          {
+            key: 'tokens',
+            label: t('usage_stats.tokens_trend'),
+            chartProps: {
+              period: chartPeriod,
+              onPeriodChange: setChartGranularity,
+              chartData: tokensChartData,
+              chartOptions: tokensChartOptions,
+              loading: isInitialLoading,
+              isMobile,
+              isDark,
+              emptyText: t('usage_stats.no_data'),
+            },
+          },
+          {
+            key: 'cost',
+            label: t('usage_stats.cost_trend'),
+            chartProps: {
+              period: chartPeriod,
+              onPeriodChange: setChartGranularity,
+              chartData: costChartData,
+              chartOptions: costChartOptions,
+              loading: isInitialLoading,
+              isMobile,
+              isDark,
+              emptyText: hasPrices ? t('usage_stats.cost_no_data') : t('usage_stats.cost_need_price'),
+            },
+          },
+        ]}
+        activeTab={activeTrendTab}
+        onTabChange={setActiveTrendTab}
+        lineSelector={{
+          chartLines,
+          modelNames,
+          credentialOptions,
+          compareMode: chartCompareMode,
+          onCompareModeChange: setChartCompareMode,
+          maxLines: MAX_CHART_LINES,
+          onChange: handleChartLinesChange,
+        }}
+      />
 
       {/* Model Token Distribution Doughnut */}
       <ModelTokenDoughnut
