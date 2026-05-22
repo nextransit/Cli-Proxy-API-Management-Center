@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ChartData, ChartOptions } from 'chart.js';
+import type { ChartData, ChartOptions, ScriptableContext } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import { Card } from '@/components/ui/Card';
 import type { ModelStatsSummary } from '@/utils/usage';
 import { formatUsd } from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
@@ -12,8 +11,6 @@ export interface ModelTokenDoughnutProps {
   hasPrices: boolean;
   loading: boolean;
   isDark: boolean;
-  collapsible?: boolean;
-  defaultCollapsed?: boolean;
 }
 
 interface GradientColor {
@@ -22,18 +19,22 @@ interface GradientColor {
 }
 
 const DOUGHNUT_COLORS: GradientColor[] = [
-  { base: '#1d4ed8', light: '#60a5fa' }, // 蓝
-  { base: '#ca8a04', light: '#facc15' }, // 金
-  { base: '#15803d', light: '#4ade80' }, // 绿
-  { base: '#7e22ce', light: '#c084fc' }, // 紫
-  { base: '#b91c1c', light: '#f87171' }, // 红
-  { base: '#0e7490', light: '#22d3ee' }, // 青
-  { base: '#c2410c', light: '#fb923c' }, // 橙
+  { base: '#1d4ed8', light: '#60a5fa' },
+  { base: '#ca8a04', light: '#facc15' },
+  { base: '#15803d', light: '#4ade80' },
+  { base: '#7e22ce', light: '#c084fc' },
+  { base: '#b91c1c', light: '#f87171' },
+  { base: '#0e7490', light: '#22d3ee' },
+  { base: '#c2410c', light: '#fb923c' },
 ];
 
 const MAX_SEGMENTS = 7;
 
-function toGradient(ctx: CanvasRenderingContext2D, area: { top: number; bottom: number }, color: GradientColor): CanvasGradient {
+function toGradient(
+  ctx: CanvasRenderingContext2D,
+  area: { top: number; bottom: number },
+  color: GradientColor,
+): CanvasGradient {
   const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
   gradient.addColorStop(0, color.light);
   gradient.addColorStop(1, color.base);
@@ -52,12 +53,10 @@ export function ModelTokenDoughnut({
   hasPrices,
   loading,
   isDark,
-  collapsible = false,
-  defaultCollapsed = false,
 }: ModelTokenDoughnutProps) {
   const { t } = useTranslation();
 
-  const { chartData, chartOptions, totalTokens, segments } = useMemo(() => {
+  const { chartData, chartOptions, totalTokens, segments, maxTokens } = useMemo(() => {
     const sorted = [...modelStats].sort((a, b) => b.tokens - a.tokens);
     const top = sorted.slice(0, MAX_SEGMENTS - 1);
     const otherTokens = sorted.slice(MAX_SEGMENTS - 1).reduce((sum, s) => sum + s.tokens, 0);
@@ -81,42 +80,50 @@ export function ModelTokenDoughnut({
     }
 
     const total = segments.reduce((sum, s) => sum + s.tokens, 0);
+    const max = Math.max(...segments.map((s) => s.tokens), 1);
 
     const data: ChartData<'doughnut', number[], string> = {
       labels: segments.map((s) => s.label),
       datasets: [
         {
           data: segments.map((s) => s.tokens),
-          backgroundColor: (ctx) => {
+          backgroundColor: (ctx: ScriptableContext<'doughnut'>) => {
             const { chart } = ctx;
             const area = chart.chartArea;
             if (!area) return segments[ctx.dataIndex]?.color.base ?? '#6b7280';
             return toGradient(chart.ctx, area, segments[ctx.dataIndex]?.color ?? { base: '#6b7280', light: '#d1d5db' });
           },
-          borderColor: 'transparent',
-          borderWidth: 0,
-          hoverBorderWidth: 2,
-          hoverBorderColor: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)',
+          borderColor: isDark ? '#0f172a' : '#ffffff',
+          borderWidth: 3,
+          borderRadius: 6,
+          hoverBorderWidth: 4,
+          hoverBorderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)',
           borderJoinStyle: 'round' as CanvasLineJoin,
+          spacing: 2,
         },
       ],
     };
 
-    const gridColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(17,24,39,0.10)';
-    const textColor = isDark ? 'rgba(255,255,255,0.87)' : '#111827';
-    const subColor = isDark ? 'rgba(255,255,255,0.55)' : '#6b7280';
+    const textColor = isDark ? '#f8fafc' : '#111827';
+    const subColor = isDark ? '#64748b' : '#6b7280';
+    const borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)';
 
     const options: ChartOptions<'doughnut'> = {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '58%',
+      cutout: '62%',
+      animation: {
+        animateScale: true,
+        animateRotate: true,
+        duration: 800,
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: isDark ? 'rgba(17,24,39,0.94)' : 'rgba(255,255,255,0.98)',
+          backgroundColor: isDark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.98)',
           titleColor: textColor,
           bodyColor: subColor,
-          borderColor: gridColor,
+          borderColor,
           borderWidth: 1,
           padding: 12,
           displayColors: true,
@@ -136,52 +143,91 @@ export function ModelTokenDoughnut({
           },
         },
       },
+      hover: {
+        mode: 'nearest' as const,
+        intersect: true,
+      },
     };
 
-    return { chartData: data, chartOptions: options, totalTokens: total, segments };
+    return { chartData: data, chartOptions: options, totalTokens: total, segments, maxTokens: max };
   }, [modelStats, isDark, hasPrices, t]);
 
   if (loading) {
     return (
-      <Card title={t('usage_stats.model_token_distribution')} collapsible={collapsible} defaultCollapsed={defaultCollapsed}>
-        <div className={styles.hint}>{t('common.loading')}</div>
-      </Card>
+      <div className={styles.tokenDistCard}>
+        <div className={styles.tokenDistHeader}>
+          <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
+        </div>
+        <div className={styles.tokenDistContent}>
+          <div className={styles.hint}>{t('common.loading')}</div>
+        </div>
+      </div>
     );
   }
 
   if (segments.length === 0) {
     return (
-      <Card title={t('usage_stats.model_token_distribution')} collapsible={collapsible} defaultCollapsed={defaultCollapsed}>
-        <div className={styles.hint}>{t('usage_stats.no_data')}</div>
-      </Card>
+      <div className={styles.tokenDistCard}>
+        <div className={styles.tokenDistHeader}>
+          <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
+        </div>
+        <div className={styles.tokenDistContent}>
+          <div className={styles.hint}>{t('usage_stats.no_data')}</div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card title={t('usage_stats.model_token_distribution')} collapsible={collapsible} defaultCollapsed={defaultCollapsed}>
-      <div className={styles.doughnutLayout}>
-        <div className={styles.doughnutChart}>
-          <div className={styles.doughnutCenter}>
-            <span className={styles.doughnutTotal}>{formatTokens(totalTokens)}</span>
-            <span className={styles.doughnutLabel}>{t('usage_stats.total_tokens')}</span>
+    <div className={styles.tokenDistCard}>
+      <div className={styles.tokenDistHeader}>
+        <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
+        <span className={styles.tokenDistBadge}>
+          {t('usage_stats.total_tokens')}: {formatTokens(totalTokens)}
+        </span>
+      </div>
+
+      <div className={styles.tokenDistContent}>
+        <div className={styles.tokenDistChart}>
+          <div className={styles.tokenDistCenter}>
+            <span className={styles.tokenDistTotal}>{formatTokens(totalTokens)}</span>
+            <span className={styles.tokenDistLabel}>{t('usage_stats.total_tokens')}</span>
           </div>
           <Doughnut data={chartData} options={chartOptions} />
         </div>
-        <div className={styles.doughnutLegend}>
-          {segments.map((seg) => (
-            <div key={seg.label} className={styles.doughnutLegendItem}>
-              <span
-                className={styles.doughnutLegendDot}
-                style={{
-                  background: `linear-gradient(180deg, ${seg.color.light}, ${seg.color.base})`,
-                }}
-              />
-              <span className={styles.doughnutLegendName}>{seg.label}</span>
-              <span className={styles.doughnutLegendValue}>{formatTokens(seg.tokens)}</span>
-            </div>
-          ))}
+
+        <div className={styles.tokenDistGrid}>
+          {segments.map((seg) => {
+            const pct = totalTokens > 0 ? (seg.tokens / totalTokens) * 100 : 0;
+            const barWidth = maxTokens > 0 ? (seg.tokens / maxTokens) * 100 : 0;
+
+            return (
+              <div key={seg.label} className={styles.tokenDistItem}>
+                <div
+                  className={styles.tokenDistProgress}
+                  style={{ width: `${barWidth}%` }}
+                />
+                <div className={styles.tokenDistItemInfo}>
+                  <span
+                    className={styles.tokenDistDot}
+                    style={{
+                      background: `linear-gradient(135deg, ${seg.color.light}, ${seg.color.base})`,
+                      boxShadow: `0 0 8px ${seg.color.light}66`,
+                    }}
+                  />
+                  <span className={styles.tokenDistName} title={seg.label}>
+                    {seg.label}
+                  </span>
+                </div>
+                <div className={styles.tokenDistItemValue}>
+                  <span className={styles.tokenDistValue}>{formatTokens(seg.tokens)}</span>
+                  <span className={styles.tokenDistPercent}>{pct.toFixed(1)}%</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
