@@ -678,3 +678,32 @@
     line-height: 1.6;
   }
 }
+
+// MiniMax Quota Styles
+.minimaxGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.minimaxControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.minimaxControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimaxCard {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

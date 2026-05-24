@@ -109,6 +109,10 @@ export interface ModelStatsSummary {
   cost: number;
   averageLatencyMs: number | null;
   latencySampleCount: number;
+  // Token breakdown
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
 }
 
 export type UsageTimeRange = '7h' | '24h' | '7d' | '30d' | 'all';
@@ -1133,6 +1137,9 @@ export function getModelStats(
       tokens: number;
       cost: number;
       latency: LatencyAccumulator;
+      inputTokens: number;
+      outputTokens: number;
+      cachedTokens: number;
     }
   >();
 
@@ -1151,6 +1158,9 @@ export function getModelStats(
         tokens: 0,
         cost: 0,
         latency: createLatencyAccumulator(),
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
       };
       existing.requests += Number(modelData.total_requests) || 0;
       existing.tokens += Number(modelData.total_tokens) || 0;
@@ -1180,6 +1190,21 @@ export function getModelStats(
 
           addLatencySample(existing.latency, latencyMs);
 
+          // Accumulate token breakdown
+          if (detailRecord) {
+            const tokens = detailRecord.tokens;
+            if (isRecord(tokens)) {
+              const inputTokens = Number(tokens.input_tokens) || 0;
+              const outputTokens = Number(tokens.output_tokens) || 0;
+              const cachedTokensPrimary = Number(tokens.cached_tokens) || 0;
+              const cachedTokensAlt = Number(tokens.cache_tokens) || 0;
+              const cachedTokens = Math.max(cachedTokensPrimary, cachedTokensAlt);
+              existing.inputTokens += inputTokens;
+              existing.outputTokens += outputTokens;
+              existing.cachedTokens += cachedTokens;
+            }
+          }
+
           if (price && detailRecord) {
             existing.cost += calculateCost(
               { ...(detailRecord as unknown as UsageDetail), __modelName: modelName },
@@ -1204,6 +1229,9 @@ export function getModelStats(
         cost: stats.cost,
         averageLatencyMs: latencyStats.averageMs,
         latencySampleCount: latencyStats.sampleCount,
+        inputTokens: stats.inputTokens,
+        outputTokens: stats.outputTokens,
+        cachedTokens: stats.cachedTokens,
       };
     })
     .sort((a, b) => b.requests - a.requests);

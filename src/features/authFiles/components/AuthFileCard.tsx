@@ -55,8 +55,10 @@ export type AuthFileCardProps = {
 
 const resolveQuotaType = (file: AuthFileItem): QuotaProviderType | null => {
   const provider = resolveAuthProvider(file);
-  if (!QUOTA_PROVIDER_TYPES.has(provider as QuotaProviderType)) return null;
-  return provider as QuotaProviderType;
+  if (provider === 'minimax' || QUOTA_PROVIDER_TYPES.has(provider as QuotaProviderType)) {
+    return provider as QuotaProviderType;
+  }
+  return null;
 };
 
 export function AuthFileCard(props: AuthFileCardProps) {

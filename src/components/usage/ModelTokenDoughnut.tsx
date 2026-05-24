@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChartData, ChartOptions, ScriptableContext } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import * as echarts from 'echarts';
 import type { ModelStatsSummary } from '@/utils/usage';
 import { formatUsd } from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
@@ -19,13 +20,13 @@ interface GradientColor {
 }
 
 const DOUGHNUT_COLORS: GradientColor[] = [
-  { base: '#1d4ed8', light: '#60a5fa' },
-  { base: '#ca8a04', light: '#facc15' },
-  { base: '#15803d', light: '#4ade80' },
-  { base: '#7e22ce', light: '#c084fc' },
-  { base: '#b91c1c', light: '#f87171' },
-  { base: '#0e7490', light: '#22d3ee' },
-  { base: '#c2410c', light: '#fb923c' },
+  { base: '#38bdf8', light: '#7dd3fc' },
+  { base: '#fbbf24', light: '#fcd34d' },
+  { base: '#34d399', light: '#6ee7b7' },
+  { base: '#a855f7', light: '#c084fc' },
+  { base: '#f43f5e', light: '#fb7185' },
+  { base: '#64748b', light: '#94a3b8' },
+  { base: '#22d3ee', light: '#67e8f9' },
 ];
 
 const MAX_SEGMENTS = 7;
@@ -48,6 +49,92 @@ function formatTokens(num: number): string {
   return num.toLocaleString();
 }
 
+function GlobalStructureChart({ modelStats, isDark }: { modelStats: ModelStatsSummary[]; isDark: boolean }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+
+  const { globalData } = useMemo(() => {
+    let totalInput = 0;
+    let totalCache = 0;
+    let totalOutput = 0;
+
+    modelStats.forEach((s) => {
+      totalInput += s.inputTokens;
+      totalCache += s.cachedTokens;
+      totalOutput += s.outputTokens;
+    });
+
+    return {
+      globalData: [
+        { value: totalInput, name: 'Input', itemStyle: { color: '#3B82F6' } },
+        { value: totalCache, name: 'Cache Hit', itemStyle: { color: '#F59E0B' } },
+        { value: totalOutput, name: 'Output', itemStyle: { color: '#10B981' } },
+      ],
+    };
+  }, [modelStats]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!chartRef.current) return;
+
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.dispose();
+      }
+
+      const chart = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
+      chartInstanceRef.current = chart;
+
+      const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          formatter: '{b}: {c} ({d}%)',
+          backgroundColor: isDark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.98)',
+          textStyle: { color: isDark ? '#f8fafc' : '#111827' },
+          borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)',
+          borderWidth: 1,
+          padding: 8,
+        },
+        legend: {
+          show: true,
+          orient: 'horizontal',
+          bottom: 0,
+          data: ['Input', 'Cache Hit', 'Output'],
+          textStyle: {
+            color: isDark ? '#9CA3AF' : '#6B7280',
+            fontSize: 10,
+          },
+          itemWidth: 12,
+          itemHeight: 8,
+        },
+        series: [
+          {
+            type: 'pie',
+            radius: ['45%', '70%'],
+            center: ['50%', '45%'],
+            avoidLabelOverlap: false,
+            label: { show: false },
+            labelLine: { show: false },
+            data: globalData,
+          },
+        ],
+      };
+
+      chart.setOption(option);
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.dispose();
+        chartInstanceRef.current = null;
+      }
+    };
+  }, [globalData, isDark]);
+
+  return <div ref={chartRef} className={styles.globalStructureChart} style={{ width: '100%', height: '100%' }} />;
+}
+
 export function ModelTokenDoughnut({
   modelStats,
   hasPrices,
@@ -56,12 +143,17 @@ export function ModelTokenDoughnut({
 }: ModelTokenDoughnutProps) {
   const { t } = useTranslation();
 
-  const { chartData, chartOptions, totalTokens, segments, maxTokens } = useMemo(() => {
+  const { chartData, chartOptions, totalTokens, segments } = useMemo(() => {
     const sorted = [...modelStats].sort((a, b) => b.tokens - a.tokens);
     const top = sorted.slice(0, MAX_SEGMENTS - 1);
     const otherTokens = sorted.slice(MAX_SEGMENTS - 1).reduce((sum, s) => sum + s.tokens, 0);
 
-    const segments: { label: string; tokens: number; cost: number; color: GradientColor }[] = [];
+    const segments: {
+      label: string;
+      tokens: number;
+      cost: number;
+      color: GradientColor;
+    }[] = [];
     top.forEach((s, i) => {
       segments.push({
         label: s.model,
@@ -75,12 +167,11 @@ export function ModelTokenDoughnut({
         label: t('usage_stats.others'),
         tokens: otherTokens,
         cost: 0,
-        color: { base: '#6b7280', light: '#d1d5db' },
+        color: { base: '#64748b', light: '#94a3b8' },
       });
     }
 
     const total = segments.reduce((sum, s) => sum + s.tokens, 0);
-    const max = Math.max(...segments.map((s) => s.tokens), 1);
 
     const data: ChartData<'doughnut', number[], string> = {
       labels: segments.map((s) => s.label),
@@ -90,8 +181,8 @@ export function ModelTokenDoughnut({
           backgroundColor: (ctx: ScriptableContext<'doughnut'>) => {
             const { chart } = ctx;
             const area = chart.chartArea;
-            if (!area) return segments[ctx.dataIndex]?.color.base ?? '#6b7280';
-            return toGradient(chart.ctx, area, segments[ctx.dataIndex]?.color ?? { base: '#6b7280', light: '#d1d5db' });
+            if (!area) return segments[ctx.dataIndex]?.color.base ?? '#64748b';
+            return toGradient(chart.ctx, area, segments[ctx.dataIndex]?.color ?? { base: '#64748b', light: '#94a3b8' });
           },
           borderColor: isDark ? '#0f172a' : '#ffffff',
           borderWidth: 3,
@@ -111,7 +202,7 @@ export function ModelTokenDoughnut({
     const options: ChartOptions<'doughnut'> = {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: '62%',
+      cutout: '68%',
       animation: {
         animateScale: true,
         animateRotate: true,
@@ -149,7 +240,7 @@ export function ModelTokenDoughnut({
       },
     };
 
-    return { chartData: data, chartOptions: options, totalTokens: total, segments, maxTokens: max };
+    return { chartData: data, chartOptions: options, totalTokens: total, segments };
   }, [modelStats, isDark, hasPrices, t]);
 
   if (loading) {
@@ -199,33 +290,44 @@ export function ModelTokenDoughnut({
         <div className={styles.tokenDistGrid}>
           {segments.map((seg) => {
             const pct = totalTokens > 0 ? (seg.tokens / totalTokens) * 100 : 0;
-            const barWidth = maxTokens > 0 ? (seg.tokens / maxTokens) * 100 : 0;
 
             return (
               <div key={seg.label} className={styles.tokenDistItem}>
-                <div
-                  className={styles.tokenDistProgress}
-                  style={{ width: `${barWidth}%` }}
-                />
-                <div className={styles.tokenDistItemInfo}>
-                  <span
-                    className={styles.tokenDistDot}
-                    style={{
-                      background: `linear-gradient(135deg, ${seg.color.light}, ${seg.color.base})`,
-                      boxShadow: `0 0 8px ${seg.color.light}66`,
-                    }}
-                  />
-                  <span className={styles.tokenDistName} title={seg.label}>
-                    {seg.label}
-                  </span>
+                <div className={styles.tokenDistItemTop}>
+                  <div className={styles.tokenDistItemInfo}>
+                    <span
+                      className={styles.tokenDistDot}
+                      style={{
+                        background: seg.color.base,
+                        boxShadow: `0 0 6px ${seg.color.base}66`,
+                      }}
+                    />
+                    <span className={styles.tokenDistName} title={seg.label}>
+                      {seg.label}
+                    </span>
+                  </div>
+                  <div className={styles.tokenDistItemValue}>
+                    <span className={styles.tokenDistValue}>{formatTokens(seg.tokens)}</span>
+                    <span className={styles.tokenDistPercent}>{pct.toFixed(1)}%</span>
+                  </div>
                 </div>
-                <div className={styles.tokenDistItemValue}>
-                  <span className={styles.tokenDistValue}>{formatTokens(seg.tokens)}</span>
-                  <span className={styles.tokenDistPercent}>{pct.toFixed(1)}%</span>
+                <div className={styles.tokenDistItemTrack}>
+                  <div
+                    className={styles.tokenDistItemProgress}
+                    style={{ width: `${pct}%`, backgroundColor: seg.color.base }}
+                  />
                 </div>
               </div>
             );
           })}
+        </div>
+
+        <div className={styles.tokenDistGlobalChart}>
+          <div className={styles.tokenDistGlobalCenter}>
+            <span className={styles.tokenDistTotal}>{formatTokens(totalTokens)}</span>
+            <span className={styles.tokenDistLabel}>全局结构</span>
+          </div>
+          <GlobalStructureChart modelStats={modelStats} isDark={isDark} />
         </div>
       </div>
     </div>

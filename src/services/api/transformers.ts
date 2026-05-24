@@ -100,6 +100,14 @@ const normalizeAuthIndex = (value: unknown): string | undefined => {
   return trimmed ? trimmed : undefined;
 };
 
+const normalizePositiveInteger = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  const normalized = Math.trunc(parsed);
+  return normalized > 0 ? normalized : undefined;
+};
+
 const normalizeApiKeyEntry = (entry: unknown): ApiKeyEntry | null => {
   if (entry === undefined || entry === null) return null;
   const record = isRecord(entry) ? entry : null;
@@ -113,6 +121,7 @@ const normalizeApiKeyEntry = (entry: unknown): ApiKeyEntry | null => {
   const authIndex = normalizeAuthIndex(
     record?.['auth-index'] ?? record?.authIndex ?? record?.['auth_index']
   );
+  const weight = normalizePositiveInteger(record?.weight);
 
   const result: ApiKeyEntry = {
     apiKey: trimmed,
@@ -120,6 +129,7 @@ const normalizeApiKeyEntry = (entry: unknown): ApiKeyEntry | null => {
     headers
   };
   if (authIndex) result.authIndex = authIndex;
+  if (weight !== undefined) result.weight = weight;
   return result;
 };
 

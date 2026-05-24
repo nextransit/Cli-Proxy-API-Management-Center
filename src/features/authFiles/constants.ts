@@ -28,7 +28,7 @@ export type AuthFileModelItem = {
 };
 export type AuthFileIconAsset = string | { light: string; dark: string };
 
-export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi';
+export type QuotaProviderType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'minimax';
 
 export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'antigravity',
@@ -36,6 +36,7 @@ export const QUOTA_PROVIDER_TYPES = new Set<QuotaProviderType>([
   'codex',
   'gemini-cli',
   'kimi',
+  'minimax',
 ]);
 
 export const MIN_CARD_PAGE_SIZE = 3;
@@ -105,6 +106,11 @@ export const TYPE_COLORS: Record<string, TypeColorSet> = {
   unknown: {
     light: { bg: '#f0f0f0', text: '#666666', border: '1px dashed #999999' },
     dark: { bg: '#3a3a3a', text: '#aaaaaa', border: '1px dashed #666666' },
+  },
+  // MiniMax logo: 橙色 #FF6B35（橙红色），用橙黄色标签区分
+  minimax: {
+    light: { bg: '#fff0e6', text: '#d94f1e' },
+    dark: { bg: '#5c2a0a', text: '#ff9d6b' },
   },
 };
 

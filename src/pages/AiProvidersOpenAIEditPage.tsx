@@ -371,8 +371,16 @@ export function AiProvidersOpenAIEditPage() {
   const renderKeyEntries = (entries: ApiKeyEntry[]) => {
     const list = entries.length ? entries : [buildApiKeyEntry()];
 
-    const updateEntry = (idx: number, field: keyof ApiKeyEntry, value: string) => {
-      const next = list.map((entry, i) => (i === idx ? { ...entry, [field]: value } : entry));
+    const normalizeWeightInput = (value: string): number | undefined => {
+      if (value.trim() === '') return undefined;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return undefined;
+      const normalized = Math.trunc(parsed);
+      return normalized > 0 ? normalized : 1;
+    };
+
+    const updateEntry = (idx: number, patch: Partial<ApiKeyEntry>) => {
+      const next = list.map((entry, i) => (i === idx ? { ...entry, ...patch } : entry));
       setForm((prev) => ({ ...prev, apiKeyEntries: next }));
       setDraftKeyTestStatus(idx, { status: 'idle', message: '' });
       setTestStatus('idle');
@@ -448,7 +456,7 @@ export function AiProvidersOpenAIEditPage() {
                   <input
                     type="text"
                     value={entry.apiKey}
-                    onChange={(e) => updateEntry(index, 'apiKey', e.target.value)}
+                    onChange={(e) => updateEntry(index, { apiKey: e.target.value })}
                     disabled={saving || disableControls || isTestingKeys}
                     className={`input ${styles.keyTableInput}`}
                     placeholder={t('ai_providers.openai_key_placeholder')}
@@ -460,7 +468,7 @@ export function AiProvidersOpenAIEditPage() {
                   <input
                     type="text"
                     value={entry.proxyUrl ?? ''}
-                    onChange={(e) => updateEntry(index, 'proxyUrl', e.target.value)}
+                    onChange={(e) => updateEntry(index, { proxyUrl: e.target.value })}
                     disabled={saving || disableControls || isTestingKeys}
                     className={`input ${styles.keyTableInput}`}
                     placeholder={t('ai_providers.openai_proxy_placeholder')}
@@ -471,9 +479,12 @@ export function AiProvidersOpenAIEditPage() {
                 <div className={styles.keyTableColWeight}>
                   <input
                     type="number"
-                    min="0"
+                    min="1"
+                    step="1"
                     value={entry.weight ?? 1}
-                    onChange={(e) => updateEntry(index, 'weight', e.target.value)}
+                    onChange={(e) =>
+                      updateEntry(index, { weight: normalizeWeightInput(e.target.value) })
+                    }
                     disabled={saving || disableControls || isTestingKeys}
                     className={`input ${styles.keyTableInput}`}
                     style={{ width: '60px' }}

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
 import { usageApi } from '@/services/api/usage';
+import { modelPricesApi } from '@/services/api/modelPrices';
 import { downloadBlob } from '@/utils/download';
 import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
 
@@ -52,7 +53,34 @@ export function useUsageData(): UseUsageDataReturn {
 
   useEffect(() => {
     void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
-    setModelPrices(loadModelPrices());
+    const localPrices = loadModelPrices();
+    setModelPrices(localPrices);
+
+    // Sync with server
+    modelPricesApi.getModelPrices()
+      .then((serverResponse) => {
+        const serverPrices = serverResponse?.prices || {};
+        const serverKeys = Object.keys(serverPrices);
+        const localKeys = Object.keys(localPrices);
+
+        if (serverKeys.length === 0 && localKeys.length > 0) {
+          // localStorage有，服务器数据库空 -> store 数据库
+          return modelPricesApi.putModelPrices(localPrices);
+        } else if (localKeys.length > 0 && serverKeys.length > 0) {
+          // localStorage有，服务器数据库有，冲突 -> 数据库为准，重写localstorage
+          if (JSON.stringify(localPrices) !== JSON.stringify(serverPrices)) {
+            saveModelPrices(serverPrices);
+            setModelPrices(serverPrices);
+          }
+        } else if (localKeys.length === 0 && serverKeys.length > 0) {
+          // localStorage空，数据库有 -> 写入localstorage
+          saveModelPrices(serverPrices);
+          setModelPrices(serverPrices);
+        }
+      })
+      .catch(() => {
+        // Server unavailable, fallback to localStorage
+      });
   }, [loadUsageStats]);
 
   useEffect(() => {
@@ -147,6 +175,10 @@ export function useUsageData(): UseUsageDataReturn {
   const handleSetModelPrices = useCallback((prices: Record<string, ModelPrice>) => {
     setModelPrices(prices);
     saveModelPrices(prices);
+    // Sync to server
+    modelPricesApi.patchModelPrices(prices).catch(() => {
+      // Ignore sync errors, data is saved locally
+    });
   }, []);
 
   const usage = usageSnapshot as UsagePayload | null;

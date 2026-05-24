@@ -224,3 +224,40 @@ export function parseKimiUsagePayload(payload: unknown): KimiUsagePayload | null
   }
   return null;
 }
+
+// MiniMax Usage Parser
+import type { MiniMaxUsageResponse, MiniMaxModelRemain } from '@/types';
+
+export function parseMiniMaxUsagePayload(payload: unknown): MiniMaxUsageResponse | null {
+  if (payload === undefined || payload === null) return null;
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    if (!trimmed) return null;
+    try {
+      return JSON.parse(trimmed) as MiniMaxUsageResponse;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof payload === 'object') {
+    return payload as MiniMaxUsageResponse;
+  }
+  return null;
+}
+
+export function normalizeMiniMaxModelRemain(raw: MiniMaxModelRemain | undefined): MiniMaxModelRemain {
+  if (!raw) {
+    return {};
+  }
+  return {
+    start_time: raw.start_time,
+    end_time: raw.end_time,
+    remains_time: raw.remains_time,
+    current_interval_total_count: raw.current_interval_total_count,
+    current_interval_usage_count: raw.current_interval_usage_count,
+    model_name: raw.model_name,
+    current_weekly_total_count: raw.current_weekly_total_count,
+    current_weekly_usage_count: raw.current_weekly_usage_count,
+    weekly_remains_time: raw.weekly_remains_time,
+  };
+}

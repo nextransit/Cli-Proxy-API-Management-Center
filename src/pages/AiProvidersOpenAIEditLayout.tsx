@@ -89,18 +89,25 @@ const normalizeKeyHeaders = (headers: ApiKeyEntry['headers']) => {
     });
 };
 
+const normalizeWeight = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  const normalized = Math.trunc(parsed);
+  return normalized > 0 ? normalized : 1;
+};
+
 const normalizeApiKeyEntries = (entries: ApiKeyEntry[]) =>
   (entries ?? []).reduce<
     Array<{
       apiKey: string;
       proxyUrl: string;
-      weight?: number;
+      weight: number;
       headers: Array<{ key: string; value: string }>;
     }>
   >((acc, entry) => {
     const apiKey = String(entry?.apiKey ?? '').trim();
     const proxyUrl = String(entry?.proxyUrl ?? '').trim();
-    const weight = entry?.weight;
+    const weight = normalizeWeight(entry?.weight);
     const headers = normalizeKeyHeaders(entry?.headers);
     if (!apiKey && !proxyUrl && headers.length === 0) return acc;
     acc.push({ apiKey, proxyUrl, weight, headers });
@@ -131,6 +138,7 @@ const areNormalizedApiKeyEntriesEqual = (
     const right = b[i];
     if (!left || !right) return false;
     if (left.apiKey !== right.apiKey || left.proxyUrl !== right.proxyUrl) return false;
+    if (left.weight !== right.weight) return false;
     if (!areKeyValueEntriesEqual(left.headers, right.headers)) return false;
   }
   return true;
@@ -479,7 +487,7 @@ export function AiProvidersOpenAIEditLayout() {
         apiKeyEntries: form.apiKeyEntries.map((entry: ApiKeyEntry) => ({
           apiKey: entry.apiKey.trim(),
           proxyUrl: entry.proxyUrl?.trim() || undefined,
-          weight: entry.weight,
+          weight: normalizeWeight(entry.weight),
           headers: entry.headers,
         })),
       };

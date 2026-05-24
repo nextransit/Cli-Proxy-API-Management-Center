@@ -1072,6 +1072,7 @@
     "request_events_limit_hint": "Showing {{shown}} of {{total}} events to keep rendering responsive.",
     "input_tokens": "Input Tokens",
     "output_tokens": "Output Tokens",
+    "cache_hit": "Cache Hit",
     "input_short": "In",
     "output_short": "Out",
     "avg_latency_short": "Avg. Latency",

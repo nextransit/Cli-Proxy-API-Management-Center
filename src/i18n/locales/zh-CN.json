@@ -1084,6 +1084,7 @@
     "request_events_limit_hint": "为保证渲染性能，仅展示 {{shown}} / {{total}} 条事件。",
     "input_tokens": "输入 Tokens",
     "output_tokens": "输出 Tokens",
+    "cache_hit": "缓存命中",
     "input_short": "In",
     "output_short": "Out",
     "avg_latency_short": "Avg. Latency",

@@ -28,6 +28,8 @@ import type {
   GeminiCliUserTier,
   KimiQuotaRow,
   KimiQuotaState,
+  MiniMaxQuotaRow,
+  MiniMaxQuotaState,
 } from '@/types';
 import { apiCallApi, authFilesApi, getApiCallErrorMessage } from '@/services/api';
 import { useQuotaStore } from '@/stores';
@@ -45,6 +47,7 @@ import {
   GEMINI_CLI_REQUEST_HEADERS,
   KIMI_USAGE_URL,
   KIMI_REQUEST_HEADERS,
+  MINIMAX_USAGE_URL,
   normalizeGeminiCliModelId,
   normalizeNumberValue,
   normalizePlanType,
@@ -56,15 +59,18 @@ import {
   parseGeminiCliQuotaPayload,
   parseGeminiCliCodeAssistPayload,
   parseKimiUsagePayload,
+  parseMiniMaxUsagePayload,
   resolveCodexChatgptAccountId,
   resolveCodexPlanType,
   resolveGeminiCliProjectId,
   formatCodexResetLabel,
   formatQuotaResetTime,
   formatKimiResetHint,
+  formatMiniMaxResetTime,
   buildAntigravityQuotaGroups,
   buildGeminiCliQuotaBuckets,
   buildKimiQuotaRows,
+  buildMiniMaxQuotaRows,
   createStatusError,
   getStatusFromError,
   isAntigravityFile,
@@ -73,6 +79,7 @@ import {
   isDisabledAuthFile,
   isGeminiCliFile,
   isKimiFile,
+  isMiniMaxFile,
   isRuntimeOnlyAuthFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/usage';
@@ -81,7 +88,7 @@ import styles from '@/pages/QuotaPage.module.scss';
 
 type QuotaUpdater<T> = T | ((prev: T) => T);
 
-type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi';
+type QuotaType = 'antigravity' | 'claude' | 'codex' | 'gemini-cli' | 'kimi' | 'minimax';
 
 const DEFAULT_ANTIGRAVITY_PROJECT_ID = 'bamboo-precept-lgxtn';
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
@@ -98,11 +105,13 @@ export interface QuotaStore {
   codexQuota: Record<string, CodexQuotaState>;
   geminiCliQuota: Record<string, GeminiCliQuotaState>;
   kimiQuota: Record<string, KimiQuotaState>;
+  minimaxQuota: Record<string, MiniMaxQuotaState>;
   setAntigravityQuota: (updater: QuotaUpdater<Record<string, AntigravityQuotaState>>) => void;
   setClaudeQuota: (updater: QuotaUpdater<Record<string, ClaudeQuotaState>>) => void;
   setCodexQuota: (updater: QuotaUpdater<Record<string, CodexQuotaState>>) => void;
   setGeminiCliQuota: (updater: QuotaUpdater<Record<string, GeminiCliQuotaState>>) => void;
   setKimiQuota: (updater: QuotaUpdater<Record<string, KimiQuotaState>>) => void;
+  setMinimmaxQuota: (updater: QuotaUpdater<Record<string, MiniMaxQuotaState>>) => void;
   clearQuotaCache: () => void;
 }
 
@@ -1352,4 +1361,105 @@ export const KIMI_CONFIG: QuotaConfig<KimiQuotaState, KimiQuotaRow[]> = {
   controlClassName: styles.kimiControl,
   gridClassName: styles.kimiGrid,
   renderQuotaItems: renderKimiItems,
+};
+
+// MiniMax Quota Functions
+const fetchMiniMaxQuota = async (
+  file: AuthFileItem,
+  t: TFunction
+): Promise<MiniMaxQuotaRow[]> => {
+  const rawAuthIndex = file['auth_index'] ?? file.authIndex;
+  const authIndex = normalizeAuthIndex(rawAuthIndex);
+  if (!authIndex) {
+    throw new Error(t('minimax_quota.missing_auth_index'));
+  }
+
+  const result = await apiCallApi.request({
+    authIndex,
+    method: 'GET',
+    url: MINIMAX_USAGE_URL,
+    header: { 'Content-Type': 'application/json' },
+  });
+
+  if (result.statusCode < 200 || result.statusCode >= 300) {
+    throw createStatusError(getApiCallErrorMessage(result), result.statusCode);
+  }
+
+  const payload = parseMiniMaxUsagePayload(result.body ?? result.bodyText);
+  if (!payload) {
+    throw new Error(t('minimax_quota.empty_data'));
+  }
+
+  return buildMiniMaxQuotaRows(payload);
+};
+
+const renderMiniMaxItems = (
+  quota: MiniMaxQuotaState,
+  t: TFunction,
+  helpers: QuotaRenderHelpers
+): ReactNode => {
+  const { styles: styleMap, QuotaProgressBar } = helpers;
+  const { createElement: h } = React;
+  const rows = quota.rows ?? [];
+
+  if (rows.length === 0) {
+    return h('div', { className: styleMap.quotaMessage }, t('minimax_quota.empty_data'));
+  }
+
+  return rows.map((row, idx) => {
+    const remaining = row.weeklyTotal > 0
+      ? Math.max(0, 100 - row.weeklyPercent)
+      : null;
+    const percentLabel = remaining === null ? '--' : `${Math.round(remaining)}%`;
+    const resetLabel = formatMiniMaxResetTime(row.weeklyResetMs);
+
+    return h(
+      'div',
+      { key: row.modelName || `row-${idx}`, className: styleMap.quotaRow },
+      h(
+        'div',
+        { className: styleMap.quotaRowHeader },
+        h('span', { className: styleMap.quotaModel }, row.modelName),
+        h(
+          'div',
+          { className: styleMap.quotaMeta },
+          h('span', { className: styleMap.quotaPercent }, percentLabel),
+          row.weeklyTotal > 0
+            ? h('span', { className: styleMap.quotaAmount }, `${row.weeklyUsed} / ${row.weeklyTotal}`)
+            : null,
+          resetLabel && resetLabel !== '-'
+            ? h('span', { className: styleMap.quotaReset }, t('minimax_quota.reset_in', { time: resetLabel }))
+            : null
+        )
+      ),
+      h(QuotaProgressBar, {
+        percent: remaining,
+        highThreshold: QUOTA_PROGRESS_HIGH_THRESHOLD,
+        mediumThreshold: QUOTA_PROGRESS_MEDIUM_THRESHOLD,
+      })
+    );
+  });
+};
+
+export const MINIMAX_CONFIG: QuotaConfig<MiniMaxQuotaState, MiniMaxQuotaRow[]> = {
+  type: 'minimax',
+  i18nPrefix: 'minimax_quota',
+  cardIdleMessageKey: 'quota_management.card_idle_hint',
+  filterFn: (file) => isMiniMaxFile(file) && !isDisabledAuthFile(file),
+  fetchQuota: fetchMiniMaxQuota,
+  storeSelector: (state) => state.minimaxQuota,
+  storeSetter: 'setMinimmaxQuota',
+  buildLoadingState: () => ({ status: 'loading', rows: [] }),
+  buildSuccessState: (rows) => ({ status: 'success', rows }),
+  buildErrorState: (message, status) => ({
+    status: 'error',
+    rows: [],
+    error: message,
+    errorStatus: status,
+  }),
+  cardClassName: styles.minimaxCard,
+  controlsClassName: styles.minimaxControls,
+  controlClassName: styles.minimaxControl,
+  gridClassName: styles.minimaxGrid,
+  renderQuotaItems: renderMiniMaxItems,
 };

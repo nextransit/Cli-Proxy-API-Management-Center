@@ -72,3 +72,30 @@ export function formatKimiResetHint(t: TFunction, hint?: string): string {
   if (!hint) return '';
   return t('kimi_quota.reset_hint', { hint });
 }
+
+// MiniMax Formatters
+export function formatMiniMaxResetTime(weeklyRemainsMs: number | undefined): string {
+  if (!weeklyRemainsMs || weeklyRemainsMs <= 0) return '-';
+
+  const totalSeconds = Math.floor(weeklyRemainsMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+  if (hours > 24) {
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
+export function normalizeMiniMaxQuotaFraction(used: number, total: number): number {
+  if (!total || total <= 0) return 0;
+  return Math.min(100, Math.round((used / total) * 100 * 100) / 100);
+}

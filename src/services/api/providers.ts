@@ -58,7 +58,12 @@ const serializeModelAliases = (models?: ModelAlias[]) =>
 const serializeApiKeyEntry = (entry: ApiKeyEntry) => {
   const payload: Record<string, unknown> = { 'api-key': entry.apiKey };
   if (entry.proxyUrl) payload['proxy-url'] = entry.proxyUrl;
-  if (entry.weight !== undefined) payload.weight = entry.weight;
+  // Only send weight if it's a valid positive number (default is 1, so omit it)
+  const parsedWeight = Number(entry.weight);
+  if (Number.isFinite(parsedWeight)) {
+    const normalizedWeight = Math.trunc(parsedWeight);
+    if (normalizedWeight > 0) payload.weight = normalizedWeight;
+  }
   const headers = serializeHeaders(entry.headers);
   if (headers) payload.headers = headers;
   return payload;

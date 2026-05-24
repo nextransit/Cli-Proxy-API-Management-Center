@@ -771,6 +771,7 @@ export function UsagePage() {
               <button
                 type="button"
                 className={chartGranularity === 'hour' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                aria-pressed={chartGranularity === 'hour'}
                 onClick={() => handleChartGranularityChange('hour')}
               >
                 {t('usage_stats.by_hour')}
@@ -778,6 +779,7 @@ export function UsagePage() {
               <button
                 type="button"
                 className={chartGranularity === 'day' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                aria-pressed={chartGranularity === 'day'}
                 onClick={() => handleChartGranularityChange('day')}
               >
                 {t('usage_stats.by_day')}
@@ -785,6 +787,7 @@ export function UsagePage() {
               <button
                 type="button"
                 className={chartGranularity === 'all' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                aria-pressed={chartGranularity === 'all'}
                 onClick={() => handleChartGranularityChange('all')}
               >
                 {t('usage_stats.chart_granularity_all')}
@@ -814,10 +817,28 @@ export function UsagePage() {
                       ? styles.topKeyQuickButtonActive
                       : styles.topKeyQuickButton
                   }
-                  onClick={() => setCredentialFilter(row.value)}
+                  aria-pressed={effectiveCredentialFilter === row.value}
+                  onClick={() => setCredentialFilter(effectiveCredentialFilter === row.value ? ALL_FILTER : row.value)}
                   title={`${row.label}: ${row.requests.toLocaleString()}`}
                 >
-                  {row.label}
+                  <svg
+                    className={styles.topKeyQuickIcon}
+                    aria-hidden="true"
+                    focusable="false"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="7.5" cy="15.5" r="5.5" />
+                    <path d="m21 2-9.6 9.6" />
+                    <path d="m15.5 7.5 3 3" />
+                    <path d="m17.5 5.5 3 3" />
+                  </svg>
+                  <span className={styles.topKeyQuickText}>{row.label}</span>
+                  {effectiveCredentialFilter === row.value && <span className={styles.topKeyQuickStateDot} />}
                 </button>
               ))}
             </div>

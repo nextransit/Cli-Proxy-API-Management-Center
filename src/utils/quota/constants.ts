@@ -198,3 +198,6 @@ export const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages';
 export const KIMI_REQUEST_HEADERS = {
   Authorization: 'Bearer $TOKEN$',
 };
+
+// MiniMax Usage API
+export const MINIMAX_USAGE_URL = 'https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains';

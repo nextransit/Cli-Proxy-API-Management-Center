@@ -405,3 +405,35 @@ export function buildKimiQuotaRows(payload: KimiUsagePayload): KimiQuotaRow[] {
 
   return rows;
 }
+
+// MiniMax Builders
+import type { MiniMaxUsageResponse, MiniMaxQuotaRow } from '@/types';
+import { normalizeMiniMaxModelRemain } from './parsers';
+import { normalizeMiniMaxQuotaFraction } from './formatters';
+
+export function buildMiniMaxQuotaRows(payload: MiniMaxUsageResponse): MiniMaxQuotaRow[] {
+  const rows: MiniMaxQuotaRow[] = [];
+  const models = payload.model_remains;
+
+  if (!models || models.length === 0) {
+    return rows;
+  }
+
+  for (const raw of models) {
+    const model = normalizeMiniMaxModelRemain(raw);
+    const weeklyTotal = model.current_weekly_total_count ?? 0;
+    const weeklyUsed = model.current_weekly_usage_count ?? 0;
+
+    rows.push({
+      modelName: model.model_name ?? 'Unknown',
+      weeklyTotal,
+      weeklyUsed,
+      weeklyPercent: normalizeMiniMaxQuotaFraction(weeklyUsed, weeklyTotal),
+      weeklyResetMs: model.weekly_remains_time ?? 0,
+      intervalTotal: model.current_interval_total_count,
+      intervalUsed: model.current_interval_usage_count,
+    });
+  }
+
+  return rows;
+}
