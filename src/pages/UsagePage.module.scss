@@ -14,7 +14,7 @@
   flex-direction: column;
   gap: var(--usage-section-gap);
   position: relative;
-  padding: 6px 0 22px;
+  padding: 0 0 22px;
   isolation: isolate;
 
   &::before {
@@ -102,6 +102,19 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 14px;
+
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+}
+
+:global([data-theme='dark']) .header {
+  background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
 }
 
 .headerActions {
@@ -211,6 +224,12 @@
 .globalGranularityButtonActive:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--usage-accent) 45%, transparent);
   outline-offset: 2px;
+}
+
+.globalGranularityButton:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 // Top key quick filter tags
@@ -1476,34 +1495,30 @@
   }
 }
 
-.tokenDistGlobalChart {
+.tokenDistStructureChart {
   position: relative;
-  flex: 0 0 200px;
-  width: 200px;
-  height: 200px;
+  flex: 1.2 1 420px;
+  min-width: 360px;
+  min-height: 260px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
 
   @include mobile {
-    flex: 0 0 180px;
-    width: 180px;
-    height: 180px;
+    width: 100%;
+    min-width: 0;
   }
 
   @include tablet {
-    flex: 0 0 160px;
-    width: 160px;
-    height: 160px;
+    flex-basis: 360px;
+    min-width: 320px;
   }
 }
 
-.tokenDistGlobalCenter {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 1;
+.tokenDistStructureChartCanvas {
+  min-height: 260px;
+  border-radius: inherit;
+  background: transparent;
 }
 
 .tokenDistCenter {
@@ -7463,4 +7478,130 @@ $navy-blue: #2A7B9B;
 .container > .healthCard,
 .container > :global(.card) {
   margin-block: 0 !important;
+}
+
+// Skeleton utilities
+.mt-8 {
+  margin-top: 8px;
+}
+
+// Token distribution skeleton
+.tokenDistChartPlaceholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.tokenDistChartSkeleton {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #161b22) 25%,
+    var(--skeleton-highlight, #21262d) 50%,
+    var(--skeleton-base, #161b22) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.tokenDistLegendPlaceholder {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.tokenDistLegendItemSkeleton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tokenDistLegendDotSkeleton {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #161b22) 25%,
+    var(--skeleton-highlight, #21262d) 50%,
+    var(--skeleton-base, #161b22) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.tokenDistLegendTextSkeleton {
+  width: 80px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #161b22) 25%,
+    var(--skeleton-highlight, #21262d) 50%,
+    var(--skeleton-base, #161b22) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// Request events skeleton
+.requestEventsSkeleton {
+  padding: 16px 0;
+}
+
+.skeletonCell {
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #161b22) 25%,
+    var(--skeleton-highlight, #21262d) 50%,
+    var(--skeleton-base, #161b22) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+// Chart skeleton
+.chartSkeletonPlaceholder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 200px;
+  padding: 20px;
+}
+
+.chartSkeletonBars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 100%;
+  width: 100%;
+  max-width: 600px;
+}
+
+.chartSkeletonBar {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #161b22) 25%,
+    var(--skeleton-highlight, #21262d) 50%,
+    var(--skeleton-base, #161b22) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

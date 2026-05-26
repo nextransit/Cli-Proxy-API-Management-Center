@@ -3,8 +3,15 @@ import { useTranslation } from 'react-i18next';
 import type { ChartData, ChartOptions, ScriptableContext } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 import * as echarts from 'echarts';
-import type { ModelStatsSummary } from '@/utils/usage';
-import { formatUsd } from '@/utils/usage';
+import {
+  formatUsd,
+  collectUsageDetails,
+  formatHourLabel,
+  formatDayLabel,
+  calculateCost,
+  type ModelStatsSummary,
+  type ModelPrice,
+} from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface ModelTokenDoughnutProps {
@@ -12,6 +19,10 @@ export interface ModelTokenDoughnutProps {
   hasPrices: boolean;
   loading: boolean;
   isDark: boolean;
+  scopedUsage: any;
+  chartPeriod: 'hour' | 'day';
+  hourWindowHours?: number;
+  modelPrices: Record<string, ModelPrice>;
 }
 
 interface GradientColor {
@@ -28,6 +39,8 @@ const DOUGHNUT_COLORS: GradientColor[] = [
   { base: '#64748b', light: '#94a3b8' },
   { base: '#22d3ee', light: '#67e8f9' },
 ];
+
+
 
 const MAX_SEGMENTS = 7;
 
@@ -49,31 +62,109 @@ function formatTokens(num: number): string {
   return num.toLocaleString();
 }
 
-function GlobalStructureChart({ modelStats, isDark }: { modelStats: ModelStatsSummary[]; isDark: boolean }) {
+interface TokenUsageTrendChartProps {
+  scopedUsage: any;
+  chartPeriod: 'hour' | 'day';
+  hourWindowHours?: number;
+  modelPrices: Record<string, ModelPrice>;
+  hasPrices: boolean;
+  isDark: boolean;
+}
+
+function TokenUsageTrendChart({
+  scopedUsage,
+  chartPeriod,
+  hourWindowHours,
+  modelPrices,
+  hasPrices,
+  isDark,
+}: TokenUsageTrendChartProps) {
+  const { t } = useTranslation();
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
-  const { globalData } = useMemo(() => {
-    let totalInput = 0;
-    let totalCache = 0;
-    let totalOutput = 0;
+  const details = useMemo(() => collectUsageDetails(scopedUsage), [scopedUsage]);
 
-    modelStats.forEach((s) => {
-      totalInput += s.inputTokens;
-      totalCache += s.cachedTokens;
-      totalOutput += s.outputTokens;
+  const { labels, inputData, outputData, cacheCreationData, cacheReadData, cacheHitRateData, costData } = useMemo(() => {
+    const hourlyLabels = chartPeriod === 'hour' ? (() => {
+      const hourMs = 60 * 60 * 1000;
+      const resolvedHourWindow =
+        Number.isFinite(hourWindowHours) && hourWindowHours && hourWindowHours > 0
+          ? Math.min(Math.max(Math.floor(hourWindowHours), 1), 24 * 31)
+          : 24;
+      const currentHour = new Date();
+      currentHour.setMinutes(0, 0, 0);
+      const earliest = new Date(currentHour);
+      earliest.setHours(earliest.getHours() - (resolvedHourWindow - 1));
+      const earliestTime = earliest.getTime();
+      return Array.from({ length: resolvedHourWindow }, (_, index) =>
+        formatHourLabel(new Date(earliestTime + index * hourMs))
+      );
+    })() : [];
+
+    const dailyLabels = chartPeriod === 'day' ? Array.from(
+      new Set(
+        details
+          .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
+          .filter(Boolean)
+      )
+    ).sort() : [];
+
+    const labelsList = chartPeriod === 'hour' ? hourlyLabels : dailyLabels;
+    const labelIndexMap = new Map(labelsList.map((l, idx) => [l, idx]));
+
+    const inpData = new Array(labelsList.length).fill(0);
+    const outData = new Array(labelsList.length).fill(0);
+    const ccData = new Array(labelsList.length).fill(0);
+    const crData = new Array(labelsList.length).fill(0);
+    const cData = new Array(labelsList.length).fill(0);
+
+    details.forEach((detail) => {
+      const timestamp = detail.__timestampMs || 0;
+      if (timestamp <= 0) return;
+
+      const label =
+        chartPeriod === 'hour'
+          ? (() => {
+              const date = new Date(timestamp);
+              date.setMinutes(0, 0, 0);
+              return formatHourLabel(date);
+            })()
+          : formatDayLabel(new Date(timestamp));
+
+      const idx = labelIndexMap.get(label);
+      if (idx === undefined) return;
+
+      const tokens = detail.tokens || {};
+      inpData[idx] += tokens.input_tokens || 0;
+      outData[idx] += tokens.output_tokens || 0;
+      ccData[idx] += tokens.cache_tokens || 0;
+      crData[idx] += tokens.cached_tokens || 0;
+      cData[idx] += calculateCost(detail, modelPrices);
+    });
+
+    const chrData = labelsList.map((_, index) => {
+      const inp = inpData[index];
+      const cc = ccData[index];
+      const cr = crData[index];
+      const total = inp + cc + cr;
+      return total > 0 ? Number(((cr / total) * 100).toFixed(1)) : 0;
     });
 
     return {
-      globalData: [
-        { value: totalInput, name: 'Input', itemStyle: { color: '#3B82F6' } },
-        { value: totalCache, name: 'Cache Hit', itemStyle: { color: '#F59E0B' } },
-        { value: totalOutput, name: 'Output', itemStyle: { color: '#10B981' } },
-      ],
+      labels: labelsList,
+      inputData: inpData,
+      outputData: outData,
+      cacheCreationData: ccData,
+      cacheReadData: crData,
+      cacheHitRateData: chrData,
+      costData: cData,
     };
-  }, [modelStats]);
+  }, [details, chartPeriod, hourWindowHours, modelPrices]);
 
   useEffect(() => {
+    let resizeObserver: ResizeObserver | null = null;
+
     const timer = setTimeout(() => {
       if (!chartRef.current) return;
 
@@ -84,55 +175,191 @@ function GlobalStructureChart({ modelStats, isDark }: { modelStats: ModelStatsSu
       const chart = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
       chartInstanceRef.current = chart;
 
-      const option = {
+      const option: echarts.EChartsOption = {
         backgroundColor: 'transparent',
+        title: {
+          text: t('usage_stats.token_usage_trend') || 'Token Usage Trend',
+          textStyle: {
+            fontSize: 13,
+            fontWeight: 'bold',
+            color: isDark ? '#f8fafc' : '#111827',
+          },
+          top: 0,
+          left: 0,
+        },
         tooltip: {
-          trigger: 'item',
-          formatter: '{b}: {c} ({d}%)',
-          backgroundColor: isDark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.98)',
+          trigger: 'axis',
+          axisPointer: { type: 'cross' },
+          backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
           textStyle: { color: isDark ? '#f8fafc' : '#111827' },
           borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)',
           borderWidth: 1,
-          padding: 8,
+          padding: 10,
+          formatter: (params: any) => {
+            if (!Array.isArray(params) || params.length === 0) return '';
+            const header = `<strong>${params[0].axisValue}</strong>`;
+            const lines = [header];
+            
+            const dataIndex = params[0].dataIndex;
+            const inputVal = inputData[dataIndex] || 0;
+            const outputVal = outputData[dataIndex] || 0;
+            const cacheCreationVal = cacheCreationData[dataIndex] || 0;
+            const cacheReadVal = cacheReadData[dataIndex] || 0;
+            const hitRateVal = cacheHitRateData[dataIndex] || 0;
+            const costVal = costData[dataIndex] || 0;
+
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#3b82f6;"></span>Input: ${inputVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#10b981;"></span>Output: ${outputVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#f59e0b;"></span>Cache Creation: ${cacheCreationVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#06b6d4;"></span>Cache Read: ${cacheReadVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#8b5cf6;"></span>Cache Hit Rate: ${hitRateVal.toFixed(1)}%`);
+            if (hasPrices && costVal > 0) {
+              lines.push(`<hr style="border-color:rgba(255,255,255,0.15);margin:5px 0;" />Cost: ${formatUsd(costVal)}`);
+            }
+            return lines.join('<br/>');
+          }
         },
         legend: {
           show: true,
-          orient: 'horizontal',
-          bottom: 0,
-          data: ['Input', 'Cache Hit', 'Output'],
+          top: 0,
+          right: 0,
+          data: ['Input', 'Output', 'Cache Creation', 'Cache Read', 'Cache Hit Rate'],
           textStyle: {
             color: isDark ? '#9CA3AF' : '#6B7280',
             fontSize: 10,
           },
-          itemWidth: 12,
-          itemHeight: 8,
+          itemWidth: 10,
+          itemHeight: 6,
         },
+        grid: {
+          left: 8,
+          right: 8,
+          top: 38,
+          bottom: 12,
+          containLabel: true,
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: labels,
+          axisLabel: {
+            color: isDark ? '#94a3b8' : '#6b7280',
+            fontSize: 9,
+          },
+          axisTick: { show: false },
+          axisLine: { show: false },
+        },
+        yAxis: [
+          {
+            type: 'value',
+            axisLabel: {
+              color: isDark ? '#94a3b8' : '#6b7280',
+              fontSize: 9,
+              formatter: (value: number) => formatTokens(value),
+            },
+            splitLine: {
+              lineStyle: {
+                color: isDark ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.15)',
+              },
+            },
+          },
+          {
+            type: 'value',
+            min: 0,
+            max: 100,
+            axisLabel: {
+              color: isDark ? '#94a3b8' : '#6b7280',
+              fontSize: 9,
+              formatter: '{value}%',
+            },
+            splitLine: { show: false },
+          }
+        ],
         series: [
           {
-            type: 'pie',
-            radius: ['45%', '70%'],
-            center: ['50%', '45%'],
-            avoidLabelOverlap: false,
-            label: { show: false },
-            labelLine: { show: false },
-            data: globalData,
+            name: 'Input',
+            type: 'line',
+            data: inputData,
+            showSymbol: false,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: { color: '#3b82f6' },
+            lineStyle: { width: 2 },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: 'rgba(59, 130, 246, 0.12)' },
+                { offset: 1, color: 'rgba(59, 130, 246, 0.01)' }
+              ])
+            }
           },
-        ],
+          {
+            name: 'Output',
+            type: 'line',
+            data: outputData,
+            showSymbol: false,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: { color: '#10b981' },
+            lineStyle: { width: 2 },
+          },
+          {
+            name: 'Cache Creation',
+            type: 'line',
+            data: cacheCreationData,
+            showSymbol: false,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: { color: '#f59e0b' },
+            lineStyle: { width: 2 },
+          },
+          {
+            name: 'Cache Read',
+            type: 'line',
+            data: cacheReadData,
+            showSymbol: false,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: { color: '#06b6d4' },
+            lineStyle: { width: 2 },
+          },
+          {
+            name: 'Cache Hit Rate',
+            type: 'line',
+            yAxisIndex: 1,
+            data: cacheHitRateData,
+            showSymbol: false,
+            symbol: 'circle',
+            symbolSize: 6,
+            itemStyle: { color: '#8b5cf6' },
+            lineStyle: { width: 2, type: 'dashed' },
+          }
+        ]
       };
 
       chart.setOption(option);
+
+      resizeObserver = new ResizeObserver(() => chart.resize());
+      resizeObserver.observe(chartRef.current);
     }, 100);
 
     return () => {
       clearTimeout(timer);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       if (chartInstanceRef.current) {
         chartInstanceRef.current.dispose();
         chartInstanceRef.current = null;
       }
     };
-  }, [globalData, isDark]);
+  }, [labels, inputData, outputData, cacheCreationData, cacheReadData, cacheHitRateData, costData, isDark, t, hasPrices]);
 
-  return <div ref={chartRef} className={styles.globalStructureChart} style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div
+      ref={chartRef}
+      style={{ width: '100%', height: 260 }}
+    />
+  );
 }
 
 export function ModelTokenDoughnut({
@@ -140,6 +367,10 @@ export function ModelTokenDoughnut({
   hasPrices,
   loading,
   isDark,
+  scopedUsage,
+  chartPeriod,
+  hourWindowHours,
+  modelPrices,
 }: ModelTokenDoughnutProps) {
   const { t } = useTranslation();
 
@@ -250,7 +481,17 @@ export function ModelTokenDoughnut({
           <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
         </div>
         <div className={styles.tokenDistContent}>
-          <div className={styles.hint}>{t('common.loading')}</div>
+          <div className={styles.tokenDistChartPlaceholder}>
+            <div className={styles.tokenDistChartSkeleton} />
+          </div>
+          <div className={styles.tokenDistLegendPlaceholder}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={styles.tokenDistLegendItemSkeleton}>
+                <div className={styles.tokenDistLegendDotSkeleton} />
+                <div className={styles.tokenDistLegendTextSkeleton} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -322,12 +563,15 @@ export function ModelTokenDoughnut({
           })}
         </div>
 
-        <div className={styles.tokenDistGlobalChart}>
-          <div className={styles.tokenDistGlobalCenter}>
-            <span className={styles.tokenDistTotal}>{formatTokens(totalTokens)}</span>
-            <span className={styles.tokenDistLabel}>全局结构</span>
-          </div>
-          <GlobalStructureChart modelStats={modelStats} isDark={isDark} />
+        <div className={styles.tokenDistStructureChart}>
+          <TokenUsageTrendChart
+            scopedUsage={scopedUsage}
+            chartPeriod={chartPeriod}
+            hourWindowHours={hourWindowHours}
+            modelPrices={modelPrices}
+            hasPrices={hasPrices}
+            isDark={isDark}
+          />
         </div>
       </div>
     </div>
