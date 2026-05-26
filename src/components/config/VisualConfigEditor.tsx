@@ -18,6 +18,8 @@ import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import {
   IconCode,
   IconDiamond,
+  IconEye,
+  IconEyeOff,
   IconKey,
   IconSatellite,
   IconSettings,
@@ -166,6 +168,53 @@ function FieldShell({
           {hint}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function PasswordInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  hint?: string;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const inputId = useId();
+
+  return (
+    <div className="form-group">
+      <label htmlFor={inputId}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input
+          id={inputId}
+          className="input"
+          type={showPassword ? 'text' : 'password'}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          style={{ paddingRight: '36px' }}
+        />
+        <button
+          type="button"
+          className={styles.passwordToggle}
+          onClick={() => setShowPassword(!showPassword)}
+          disabled={disabled}
+          aria-label={showPassword ? 'Hide password' : 'Show password'}
+        >
+          {showPassword ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+        </button>
+      </div>
+      {hint && <div className="hint">{hint}</div>}
     </div>
   );
 }
@@ -324,13 +373,6 @@ export function VisualConfigEditor({
       },
     ],
     [countErrors, hasPayloadValidationErrors, t]
-  );
-
-  const hasValidationIssues =
-    sections.some((section) => section.errorCount > 0) || hasPayloadValidationErrors;
-  const focusSections = useMemo(
-    () => sections.filter((section) => ['server', 'network', 'payload'].includes(section.id)),
-    [sections]
   );
 
   useEffect(() => {
@@ -500,7 +542,7 @@ export function VisualConfigEditor({
               <span className={styles.navHeadingRow}>
                 <span className={styles.navLabelWrap}>
                   <span className={styles.navIcon}>
-                    <Icon size={14} />
+                    <Icon size={12} />
                   </span>
                   <span className={styles.navLabel}>{section.title}</span>
                 </span>
@@ -510,8 +552,37 @@ export function VisualConfigEditor({
                   </span>
                 ) : null}
               </span>
-              <span className={styles.navDescription}>{section.description}</span>
             </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // Sticky tab bar at top
+  const stickyTabBar = (
+    <div className={styles.stickyTabBar} role="tablist">
+      {sections.map((section, index) => {
+        const Icon = section.icon;
+        return (
+          <button
+            key={section.id}
+            type="button"
+            role="tab"
+            aria-selected={activeSectionId === section.id}
+            className={`${styles.stickyTabButton} ${
+              activeSectionId === section.id ? styles.stickyTabButtonActive : ''
+            }`}
+            onClick={() => handleSectionJump(section.id)}
+          >
+            <span className={styles.stickyTabIndex}>{String(index + 1).padStart(2, '0')}</span>
+            <Icon size={12} />
+            <span>{section.title}</span>
+            {section.errorCount > 0 ? (
+              <span className={styles.stickyTabBadge} aria-hidden="true">
+                {section.errorCount}
+              </span>
+            ) : null}
           </button>
         );
       })}
@@ -520,50 +591,7 @@ export function VisualConfigEditor({
 
   return (
     <div className={styles.visualEditor}>
-      <div className={styles.overview}>
-        <div className={styles.overviewHeader}>
-          <div className={styles.overviewMeta}>
-            <span className={styles.overviewPill}>
-              {t('config_management.visual.quick_jump', { defaultValue: '快速跳转' })}
-            </span>
-            {hasValidationIssues ? (
-              <span className={`${styles.overviewPill} ${styles.overviewPillWarning}`}>
-                {t('config_management.visual.validation.validation_blocked')}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div className={styles.overviewFocusList}>
-          {focusSections.map((section) => {
-            const Icon = section.icon;
-
-            return (
-              <button
-                key={section.id}
-                type="button"
-                className={`${styles.overviewFocusLink} ${
-                  activeSectionId === section.id ? styles.overviewFocusLinkActive : ''
-                }`}
-                onClick={() => handleSectionJump(section.id)}
-              >
-                <span className={styles.focusIcon}>
-                  <Icon size={16} />
-                </span>
-                <span className={styles.focusCopy}>
-                  <span className={styles.focusTitle}>{section.title}</span>
-                  <span className={styles.focusDescription}>{section.description}</span>
-                </span>
-                {section.errorCount > 0 ? (
-                  <span className={styles.navBadge} aria-hidden="true">
-                    {section.errorCount}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {stickyTabBar}
 
       <div ref={workspaceRef} className={styles.workspace}>
         {isMobile ? (
@@ -708,12 +736,11 @@ export function VisualConfigEditor({
                 onChange={(rmDisableControlPanel) => onChange({ rmDisableControlPanel })}
               />
               <SectionGrid>
-                <Input
+                <PasswordInput
                   label={t('config_management.visual.sections.remote.secret_key')}
-                  type="password"
                   placeholder={t('config_management.visual.sections.remote.secret_key_placeholder')}
                   value={values.rmSecretKey}
-                  onChange={(e) => onChange({ rmSecretKey: e.target.value })}
+                  onChange={(val) => onChange({ rmSecretKey: val })}
                   disabled={disabled}
                 />
                 <Input

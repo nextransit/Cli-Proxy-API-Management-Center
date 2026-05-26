@@ -66,6 +66,8 @@
   --glass-bg: color-mix(in srgb, var(--bg-primary) 82%, transparent);
   --glass-bg-secondary: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
   --glass-border: color-mix(in srgb, var(--border-color) 60%, transparent);
+  --skeleton-base: #e5e5e5;
+  --skeleton-highlight: #f0f0f0;
 }
 
 // 纯白主题
@@ -123,6 +125,8 @@
 
   --radius-md: 8px;
   --accent-tertiary: var(--bg-tertiary);
+  --skeleton-base: #e5e5e5;
+  --skeleton-highlight: #f0f0f0;
 }
 
 
@@ -199,6 +203,8 @@
   --glass-bg: rgba(255, 252, 245, 0.85);
   --glass-bg-secondary: rgba(244, 241, 234, 0.85);
   --glass-border: rgba(226, 222, 208, 0.6);
+  --skeleton-base: #e7e0d5;
+  --skeleton-highlight: #f1ece3;
 }
 
 // 深色主题 - Material Dark Design
@@ -323,6 +329,8 @@
   // 内发光边缘
   --inner-glow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
   --inner-glow-strong: inset 0 2px 4px rgba(255, 255, 255, 0.08);
+  --skeleton-base: #161b22;
+  --skeleton-highlight: #21262d;
 }
 
 @media (max-width: 768px), (prefers-reduced-motion: reduce), (prefers-reduced-transparency: reduce) {

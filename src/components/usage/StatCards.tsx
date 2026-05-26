@@ -8,6 +8,7 @@ import {
   extractLatencyMs,
 } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
+import { SkeletonBlock } from '@/components/ui/Skeleton';
 import styles from '@/pages/UsagePage.module.scss';
 
 const IconCount = () => (
@@ -34,6 +35,7 @@ const IconDollar = () => (
 
 export interface StatCardsProps {
   usage: UsagePayload | null;
+  loading?: boolean;
   modelPrices: Record<string, any>;
   requestsChartData?: any;
   requestsChartOptions?: any;
@@ -95,12 +97,34 @@ function formatMetricValue(value: string) {
   );
 }
 
-export function StatCards({ 
-  usage, 
+export function StatCards({
+  usage,
+  loading,
   modelPrices = {},
 }: StatCardsProps) {
   const { t } = useTranslation();
-  
+
+  // Show skeleton when loading
+  if (loading) {
+    return (
+      <div className={styles.statsGrid}>
+        {[1, 2, 3].map((i) => (
+          <section key={i} className={styles.metricCard}>
+            <div className={styles.metricCardHeader}>
+              <SkeletonBlock width={20} height={20} />
+              <SkeletonBlock width={100} height={16} />
+            </div>
+            <div className={styles.metricCardBody}>
+              <SkeletonBlock width="80%" height={24} />
+              <SkeletonBlock width="60%" height={14} className="mt-8" />
+              <SkeletonBlock width="40%" height={14} className="mt-8" />
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  }
+
   const stats = useMemo(() => {
     if (!usage) {
       return {

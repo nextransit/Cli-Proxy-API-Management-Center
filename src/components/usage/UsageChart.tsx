@@ -88,7 +88,13 @@ export function UsageChart({
       }
     >
       {loading ? (
-        <div className={styles.hint}>{t('common.loading')}</div>
+        <div className={styles.chartSkeletonPlaceholder}>
+          <div className={styles.chartSkeletonBars}>
+            {[40, 65, 45, 80, 55, 70, 50, 85, 60, 75, 45, 90].map((h, i) => (
+              <div key={i} className={styles.chartSkeletonBar} style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        </div>
       ) : chartData.labels.length > 0 ? (
         <div className={`${styles.chartWrapper} ${isDark ? "" : "chart-light"}`}>
           <div className={styles.chartLegend} aria-label="Chart legend">

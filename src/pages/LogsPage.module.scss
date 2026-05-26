@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
 
   @include mobile {
     min-height: auto;
@@ -14,22 +15,22 @@
 }
 
 .pageTitle {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 $spacing-lg 0;
+  margin: 0 0 $spacing-md 0;
 }
 
 .tabBar {
   display: flex;
   gap: $spacing-xs;
-  margin-bottom: $spacing-lg;
+  margin-bottom: $spacing-md;
   border-bottom: 1px solid var(--border-color);
 }
 
 .tabItem {
   @include button-reset;
-  padding: 12px 20px;
+  padding: 8px 14px;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -60,7 +61,7 @@
 .content {
   display: flex;
   flex-direction: column;
-  gap: $spacing-lg;
+  gap: $spacing-sm;
   flex: 1;
   min-height: 0;
 
@@ -76,6 +77,7 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding: 12px;
 
   @include mobile {
     flex: 0 0 auto;
@@ -87,9 +89,9 @@
 .toolbar {
   display: flex;
   align-items: center;
-  gap: $spacing-sm;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-left: auto;
+  margin-left: 0;
 
   @include mobile {
     align-items: flex-start;
@@ -101,9 +103,9 @@
 .filters {
   display: flex;
   align-items: center;
-  gap: $spacing-md;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: $spacing-md;
+  margin-bottom: 8px;
 
   :global(.form-group) {
     margin: 0;
@@ -116,9 +118,9 @@
 }
 
 .searchWrapper {
-  flex: 1;
+  flex: 1 1 280px;
   min-width: 220px;
-  max-width: 420px;
+  max-width: 400px;
 }
 
 .filterPanelHeader {
@@ -129,6 +131,7 @@
 
 .filterPanelToggle {
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .filterPanelButtonContent {
@@ -151,9 +154,9 @@
 .structuredFilters {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1 1 100%;
-  padding: 8px 10px;
+  padding: 6px 8px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
@@ -162,7 +165,7 @@
 .filterChipGroup {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
@@ -177,7 +180,7 @@
 .filterChipList {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
   flex: 1;
 }
@@ -187,7 +190,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: $radius-full;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -213,6 +216,90 @@
     opacity: 0.55;
     cursor: not-allowed;
   }
+}
+
+.levelFilterGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-full;
+  background: var(--bg-secondary);
+}
+
+.levelFilterChip {
+  @include button-reset;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: $radius-full;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+
+  span {
+    color: var(--text-tertiary);
+    font-weight: 700;
+  }
+
+  &:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.levelFilterChipActive {
+  color: var(--text-primary);
+  background: rgba($primary-color, 0.16);
+
+  span {
+    color: currentColor;
+  }
+}
+
+.levelFilterDebug,
+.levelFilterInfo {
+  &.levelFilterChipActive {
+    color: var(--info-color);
+  }
+}
+
+.levelFilterWarn {
+  &.levelFilterChipActive {
+    color: var(--warning-text);
+    background: var(--warning-bg);
+  }
+}
+
+.levelFilterError {
+  &.levelFilterChipActive {
+    color: var(--error-color);
+    background: rgba($error-color, 0.12);
+  }
+}
+
+.toggleGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .filterChipActive {
@@ -277,11 +364,15 @@
 }
 
 .filterStats {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 12px;
+  gap: 6px;
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-full;
+  background: var(--bg-secondary);
+  font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -307,7 +398,9 @@
 .switchLabel {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
 
   svg {
     flex: 0 0 auto;
@@ -318,20 +411,18 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: $radius-md;
-  flex: 1 1 auto;
-  min-height: 280px;
-  max-height: calc(100vh - 320px);
-  height: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
-  resize: vertical;
   position: relative;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   overscroll-behavior: contain;
 
   @include tablet {
-    min-height: 240px;
-    max-height: calc(100vh - 300px);
+    min-height: 0;
+    max-height: none;
   }
 
   @include mobile {
@@ -357,7 +448,7 @@
   align-items: center;
   justify-content: space-between;
   gap: $spacing-sm;
-  padding: 8px 12px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-primary);
   color: var(--text-secondary);
@@ -403,7 +494,7 @@
 
 .rawLog {
   margin: 0;
-  padding: 10px 12px;
+  padding: 6px 8px;
   cursor: text;
   user-select: text;
   white-space: pre;
@@ -411,8 +502,8 @@
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.34;
 
   @include tablet {
     padding: 8px 10px;
@@ -427,17 +518,17 @@
 
 .logRow {
   display: grid;
-  grid-template-columns: 170px 1fr;
-  gap: $spacing-md;
-  padding: 10px 12px;
+  grid-template-columns: 150px 1fr;
+  gap: 8px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--border-color);
   border-left: 3px solid transparent;
   cursor: copy;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.32;
   color: var(--text-primary);
 
   &:hover {
@@ -470,7 +561,7 @@
 .timestamp {
   color: var(--text-tertiary);
   white-space: nowrap;
-  padding-top: 2px;
+  padding-top: 1px;
 
   @include mobile {
     white-space: normal;
@@ -481,16 +572,16 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: $radius-full;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -501,9 +592,9 @@
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: $radius-full;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   border: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -766,8 +857,8 @@
 @media (max-height: 960px) {
   @media (min-width: 769px) {
     .logPanel {
-      min-height: 160px;
-      max-height: calc(100vh - 300px);
+      min-height: 0;
+      max-height: none;
     }
   }
 }
@@ -795,15 +886,15 @@
       flex: 0 0 auto;
       gap: $spacing-sm;
       margin-bottom: $spacing-sm;
-      max-height: 260px;
-      overflow: auto;
+      max-height: none;
+      overflow: visible;
       padding-right: 4px;
       overscroll-behavior: contain;
     }
 
     .logPanel {
       min-height: 0;
-      max-height: calc(100vh - 280px);
+      max-height: none;
     }
   }
 
@@ -847,12 +938,12 @@
 
   @media (min-width: 769px) {
     .filters {
-      max-height: 180px;
+      max-height: none;
     }
 
     .logPanel {
       min-height: 0;
-      max-height: calc(100vh - 220px);
+      max-height: none;
     }
   }
 

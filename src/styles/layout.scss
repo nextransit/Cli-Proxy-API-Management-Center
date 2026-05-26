@@ -544,6 +544,7 @@
   height: calc(100vh - var(--shell-gutter) - var(--shell-gutter));
   overflow-y: auto;
   scrollbar-gutter: stable;
+  background: linear-gradient(180deg, var(--bg-secondary), var(--bg-quinary, var(--bg-secondary)));
 
   @supports (height: 100dvh) {
     height: calc(100dvh - var(--shell-gutter) - var(--shell-gutter));
@@ -562,6 +563,7 @@
   flex-direction: column;
   gap: $spacing-lg;
   overflow-x: hidden;
+  background: transparent;
 
   &.main-content-logs {
     flex: 1 1 auto;

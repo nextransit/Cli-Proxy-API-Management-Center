@@ -30,7 +30,9 @@ import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
 import { formatUnixTimestamp } from '@/utils/format';
 import {
   HTTP_METHODS,
+  LOG_LEVEL_FILTERS,
   STATUS_GROUPS,
+  resolveLogLevelFilter,
   resolveStatusGroup,
   type LogState,
 } from './hooks/logTypes';
@@ -88,7 +90,7 @@ export function LogsPage() {
   const [showRawLogs, setShowRawLogs] = useLocalStorage('logsPage.showRawLogs', false);
   const [structuredFiltersExpanded, setStructuredFiltersExpanded] = useLocalStorage(
     'logsPage.structuredFiltersExpanded',
-    true
+    false
   );
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
   const [loadingErrors, setLoadingErrors] = useState(false);
@@ -318,13 +320,24 @@ export function LogsPage() {
   const filters = useLogFilters({ parsedLines: parsedSearchLines });
   const structuredFiltersPanelId = 'logs-structured-filters';
   const structuredFilterCount =
-    filters.methodFilters.length + filters.statusFilters.length + filters.pathFilters.length;
+    filters.methodFilters.length +
+    filters.levelFilters.length +
+    filters.statusFilters.length +
+    filters.pathFilters.length;
 
   const { filteredParsedLines, filteredLines, removedCount } = useMemo(() => {
     const filteredParsed = parsedSearchLines.filter((line) => {
       if (
         filters.methodFilterSet.size > 0 &&
         (!line.method || !filters.methodFilterSet.has(line.method))
+      ) {
+        return false;
+      }
+
+      const levelFilter = resolveLogLevelFilter(line.level);
+      if (
+        filters.levelFilterSet.size > 0 &&
+        (!levelFilter || !filters.levelFilterSet.has(levelFilter))
       ) {
         return false;
       }
@@ -351,6 +364,7 @@ export function LogsPage() {
     };
   }, [
     baseLines,
+    filters.levelFilterSet,
     filters.methodFilterSet,
     filters.pathFilterSet,
     filters.statusFilterSet,
@@ -488,6 +502,36 @@ export function LogsPage() {
             {error && <div className="error-box">{error}</div>}
 
             <div className={styles.filters}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className={styles.filterPanelToggle}
+                onClick={() => setStructuredFiltersExpanded((prev) => !prev)}
+                aria-expanded={structuredFiltersExpanded}
+                aria-controls={structuredFiltersPanelId}
+                title={
+                  structuredFiltersExpanded
+                    ? t('logs.filter_panel_collapse')
+                    : t('logs.filter_panel_expand')
+                }
+              >
+                <span className={styles.filterPanelButtonContent}>
+                  <IconSlidersHorizontal size={16} />
+                  <span>{t('logs.filter_panel_title')}</span>
+                  {structuredFilterCount > 0 && (
+                    <span className={styles.filterPanelCount}>
+                      {t('logs.filter_panel_active_count', { count: structuredFilterCount })}
+                    </span>
+                  )}
+                  {structuredFiltersExpanded ? (
+                    <IconChevronUp size={16} />
+                  ) : (
+                    <IconChevronDown size={16} />
+                  )}
+                </span>
+              </Button>
+
               <div className={styles.searchWrapper}>
                 <Input
                   value={searchQuery}
@@ -512,40 +556,57 @@ export function LogsPage() {
                 />
               </div>
 
-              <div className={styles.filterPanelHeader}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className={styles.filterPanelToggle}
-                  onClick={() => setStructuredFiltersExpanded((prev) => !prev)}
-                  aria-expanded={structuredFiltersExpanded}
-                  aria-controls={structuredFiltersPanelId}
-                  title={
-                    structuredFiltersExpanded
-                      ? t('logs.filter_panel_collapse')
-                      : t('logs.filter_panel_expand')
-                  }
-                >
-                  <span className={styles.filterPanelButtonContent}>
-                    <IconSlidersHorizontal size={16} />
-                    <span>{t('logs.filter_panel_title')}</span>
-                    {structuredFilterCount > 0 && (
-                      <span className={styles.filterPanelCount}>
-                        {t('logs.filter_panel_active_count', { count: structuredFilterCount })}
-                      </span>
-                    )}
-                    {structuredFiltersExpanded ? (
-                      <IconChevronUp size={16} />
-                    ) : (
-                      <IconChevronDown size={16} />
-                    )}
-                  </span>
-                </Button>
+              <div className={styles.levelFilterGroup} aria-label={t('logs.filter_level')}>
+                {LOG_LEVEL_FILTERS.map((level) => {
+                  const active = filters.levelFilters.includes(level);
+                  const count = filters.levelCounts[level] ?? 0;
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      className={[
+                        styles.levelFilterChip,
+                        active ? styles.levelFilterChipActive : '',
+                        styles[`levelFilter${level[0].toUpperCase()}${level.slice(1)}`],
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => filters.toggleLevelFilter(level)}
+                      disabled={count === 0 && !active}
+                      aria-pressed={active}
+                      title={`${level.toUpperCase()} (${count})`}
+                    >
+                      {level.toUpperCase()}
+                      <span>{count}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {structuredFiltersExpanded && (
                 <div id={structuredFiltersPanelId} className={styles.structuredFilters}>
+                  <div className={styles.filterChipGroup}>
+                    <span className={styles.filterChipLabel}>{t('logs.filter_level')}</span>
+                    <div className={styles.filterChipList}>
+                      {LOG_LEVEL_FILTERS.map((level) => {
+                        const active = filters.levelFilters.includes(level);
+                        const count = filters.levelCounts[level] ?? 0;
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            className={`${styles.filterChip} ${active ? styles.filterChipActive : ''}`}
+                            onClick={() => filters.toggleLevelFilter(level)}
+                            disabled={count === 0 && !active}
+                            aria-pressed={active}
+                          >
+                            {level.toUpperCase()} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className={styles.filterChipGroup}>
                     <span className={styles.filterChipLabel}>{t('logs.filter_method')}</span>
                     <div className={styles.filterChipList}>
@@ -626,32 +687,34 @@ export function LogsPage() {
                 </div>
               )}
 
-              <ToggleSwitch
-                checked={hideManagementLogs}
-                onChange={setHideManagementLogs}
-                label={
-                  <span className={styles.switchLabel}>
-                    <IconEyeOff size={16} />
-                    {t('logs.hide_management_logs', { prefix: MANAGEMENT_API_PREFIX })}
-                  </span>
-                }
-              />
+              <div className={styles.toggleGroup}>
+                <ToggleSwitch
+                  checked={hideManagementLogs}
+                  onChange={setHideManagementLogs}
+                  label={
+                    <span className={styles.switchLabel}>
+                      <IconEyeOff size={16} />
+                      {t('logs.hide_management_logs', { prefix: MANAGEMENT_API_PREFIX })}
+                    </span>
+                  }
+                />
 
-              <ToggleSwitch
-                checked={showRawLogs}
-                onChange={setShowRawLogs}
-                label={
-                  <span
-                    className={styles.switchLabel}
-                    title={t('logs.show_raw_logs_hint', {
-                      defaultValue: 'Show original log text for easier multi-line copy',
-                    })}
-                  >
-                    <IconCode size={16} />
-                    {t('logs.show_raw_logs', { defaultValue: 'Show raw logs' })}
-                  </span>
-                }
-              />
+                <ToggleSwitch
+                  checked={showRawLogs}
+                  onChange={setShowRawLogs}
+                  label={
+                    <span
+                      className={styles.switchLabel}
+                      title={t('logs.show_raw_logs_hint', {
+                        defaultValue: 'Show original log text for easier multi-line copy',
+                      })}
+                    >
+                      <IconCode size={16} />
+                      {t('logs.show_raw_logs', { defaultValue: 'Show raw logs' })}
+                    </span>
+                  }
+                />
+              </div>
 
               <div className={styles.toolbar}>
                 <Button
@@ -702,6 +765,20 @@ export function LogsPage() {
                   </span>
                 </Button>
               </div>
+
+              <div className={styles.filterStats} aria-live="polite">
+                <span>{t('logs.loaded_lines', { count: filteredLines.length })}</span>
+                {removedCount > 0 && (
+                  <span className={styles.removedCount}>
+                    {t('logs.filtered_lines', { count: removedCount })}
+                  </span>
+                )}
+                {logState.visibleFrom > 0 && (
+                  <span className={styles.removedCount}>
+                    {t('logs.hidden_lines', { count: logState.visibleFrom })}
+                  </span>
+                )}
+              </div>
             </div>
 
             {loading ? (
@@ -715,19 +792,6 @@ export function LogsPage() {
                 {scroller.canLoadMore && (
                   <div className={styles.loadMoreBanner}>
                     <span>{t('logs.load_more_hint')}</span>
-                    <div className={styles.loadMoreStats}>
-                      <span>
-                        {t('logs.loaded_lines', { count: filteredLines.length })}
-                      </span>
-                      {removedCount > 0 && (
-                        <span className={styles.loadMoreCount}>
-                          {t('logs.filtered_lines', { count: removedCount })}
-                        </span>
-                      )}
-                      <span className={styles.loadMoreCount}>
-                        {t('logs.hidden_lines', { count: logState.visibleFrom })}
-                      </span>
-                    </div>
                   </div>
                 )}
                 {showRawLogs ? (

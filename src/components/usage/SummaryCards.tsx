@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { formatCompactNumber, formatUsd, collectUsageDetails, extractTotalTokens, calculateCost } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
 import type { ModelPrice } from '@/utils/usage';
+import { Skeleton, SkeletonBlock } from '@/components/ui/Skeleton';
 import styles from '@/pages/UsagePage.module.scss';
 
 interface SummaryCardsProps {
@@ -82,8 +83,26 @@ const IconCount = () => (
   </svg>
 );
 
-export function SummaryCards({ usage, modelPrices }: SummaryCardsProps) {
+export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps) {
   const { t } = useTranslation();
+
+  // Show skeleton when loading
+  if (loading) {
+    return (
+      <div className={styles.summaryCards}>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className={styles.summaryCard}>
+            <Skeleton width={40} height={40} borderRadius={8} />
+            <div className={styles.summaryCardContent}>
+              <SkeletonBlock width={80} height={12} />
+              <SkeletonBlock width={120} height={24} className={styles.mt8} />
+              <SkeletonBlock width={100} height={10} className={styles.mt8} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const stats = useMemo(() => {
     if (!usage) {

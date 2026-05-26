@@ -570,7 +570,36 @@ export function RequestEventsDetailsCard({
       </div>
 
       {loading && rows.length === 0 ? (
-        <div className={styles.hintLoading}></div>
+        <div className={styles.requestEventsSkeleton}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>{t('usage_stats.request_events_timestamp')}</th>
+                <th>{t('usage_stats.model_name')}</th>
+                <th>{t('usage_stats.request_events_source')}</th>
+                <th>{t('usage_stats.request_events_auth_index')}</th>
+                <th>{t('usage_stats.request_events_result')}</th>
+                {hasLatencyData && <th>{t('usage_stats.time')}</th>}
+                <th>{t('usage_stats.total_tokens')}</th>
+                <th>{t('usage_stats.thinking_intensity')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <tr key={i}>
+                  <td><div className={styles.skeletonCell} style={{ width: '90px' }} /></td>
+                  <td><div className={styles.skeletonCell} style={{ width: '120px' }} /></td>
+                  <td><div className={styles.skeletonCell} style={{ width: '150px' }} /></td>
+                  <td><div className={styles.skeletonCell} style={{ width: '100px' }} /></td>
+                  <td><div className={styles.skeletonCell} style={{ width: '60px' }} /></td>
+                  {hasLatencyData && <td><div className={styles.skeletonCell} style={{ width: '50px' }} /></td>}
+                  <td><div className={styles.skeletonCell} style={{ width: '70px' }} /></td>
+                  <td><div className={styles.skeletonCell} style={{ width: '80px' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : rows.length === 0 ? (
         <EmptyState
           title={t('usage_stats.request_events_empty_title')}

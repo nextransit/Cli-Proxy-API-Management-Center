@@ -5,6 +5,8 @@ export const STATUS_GROUPS = ['2xx', '3xx', '4xx', '5xx'] as const;
 export type StatusGroup = (typeof STATUS_GROUPS)[number];
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+export const LOG_LEVEL_FILTERS = ['debug', 'info', 'warn', 'error'] as const;
+export type LogLevelFilter = (typeof LOG_LEVEL_FILTERS)[number];
 
 export type LogState = {
   buffer: string[];
@@ -31,5 +33,14 @@ export const resolveStatusGroup = (statusCode?: number): StatusGroup | undefined
   if (statusCode >= 300 && statusCode < 400) return '3xx';
   if (statusCode >= 400 && statusCode < 500) return '4xx';
   if (statusCode >= 500 && statusCode < 600) return '5xx';
+  return undefined;
+};
+
+export const resolveLogLevelFilter = (level?: LogLevel): LogLevelFilter | undefined => {
+  if (!level) return undefined;
+  if (level === 'fatal') return 'error';
+  if (level === 'debug' || level === 'info' || level === 'warn' || level === 'error') {
+    return level;
+  }
   return undefined;
 };
