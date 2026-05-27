@@ -1075,6 +1075,8 @@
     "input_tokens": "Input Tokens",
     "output_tokens": "Output Tokens",
     "cache_hit": "Cache Hit",
+    "cache_creation": "Cache Creation",
+    "cache_hit_rate": "Cache Hit Rate",
     "input_short": "In",
     "output_short": "Out",
     "avg_latency_short": "Avg. Latency",
@@ -1091,6 +1093,8 @@
     "top_key": "Top Key",
     "top_key_quick_filter": "Quick Filter",
     "refreshing_data": "Updating data",
+    "token_trend_focus": "Focused",
+    "token_trend_focus_reset": "Reset",
     "model_token_distribution": "Model Token Distribution",
     "others": "Others",
     "trend_analysis": "Trend Analysis"

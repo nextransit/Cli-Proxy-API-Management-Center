@@ -19,7 +19,7 @@ export interface ModelTokenDoughnutProps {
   hasPrices: boolean;
   loading: boolean;
   isDark: boolean;
-  scopedUsage: any;
+  scopedUsage: unknown;
   chartPeriod: 'hour' | 'day';
   hourWindowHours?: number;
   modelPrices: Record<string, ModelPrice>;
@@ -62,8 +62,12 @@ function formatTokens(num: number): string {
   return num.toLocaleString();
 }
 
+function toTokenCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
 interface TokenUsageTrendChartProps {
-  scopedUsage: any;
+  scopedUsage: unknown;
   chartPeriod: 'hour' | 'day';
   hourWindowHours?: number;
   modelPrices: Record<string, ModelPrice>;
@@ -136,18 +140,18 @@ function TokenUsageTrendChart({
       if (idx === undefined) return;
 
       const tokens = detail.tokens || {};
-      inpData[idx] += tokens.input_tokens || 0;
-      outData[idx] += tokens.output_tokens || 0;
-      ccData[idx] += tokens.cache_tokens || 0;
-      crData[idx] += tokens.cached_tokens || 0;
+      const cacheRead = toTokenCount(tokens.cached_tokens);
+      inpData[idx] += Math.max(toTokenCount(tokens.input_tokens) - cacheRead, 0);
+      outData[idx] += toTokenCount(tokens.output_tokens);
+      ccData[idx] += toTokenCount(tokens.cache_tokens);
+      crData[idx] += cacheRead;
       cData[idx] += calculateCost(detail, modelPrices);
     });
 
     const chrData = labelsList.map((_, index) => {
       const inp = inpData[index];
-      const cc = ccData[index];
       const cr = crData[index];
-      const total = inp + cc + cr;
+      const total = inp + cr;
       return total > 0 ? Number(((cr / total) * 100).toFixed(1)) : 0;
     });
 
@@ -174,6 +178,11 @@ function TokenUsageTrendChart({
 
       const chart = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
       chartInstanceRef.current = chart;
+      const inputLabel = t('usage_stats.input_tokens') || 'Input';
+      const outputLabel = t('usage_stats.output_tokens') || 'Output';
+      const cacheCreationLabel = t('usage_stats.cache_creation') || 'Cache Creation';
+      const cacheHitLabel = t('usage_stats.cache_hit') || 'Cache Hit';
+      const cacheHitRateLabel = t('usage_stats.cache_hit_rate') || 'Cache Hit Rate';
 
       const option: echarts.EChartsOption = {
         backgroundColor: 'transparent',
@@ -195,12 +204,13 @@ function TokenUsageTrendChart({
           borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)',
           borderWidth: 1,
           padding: 10,
-          formatter: (params: any) => {
+          formatter: (params: unknown) => {
             if (!Array.isArray(params) || params.length === 0) return '';
-            const header = `<strong>${params[0].axisValue}</strong>`;
+            const firstParam = params[0] as { axisValue?: string | number; dataIndex?: number };
+            const header = `<strong>${firstParam.axisValue ?? ''}</strong>`;
             const lines = [header];
             
-            const dataIndex = params[0].dataIndex;
+            const dataIndex = typeof firstParam.dataIndex === 'number' ? firstParam.dataIndex : 0;
             const inputVal = inputData[dataIndex] || 0;
             const outputVal = outputData[dataIndex] || 0;
             const cacheCreationVal = cacheCreationData[dataIndex] || 0;
@@ -208,11 +218,11 @@ function TokenUsageTrendChart({
             const hitRateVal = cacheHitRateData[dataIndex] || 0;
             const costVal = costData[dataIndex] || 0;
 
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#3b82f6;"></span>Input: ${inputVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#10b981;"></span>Output: ${outputVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#f59e0b;"></span>Cache Creation: ${cacheCreationVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#06b6d4;"></span>Cache Read: ${cacheReadVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#8b5cf6;"></span>Cache Hit Rate: ${hitRateVal.toFixed(1)}%`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#3b82f6;"></span>${inputLabel}: ${inputVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#10b981;"></span>${outputLabel}: ${outputVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#f59e0b;"></span>${cacheCreationLabel}: ${cacheCreationVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#06b6d4;"></span>${cacheHitLabel}: ${cacheReadVal.toLocaleString()}`);
+            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#8b5cf6;"></span>${cacheHitRateLabel}: ${hitRateVal.toFixed(1)}%`);
             if (hasPrices && costVal > 0) {
               lines.push(`<hr style="border-color:rgba(255,255,255,0.15);margin:5px 0;" />Cost: ${formatUsd(costVal)}`);
             }
@@ -223,7 +233,7 @@ function TokenUsageTrendChart({
           show: true,
           top: 0,
           right: 0,
-          data: ['Input', 'Output', 'Cache Creation', 'Cache Read', 'Cache Hit Rate'],
+          data: [inputLabel, outputLabel, cacheCreationLabel, cacheHitLabel, cacheHitRateLabel],
           textStyle: {
             color: isDark ? '#9CA3AF' : '#6B7280',
             fontSize: 10,
@@ -277,7 +287,7 @@ function TokenUsageTrendChart({
         ],
         series: [
           {
-            name: 'Input',
+            name: inputLabel,
             type: 'line',
             data: inputData,
             showSymbol: false,
@@ -293,7 +303,7 @@ function TokenUsageTrendChart({
             }
           },
           {
-            name: 'Output',
+            name: outputLabel,
             type: 'line',
             data: outputData,
             showSymbol: false,
@@ -303,7 +313,7 @@ function TokenUsageTrendChart({
             lineStyle: { width: 2 },
           },
           {
-            name: 'Cache Creation',
+            name: cacheCreationLabel,
             type: 'line',
             data: cacheCreationData,
             showSymbol: false,
@@ -313,7 +323,7 @@ function TokenUsageTrendChart({
             lineStyle: { width: 2 },
           },
           {
-            name: 'Cache Read',
+            name: cacheHitLabel,
             type: 'line',
             data: cacheReadData,
             showSymbol: false,
@@ -323,7 +333,7 @@ function TokenUsageTrendChart({
             lineStyle: { width: 2 },
           },
           {
-            name: 'Cache Hit Rate',
+            name: cacheHitRateLabel,
             type: 'line',
             yAxisIndex: 1,
             data: cacheHitRateData,

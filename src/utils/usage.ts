@@ -1413,6 +1413,8 @@ export interface ChartDataset {
   pointBorderColor?: string;
   fill: boolean;
   tension: number;
+  yAxisID?: string;
+  borderDash?: number[];
 }
 
 export interface ChartData {

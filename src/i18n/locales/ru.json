@@ -1068,6 +1068,8 @@
     "input_tokens": "Входные токены",
     "output_tokens": "Выходные токены",
     "cache_hit": "Попадания в кэш",
+    "cache_creation": "Запись в кэш",
+    "cache_hit_rate": "Доля попаданий в кэш",
     "input_short": "In",
     "output_short": "Out",
     "avg_latency_short": "Avg. Latency",
@@ -1083,7 +1085,9 @@
     "chart_granularity_all": "Все",
     "top_key": "TOP ключ",
     "top_key_quick_filter": "Быстрый фильтр",
-    "refreshing_data": "Обновление данных"
+    "refreshing_data": "Обновление данных",
+    "token_trend_focus": "Фокус",
+    "token_trend_focus_reset": "Сброс"
   },
   "stats": {
     "success": "Успех",

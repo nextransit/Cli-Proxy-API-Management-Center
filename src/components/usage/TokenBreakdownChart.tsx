@@ -113,8 +113,10 @@ export function TokenBreakdownChart({
 
               if (cat === 'cached') {
                 const inputVal = Number(series.dataByCategory.input[context.dataIndex]) || 0;
-                if (inputVal > 0) {
-                  const perc = ((val / inputVal) * 100).toFixed(2);
+                const coldInputVal = Math.max(inputVal - val, 0);
+                const cacheDenominator = coldInputVal + val;
+                if (cacheDenominator > 0) {
+                  const perc = ((val / cacheDenominator) * 100).toFixed(2);
                   text += ` (${perc}%)`;
                 }
               }

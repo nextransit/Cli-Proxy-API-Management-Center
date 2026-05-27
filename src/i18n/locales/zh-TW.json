@@ -1096,6 +1096,8 @@
     "input_tokens": "輸入 Tokens",
     "output_tokens": "輸出 Tokens",
     "cache_hit": "快取命中",
+    "cache_creation": "快取寫入",
+    "cache_hit_rate": "快取命中率",
     "input_short": "In",
     "output_short": "Out",
     "avg_latency_short": "Avg. Latency",
@@ -1111,7 +1113,9 @@
     "chart_granularity_all": "全部",
     "top_key": "TOP 密鑰",
     "top_key_quick_filter": "快速篩選",
-    "refreshing_data": "正在更新資料"
+    "refreshing_data": "正在更新資料",
+    "token_trend_focus": "目前聚焦",
+    "token_trend_focus_reset": "重置"
   },
   "stats": {
     "success": "成功",

@@ -185,8 +185,10 @@ export function useChartData({
                 if (category === 'cached') {
                   const inputValue =
                     Number(tokensChartData.datasets?.[0]?.data?.[context.dataIndex] ?? 0) || 0;
-                  if (inputValue > 0) {
-                    text += ` (${((value / inputValue) * 100).toFixed(2)}%)`;
+                  const coldInputValue = Math.max(inputValue - value, 0);
+                  const cacheDenominator = coldInputValue + value;
+                  if (cacheDenominator > 0) {
+                    text += ` (${((value / cacheDenominator) * 100).toFixed(2)}%)`;
                   }
                 }
 

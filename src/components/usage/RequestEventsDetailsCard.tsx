@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -91,6 +91,8 @@ export interface RequestEventsDetailsCardProps {
   codexConfigs: ProviderKeyConfig[];
   vertexConfigs: ProviderKeyConfig[];
   openaiProviders: OpenAIProviderConfig[];
+  selectedModelFilter?: string;
+  onSelectedModelFilterChange?: (value: string) => void;
 }
 
 const toNumber = (value: unknown): number => {
@@ -145,6 +147,8 @@ export function RequestEventsDetailsCard({
   codexConfigs,
   vertexConfigs,
   openaiProviders,
+  selectedModelFilter,
+  onSelectedModelFilterChange,
 }: RequestEventsDetailsCardProps) {
   const { t } = useTranslation();
   const latencyHint = t('usage_stats.latency_unit_hint', {
@@ -152,11 +156,21 @@ export function RequestEventsDetailsCard({
     unit: t('usage_stats.duration_unit_ms'),
   });
 
-  const [modelFilter, setModelFilter] = useState(ALL_FILTER);
+  const [localModelFilter, setLocalModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [searchText, setSearchText] = useState('');
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
+  const modelFilter = selectedModelFilter ?? localModelFilter;
+  const handleModelFilterChange = useCallback(
+    (value: string) => {
+      if (selectedModelFilter === undefined) {
+        setLocalModelFilter(value);
+      }
+      onSelectedModelFilterChange?.(value);
+    },
+    [onSelectedModelFilterChange, selectedModelFilter]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -393,7 +407,7 @@ export function RequestEventsDetailsCard({
     normalizedSearchText.length > 0;
 
   const handleClearFilters = () => {
-    setModelFilter(ALL_FILTER);
+    handleModelFilterChange(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
     setAuthIndexFilter(ALL_FILTER);
     setSearchText('');
@@ -526,7 +540,7 @@ export function RequestEventsDetailsCard({
           <Select
             value={effectiveModelFilter}
             options={modelOptions}
-            onChange={setModelFilter}
+            onChange={handleModelFilterChange}
             className={styles.requestEventsSelect}
             ariaLabel={t('usage_stats.request_events_filter_model')}
             fullWidth={false}

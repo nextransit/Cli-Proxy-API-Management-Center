@@ -1390,6 +1390,53 @@
   flex-shrink: 0;
 }
 
+.tokenTrendFocusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, 100%);
+  min-height: 30px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary-color) 28%, var(--border-color));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 10%, var(--bg-primary));
+  color: var(--text-secondary);
+}
+
+.tokenTrendFocusLabel {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tokenTrendFocusModel {
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tokenTrendFocusReset {
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 22%, transparent);
+  color: var(--primary-color);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+
+.tokenTrendFocusReset:hover {
+  background: color-mix(in srgb, var(--primary-color) 30%, transparent);
+  color: var(--text-primary);
+}
+
 .trendTabsBody {
   position: relative;
   min-height: 340px;

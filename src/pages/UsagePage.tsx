@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Chart as ChartJS,
@@ -47,7 +48,7 @@ import {
   type UsageTimeRange,
 } from '@/utils/usage';
 import { maskApiKey } from '@/utils/format';
-import type { ChartOptions } from 'chart.js';
+import type { ChartOptions, TooltipItem } from 'chart.js';
 import { buildChartOptions } from '@/utils/usage/chartConfig';
 import styles from './UsagePage.module.scss';
 
@@ -89,7 +90,14 @@ type ChartCompareMode = 'model' | 'credential';
 const CHART_COMPARE_MODE_STORAGE_KEY = 'cli-proxy-usage-chart-compare-mode-v1';
 const CREDENTIAL_FILTER_STORAGE_KEY = 'cli-proxy-usage-client-api-key-filter-v1';
 const ALL_FILTER = 'all';
+const REQUEST_EVENTS_ALL_FILTER = '__all__';
 const EMPTY_CHART_DATA: ChartData = { labels: [], datasets: [] };
+const TOKEN_FOCUS_CHART_COLORS = {
+  input: '#3b82f6',
+  cache: '#f59e0b',
+  output: '#10b981',
+  rate: '#8b5cf6',
+};
 
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -366,6 +374,44 @@ const getTrendValue = (
   return 1;
 };
 
+const toTokenCount = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.max(value, 0) : 0;
+
+const getCacheHitTokens = (detail: ReturnType<typeof collectUsageDetails>[number]): number => {
+  const tokens = detail.tokens;
+  return Math.max(toTokenCount(tokens.cached_tokens), toTokenCount(tokens.cache_tokens));
+};
+
+const getColdInputTokens = (detail: ReturnType<typeof collectUsageDetails>[number]): number => {
+  const inputTokens = toTokenCount(detail.tokens.input_tokens);
+  return Math.max(inputTokens - getCacheHitTokens(detail), 0);
+};
+
+const getCacheHitRate = (inputTokens: number, cacheHitTokens: number): number => {
+  const denominator = inputTokens + cacheHitTokens;
+  return denominator > 0 ? Number(((cacheHitTokens / denominator) * 100).toFixed(1)) : 0;
+};
+
+const formatChartValue = (value: number): string => {
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
+  return value.toLocaleString();
+};
+
+const getTokenBreakdownValue = (
+  kind: 'input' | 'cache' | 'output',
+  detail: ReturnType<typeof collectUsageDetails>[number]
+): number => {
+  const tokens = detail.tokens;
+  if (kind === 'cache') {
+    return getCacheHitTokens(detail);
+  }
+  if (kind === 'output') {
+    return toTokenCount(tokens.output_tokens);
+  }
+  return getColdInputTokens(detail);
+};
+
 const buildHourlyLabels = (hourWindowHours: number | undefined): string[] => {
   const hourMs = 60 * 60 * 1000;
   const resolvedHourWindow =
@@ -427,6 +473,7 @@ export function UsagePage() {
   useHeaderRefresh(loadUsage);
 
   const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
   const [chartCompareMode, setChartCompareMode] =
     useState<ChartCompareMode>(loadChartCompareMode);
@@ -435,6 +482,7 @@ export function UsagePage() {
   const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
   const [chartGranularity, setChartGranularity] = useState<TrendGranularity>('hour');
   const [activeTrendTab, setActiveTrendTab] = useState<string>('requests');
+  const [detailModelFilter, setDetailModelFilter] = useState<string>(REQUEST_EVENTS_ALL_FILTER);
 
   useEffect(() => {
     let cancelled = false;
@@ -719,6 +767,37 @@ export function UsagePage() {
     }
   }, [effectiveCredentialFilter]);
 
+  // URL Query Params sync - restore filters from URL on mount, sync to URL on change
+  useEffect(() => {
+    const urlRange = searchParams.get('range');
+    if (urlRange && isUsageTimeRange(urlRange)) {
+      setTimeRange(urlRange);
+    }
+    const urlCred = searchParams.get('cred');
+    if (urlCred) {
+      setCredentialFilter(urlCred);
+    }
+    const urlModel = searchParams.get('model');
+    if (urlModel) {
+      setDetailModelFilter(urlModel);
+    }
+  }, []); // Only run on mount
+
+  // Sync filters to URL when they change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (timeRange !== DEFAULT_TIME_RANGE) {
+      params.set('range', timeRange);
+    }
+    if (effectiveCredentialFilter !== ALL_FILTER) {
+      params.set('cred', effectiveCredentialFilter);
+    }
+    if (detailModelFilter !== REQUEST_EVENTS_ALL_FILTER) {
+      params.set('model', detailModelFilter);
+    }
+    setSearchParams(params, { replace: true });
+  }, [timeRange, effectiveCredentialFilter, detailModelFilter, setSearchParams]);
+
   const hasPrices = Object.keys(modelPrices).length > 0;
   const modelNames = useMemo(() => {
     const names = new Set<string>();
@@ -752,6 +831,12 @@ export function UsagePage() {
       .map((stat) => stat.model);
     return topModels.length > 0 ? topModels : chartLines;
   }, [chartCompareMode, chartLines, credentialRows, modelStats]);
+  const effectiveDetailModelFilter = useMemo(() => {
+    if (detailModelFilter === REQUEST_EVENTS_ALL_FILTER) {
+      return REQUEST_EVENTS_ALL_FILTER;
+    }
+    return modelNames.includes(detailModelFilter) ? detailModelFilter : REQUEST_EVENTS_ALL_FILTER;
+  }, [detailModelFilter, modelNames]);
 
   const buildTrendChartData = useCallback(
     (metric: TrendMetric, period: TrendPeriod): ChartData => {
@@ -847,6 +932,98 @@ export function UsagePage() {
       t,
     ]
   );
+  const buildFocusedTokenChartData = useCallback(
+    (modelName: string, period: TrendPeriod): ChartData => {
+      const details = scopedDetails.filter((detail) => detail.__modelName === modelName);
+      const labels =
+        period === 'hour'
+          ? buildHourlyLabels(hourWindowHours)
+          : Array.from(
+              new Set(
+                details
+                  .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
+                  .filter(Boolean)
+              )
+            ).sort();
+      const labelIndex = new Map(labels.map((label, index) => [label, index]));
+      const inputData = new Array(labels.length).fill(0);
+      const outputData = new Array(labels.length).fill(0);
+      const cacheData = new Array(labels.length).fill(0);
+
+      details.forEach((detail) => {
+        const timestamp = detail.__timestampMs || 0;
+        if (!Number.isFinite(timestamp) || timestamp <= 0) return;
+
+        const label =
+          period === 'hour'
+            ? (() => {
+                const date = new Date(timestamp);
+                date.setMinutes(0, 0, 0);
+                return formatHourLabel(date);
+              })()
+            : formatDayLabel(new Date(timestamp));
+        const index = labelIndex.get(label);
+        if (index === undefined) return;
+
+        inputData[index] += getTokenBreakdownValue('input', detail);
+        outputData[index] += getTokenBreakdownValue('output', detail);
+        cacheData[index] += getTokenBreakdownValue('cache', detail);
+      });
+
+      const cacheHitRateData = labels.map((_, index) =>
+        getCacheHitRate(inputData[index], cacheData[index])
+      );
+
+      return {
+        labels,
+        datasets: [
+          {
+            label: t('usage_stats.input_tokens'),
+            data: inputData,
+            borderColor: TOKEN_FOCUS_CHART_COLORS.input,
+            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.input, 0.12),
+            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.input,
+            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.input,
+            fill: true,
+            tension: 0.35,
+          },
+          {
+            label: t('usage_stats.output_tokens'),
+            data: outputData,
+            borderColor: TOKEN_FOCUS_CHART_COLORS.output,
+            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.output, 0.1),
+            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.output,
+            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.output,
+            fill: true,
+            tension: 0.35,
+          },
+          {
+            label: t('usage_stats.cache_hit'),
+            data: cacheData,
+            borderColor: TOKEN_FOCUS_CHART_COLORS.cache,
+            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.cache, 0.1),
+            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.cache,
+            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.cache,
+            fill: true,
+            tension: 0.35,
+          },
+          {
+            label: t('usage_stats.cache_hit_rate'),
+            data: cacheHitRateData,
+            borderColor: TOKEN_FOCUS_CHART_COLORS.rate,
+            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.rate, 0.08),
+            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.rate,
+            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.rate,
+            fill: false,
+            tension: 0.35,
+            yAxisID: 'yRate',
+            borderDash: [5, 4],
+          },
+        ],
+      };
+    },
+    [hourWindowHours, scopedDetails, t]
+  );
 
   const effectiveChartGranularity = timeRange === 'today' ? 'hour' : chartGranularity;
   const chartPeriod: TrendPeriod = effectiveChartGranularity === 'hour' ? 'hour' : 'day';
@@ -862,8 +1039,19 @@ export function UsagePage() {
     [buildTrendChartData, chartPeriod, renderHeavyUsageSections]
   );
   const tokensChartData = useMemo(
-    () => (renderHeavyUsageSections ? buildTrendChartData('tokens', chartPeriod) : EMPTY_CHART_DATA),
-    [buildTrendChartData, chartPeriod, renderHeavyUsageSections]
+    () =>
+      renderHeavyUsageSections
+        ? effectiveDetailModelFilter !== REQUEST_EVENTS_ALL_FILTER
+          ? buildFocusedTokenChartData(effectiveDetailModelFilter, chartPeriod)
+          : buildTrendChartData('tokens', chartPeriod)
+        : EMPTY_CHART_DATA,
+    [
+      buildFocusedTokenChartData,
+      buildTrendChartData,
+      chartPeriod,
+      effectiveDetailModelFilter,
+      renderHeavyUsageSections,
+    ]
   );
   const costChartData = useMemo(
     () => (renderHeavyUsageSections ? buildTrendChartData('cost', chartPeriod) : EMPTY_CHART_DATA),
@@ -879,16 +1067,76 @@ export function UsagePage() {
       }),
     [chartPeriod, isDark, isMobile, requestsChartData.labels]
   );
-  const tokensChartOptions = useMemo(
-    () =>
-      buildChartOptions({
-        period: chartPeriod,
-        labels: tokensChartData.labels,
-        isDark,
-        isMobile,
-      }),
-    [chartPeriod, isDark, isMobile, tokensChartData.labels]
-  );
+  const tokensChartOptions = useMemo(() => {
+    const baseOptions = buildChartOptions({
+      period: chartPeriod,
+      labels: tokensChartData.labels,
+      isDark,
+      isMobile,
+    });
+
+    if (effectiveDetailModelFilter === REQUEST_EVENTS_ALL_FILTER) {
+      return baseOptions;
+    }
+
+    const yScale = baseOptions.scales?.y as Record<string, unknown> | undefined;
+    const tooltip = baseOptions.plugins?.tooltip as Record<string, unknown> | undefined;
+    const tooltipCallbacks = tooltip?.callbacks as Record<string, unknown> | undefined;
+    const tickColor = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(17, 24, 39, 0.72)';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(17, 24, 39, 0.06)';
+
+    return {
+      ...baseOptions,
+      scales: {
+        ...baseOptions.scales,
+        y: {
+          ...yScale,
+          position: 'left',
+        },
+        yRate: {
+          type: 'linear',
+          position: 'right',
+          min: 0,
+          max: 100,
+          grid: {
+            display: false,
+            color: gridColor,
+          },
+          border: { display: false },
+          ticks: {
+            display: true,
+            color: tickColor,
+            callback: (value: string | number) => `${Number(value).toFixed(0)}%`,
+          },
+        },
+      },
+      plugins: {
+        ...baseOptions.plugins,
+        tooltip: {
+          ...tooltip,
+          callbacks: {
+            ...tooltipCallbacks,
+            label: (context: TooltipItem<'line'>) => {
+              const label = context.dataset.label || '';
+              const value = Number(context.raw);
+              if (!Number.isFinite(value)) return label;
+              const dataset = context.dataset as { yAxisID?: string };
+              if (dataset.yAxisID === 'yRate') {
+                return `  ${label}: ${value.toFixed(1)}%`;
+              }
+              return `  ${label}: ${formatChartValue(value)}`;
+            },
+          },
+        },
+      },
+    } as ChartOptions<'line'>;
+  }, [
+    chartPeriod,
+    effectiveDetailModelFilter,
+    isDark,
+    isMobile,
+    tokensChartData.labels,
+  ]);
   const costChartOptions = useMemo(() => {
     const baseOptions = buildChartOptions({
       period: chartPeriod,
@@ -915,6 +1163,28 @@ export function UsagePage() {
     () => credentialRows.filter((row) => row.requests > 0).slice(0, 3),
     [credentialRows]
   );
+  const handleDetailModelFilterChange = useCallback((value: string) => {
+    setDetailModelFilter(value);
+    if (value !== REQUEST_EVENTS_ALL_FILTER) {
+      setActiveTrendTab('tokens');
+    }
+  }, []);
+  const tokenTrendFocusExtra =
+    effectiveDetailModelFilter !== REQUEST_EVENTS_ALL_FILTER ? (
+      <div className={styles.tokenTrendFocusPill}>
+        <span className={styles.tokenTrendFocusLabel}>{t('usage_stats.token_trend_focus')}</span>
+        <span className={styles.tokenTrendFocusModel} title={effectiveDetailModelFilter}>
+          {effectiveDetailModelFilter}
+        </span>
+        <button
+          type="button"
+          className={styles.tokenTrendFocusReset}
+          onClick={() => setDetailModelFilter(REQUEST_EVENTS_ALL_FILTER)}
+        >
+          {t('usage_stats.token_trend_focus_reset')}
+        </button>
+      </div>
+    ) : undefined;
 
   return (
     <div className={isRefreshing ? `${styles.container} ${styles.isFetching}` : styles.container}>
@@ -1129,6 +1399,7 @@ export function UsagePage() {
                 isMobile,
                 isDark,
                 emptyText: t('usage_stats.no_data'),
+                extra: tokenTrendFocusExtra,
               },
             },
             {
@@ -1156,6 +1427,10 @@ export function UsagePage() {
             onCompareModeChange: setChartCompareMode,
             maxLines: MAX_CHART_LINES,
             onChange: handleChartLinesChange,
+            visibleOnTabs:
+              effectiveDetailModelFilter !== REQUEST_EVENTS_ALL_FILTER
+                ? ['requests', 'cost']
+                : undefined,
           }}
         />
       ) : (
@@ -1186,6 +1461,8 @@ export function UsagePage() {
           codexConfigs={config?.codexApiKeys || []}
           vertexConfigs={config?.vertexApiKeys || []}
           openaiProviders={openaiProvidersForUsage}
+          selectedModelFilter={effectiveDetailModelFilter}
+          onSelectedModelFilterChange={handleDetailModelFilterChange}
         />
       )}
 

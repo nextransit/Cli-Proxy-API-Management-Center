@@ -1087,6 +1087,8 @@
     "input_tokens": "输入 Tokens",
     "output_tokens": "输出 Tokens",
     "cache_hit": "缓存命中",
+    "cache_creation": "缓存写入",
+    "cache_hit_rate": "缓存命中率",
     "input_short": "In",
     "output_short": "Out",
     "avg_latency_short": "Avg. Latency",
@@ -1103,6 +1105,8 @@
     "top_key": "TOP 密钥",
     "top_key_quick_filter": "快速筛选",
     "refreshing_data": "正在更新数据",
+    "token_trend_focus": "当前聚焦",
+    "token_trend_focus_reset": "重置",
     "model_token_distribution": "模型 Token 分布",
     "others": "其他",
     "trend_analysis": "趋势分析"
