@@ -121,13 +121,7 @@ const scheduleDeferredUsageWork = (callback: () => void, timeout = 140) => {
 
 const SKELETON_BAR_HEIGHTS = [40, 65, 45, 80, 55, 70, 50, 85, 60, 75, 45, 90];
 
-function SkeletonLine({
-  width,
-  height = 16,
-}: {
-  width: string | number;
-  height?: number;
-}) {
+function SkeletonLine({ width, height = 16 }: { width: string | number; height?: number }) {
   return <div className={styles.skeletonCell} style={{ width, height }} />;
 }
 
@@ -184,11 +178,7 @@ function TrendTabsPlaceholder({ title }: { title: string }) {
       <div className={styles.chartSkeletonPlaceholder}>
         <div className={styles.chartSkeletonBars}>
           {SKELETON_BAR_HEIGHTS.map((height, index) => (
-            <div
-              key={index}
-              className={styles.chartSkeletonBar}
-              style={{ height: `${height}%` }}
-            />
+            <div key={index} className={styles.chartSkeletonBar} style={{ height: `${height}%` }} />
           ))}
         </div>
       </div>
@@ -214,7 +204,12 @@ function ModelPanelPlaceholder({ title }: { title: string }) {
 }
 
 const isUsageTimeRange = (value: unknown): value is UsageTimeRange =>
-  value === 'today' || value === '7h' || value === '24h' || value === '7d' || value === '30d' || value === 'all';
+  value === 'today' ||
+  value === '7h' ||
+  value === '24h' ||
+  value === '7d' ||
+  value === '30d' ||
+  value === 'all';
 
 const normalizeChartLines = (value: unknown, maxLines = MAX_CHART_LINES): string[] => {
   if (!Array.isArray(value)) {
@@ -469,14 +464,29 @@ export function UsagePage() {
   } = useUsageData();
   const isInitialLoading = loading && !usage;
   const isRefreshing = loading && Boolean(usage);
+  const [showRefreshFeedback, setShowRefreshFeedback] = useState(false);
 
   useHeaderRefresh(loadUsage);
+
+  useEffect(() => {
+    if (!isRefreshing) {
+      setShowRefreshFeedback(false);
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setShowRefreshFeedback(true);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [isRefreshing]);
 
   const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
   const [searchParams, setSearchParams] = useSearchParams();
   const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
-  const [chartCompareMode, setChartCompareMode] =
-    useState<ChartCompareMode>(loadChartCompareMode);
+  const [chartCompareMode, setChartCompareMode] = useState<ChartCompareMode>(loadChartCompareMode);
   const [credentialFilter, setCredentialFilter] = useState<string>(loadCredentialFilter);
   const [modelPanelTab, setModelPanelTab] = useState<'stats' | 'credentials' | 'prices'>('stats');
   const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
@@ -565,18 +575,18 @@ export function UsagePage() {
       return;
     }
 
-    return scheduleDeferredUsageWork(
-      () => setReadyUsageViewScope(usageViewScope),
-      96
-    );
+    return scheduleDeferredUsageWork(() => setReadyUsageViewScope(usageViewScope), 96);
   }, [isInitialLoading, usage, usageViewScope]);
 
   const renderUsageData = !usage || readyUsageViewScope === usageViewScope;
-  const usageDataPending = Boolean(usage) && !renderUsageData;
+  const visibleUsageViewScope = renderUsageData ? usageViewScope : readyUsageViewScope;
 
   const filteredUsage = useMemo(
-    () => (usage && renderUsageData ? filterUsageByTimeRange(usage, timeRange) : null),
-    [renderUsageData, usage, timeRange]
+    () =>
+      visibleUsageViewScope?.usage
+        ? filterUsageByTimeRange(visibleUsageViewScope.usage, visibleUsageViewScope.timeRange)
+        : null,
+    [visibleUsageViewScope]
   );
   const filteredDetails = useMemo(() => collectUsageDetails(filteredUsage), [filteredUsage]);
 
@@ -602,22 +612,20 @@ export function UsagePage() {
     filteredDetails.forEach((detail) => {
       const value = String(detail.__apiKey ?? '').trim() || 'unknown';
       const keyInfo = clientApiKeyInfoMap.get(value);
-      const row =
-        rowMap.get(value) ??
-        {
-          value,
-          label: keyInfo?.label || formatCredentialShortName(value),
-          type: keyInfo?.super
-            ? t('system_info.api_key_policy_super_badge')
-            : keyInfo?.models?.length
-              ? t('system_info.api_key_policy_limited_badge')
-              : t('system_info.api_key_policy_models_all'),
-          requests: 0,
-          success: 0,
-          failure: 0,
-          tokens: 0,
-          cost: 0,
-        };
+      const row = rowMap.get(value) ?? {
+        value,
+        label: keyInfo?.label || formatCredentialShortName(value),
+        type: keyInfo?.super
+          ? t('system_info.api_key_policy_super_badge')
+          : keyInfo?.models?.length
+            ? t('system_info.api_key_policy_limited_badge')
+            : t('system_info.api_key_policy_models_all'),
+        requests: 0,
+        success: 0,
+        failure: 0,
+        tokens: 0,
+        cost: 0,
+      };
 
       row.requests += 1;
       if (detail.failed === true) {
@@ -633,35 +641,32 @@ export function UsagePage() {
     return Array.from(rowMap.values()).sort((a, b) => b.requests - a.requests);
   }, [clientApiKeyInfoMap, filteredDetails, filteredUsage, modelPrices, t]);
 
-  const credentialOptions = useMemo(
-    () => {
-      const options = new Map<string, { value: string; label: string }>();
-      clientApiKeys.forEach((entry) => {
-        const info = buildClientApiKeyInfo(entry);
-        if (!info.key) return;
-        const suffix = info.label === info.masked ? '' : ` · ${info.masked}`;
-        options.set(info.key, {
-          value: info.key,
-          label: `${info.label}${suffix}`,
-        });
+  const credentialOptions = useMemo(() => {
+    const options = new Map<string, { value: string; label: string }>();
+    clientApiKeys.forEach((entry) => {
+      const info = buildClientApiKeyInfo(entry);
+      if (!info.key) return;
+      const suffix = info.label === info.masked ? '' : ` · ${info.masked}`;
+      options.set(info.key, {
+        value: info.key,
+        label: `${info.label}${suffix}`,
       });
-      credentialRows.forEach((row) => {
-        if (options.has(row.value)) return;
-        options.set(row.value, {
-          value: row.value,
-          label: row.label,
-        });
+    });
+    credentialRows.forEach((row) => {
+      if (options.has(row.value)) return;
+      options.set(row.value, {
+        value: row.value,
+        label: row.label,
       });
-      if (credentialFilter !== ALL_FILTER && !options.has(credentialFilter)) {
-        options.set(credentialFilter, {
-          value: credentialFilter,
-          label: formatCredentialShortName(credentialFilter),
-        });
-      }
-      return Array.from(options.values());
-    },
-    [clientApiKeys, credentialFilter, credentialRows]
-  );
+    });
+    if (credentialFilter !== ALL_FILTER && !options.has(credentialFilter)) {
+      options.set(credentialFilter, {
+        value: credentialFilter,
+        label: formatCredentialShortName(credentialFilter),
+      });
+    }
+    return Array.from(options.values());
+  }, [clientApiKeys, credentialFilter, credentialRows]);
 
   const credentialFilterOptions = useMemo(
     () => [
@@ -698,28 +703,29 @@ export function UsagePage() {
   const [readyHeavyUsageScope, setReadyHeavyUsageScope] = useState<HeavyUsageScope | null>(null);
 
   useEffect(() => {
-    if (isInitialLoading || usageDataPending) {
+    if (isInitialLoading || !filteredUsage) {
       return;
     }
 
-    return scheduleDeferredUsageWork(
-      () => setReadyHeavyUsageScope(heavyUsageScope),
-      180
-    );
-  }, [heavyUsageScope, isInitialLoading, usageDataPending]);
+    return scheduleDeferredUsageWork(() => setReadyHeavyUsageScope(heavyUsageScope), 180);
+  }, [filteredUsage, heavyUsageScope, isInitialLoading]);
 
-  const renderHeavyUsageSections =
-    !isInitialLoading && !usageDataPending && readyHeavyUsageScope === heavyUsageScope;
+  const heavyUsageReady = readyHeavyUsageScope === heavyUsageScope;
+  const visibleHeavyUsageScope = heavyUsageReady ? heavyUsageScope : readyHeavyUsageScope;
+  const renderHeavyUsageSections = !isInitialLoading && Boolean(visibleHeavyUsageScope);
+  const visibleScopedUsage = visibleHeavyUsageScope?.scopedUsage ?? scopedUsage;
+  const visibleModelPrices = visibleHeavyUsageScope?.modelPrices ?? modelPrices;
   const scopedDetails = useMemo(
-    () => (renderHeavyUsageSections ? collectUsageDetails(scopedUsage) : []),
-    [renderHeavyUsageSections, scopedUsage]
+    () => (renderHeavyUsageSections ? collectUsageDetails(visibleScopedUsage) : []),
+    [renderHeavyUsageSections, visibleScopedUsage]
   );
 
-  const hourWindowHours = timeRange === 'all'
-    ? undefined
-    : timeRange === 'today'
-      ? new Date().getHours() + 1
-      : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
+  const hourWindowHours =
+    timeRange === 'all'
+      ? undefined
+      : timeRange === 'today'
+        ? new Date().getHours() + 1
+        : HOUR_WINDOW_BY_TIME_RANGE[timeRange];
 
   useEffect(() => {
     try {
@@ -810,8 +816,8 @@ export function UsagePage() {
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [scopedDetails]);
   const modelStats = useMemo(
-    () => (renderHeavyUsageSections ? getModelStats(scopedUsage, modelPrices) : []),
-    [modelPrices, renderHeavyUsageSections, scopedUsage]
+    () => (renderHeavyUsageSections ? getModelStats(visibleScopedUsage, visibleModelPrices) : []),
+    [renderHeavyUsageSections, visibleModelPrices, visibleScopedUsage]
   );
   const resolvedChartLines = useMemo(() => {
     if (chartLines.length !== 1 || chartLines[0] !== ALL_FILTER) {
@@ -826,9 +832,7 @@ export function UsagePage() {
       return topCredentials.length > 0 ? topCredentials : chartLines;
     }
 
-    const topModels = modelStats
-      .slice(0, 4)
-      .map((stat) => stat.model);
+    const topModels = modelStats.slice(0, 4).map((stat) => stat.model);
     return topModels.length > 0 ? topModels : chartLines;
   }, [chartCompareMode, chartLines, credentialRows, modelStats]);
   const effectiveDetailModelFilter = useMemo(() => {
@@ -840,7 +844,7 @@ export function UsagePage() {
 
   const buildTrendChartData = useCallback(
     (metric: TrendMetric, period: TrendPeriod): ChartData => {
-      if (metric === 'cost' && Object.keys(modelPrices).length === 0) {
+      if (metric === 'cost' && Object.keys(visibleModelPrices).length === 0) {
         return { labels: [], datasets: [] };
       }
 
@@ -876,18 +880,22 @@ export function UsagePage() {
 
         const credentialKey = String(detail.__apiKey ?? '').trim() || 'unknown';
         const keyInfo = clientApiKeyInfoMap.get(credentialKey);
-        const key = chartCompareMode === 'credential' ? credentialKey : detail.__modelName || 'Unknown';
+        const key =
+          chartCompareMode === 'credential' ? credentialKey : detail.__modelName || 'Unknown';
         const displayLabel =
-          chartCompareMode === 'credential' ? keyInfo?.label || formatCredentialShortName(key) : key;
+          chartCompareMode === 'credential'
+            ? keyInfo?.label || formatCredentialShortName(key)
+            : key;
 
         if (!dataByKey.has(key)) {
           dataByKey.set(key, new Array(labels.length).fill(0));
           lineLabels.set(key, displayLabel);
         }
-        dataByKey.get(key)![index] += getTrendValue(metric, detail, modelPrices);
+        dataByKey.get(key)![index] += getTrendValue(metric, detail, visibleModelPrices);
       });
 
-      const selectedLines = resolvedChartLines.length > 0 ? resolvedChartLines : DEFAULT_CHART_LINES;
+      const selectedLines =
+        resolvedChartLines.length > 0 ? resolvedChartLines : DEFAULT_CHART_LINES;
       const multiLine = selectedLines.length > 1 && !selectedLines.includes(ALL_FILTER);
       const datasets = selectedLines.map((line, index) => {
         const isAll = line === ALL_FILTER;
@@ -926,10 +934,10 @@ export function UsagePage() {
       chartCompareMode,
       clientApiKeyInfoMap,
       hourWindowHours,
-      modelPrices,
       resolvedChartLines,
       scopedDetails,
       t,
+      visibleModelPrices,
     ]
   );
   const buildFocusedTokenChartData = useCallback(
@@ -1027,15 +1035,19 @@ export function UsagePage() {
 
   const effectiveChartGranularity = timeRange === 'today' ? 'hour' : chartGranularity;
   const chartPeriod: TrendPeriod = effectiveChartGranularity === 'hour' ? 'hour' : 'day';
-  const handleChartGranularityChange = useCallback((next: TrendGranularity) => {
-    if (timeRange === 'today' && next === 'day') {
-      return;
-    }
-    setChartGranularity(next);
-  }, [timeRange]);
+  const handleChartGranularityChange = useCallback(
+    (next: TrendGranularity) => {
+      if (timeRange === 'today' && next === 'day') {
+        return;
+      }
+      setChartGranularity(next);
+    },
+    [timeRange]
+  );
 
   const requestsChartData = useMemo(
-    () => (renderHeavyUsageSections ? buildTrendChartData('requests', chartPeriod) : EMPTY_CHART_DATA),
+    () =>
+      renderHeavyUsageSections ? buildTrendChartData('requests', chartPeriod) : EMPTY_CHART_DATA,
     [buildTrendChartData, chartPeriod, renderHeavyUsageSections]
   );
   const tokensChartData = useMemo(
@@ -1130,13 +1142,7 @@ export function UsagePage() {
         },
       },
     } as ChartOptions<'line'>;
-  }, [
-    chartPeriod,
-    effectiveDetailModelFilter,
-    isDark,
-    isMobile,
-    tokensChartData.labels,
-  ]);
+  }, [chartPeriod, effectiveDetailModelFilter, isDark, isMobile, tokensChartData.labels]);
   const costChartOptions = useMemo(() => {
     const baseOptions = buildChartOptions({
       period: chartPeriod,
@@ -1188,7 +1194,9 @@ export function UsagePage() {
 
   return (
     <div className={isRefreshing ? `${styles.container} ${styles.isFetching}` : styles.container}>
-      <div className={`${styles.progressBar} ${loading ? styles.visible : ''}`} />
+      <div
+        className={`${styles.progressBar} ${isInitialLoading || showRefreshFeedback ? styles.visible : ''}`}
+      />
       {isInitialLoading && (
         <div className={styles.loadingOverlay} aria-busy="true">
           <div className={styles.loadingOverlayContent}>
@@ -1197,7 +1205,7 @@ export function UsagePage() {
           </div>
         </div>
       )}
-      {isRefreshing && (
+      {showRefreshFeedback && (
         <div className={styles.refreshIndicator} aria-live="polite" aria-busy="true">
           <LoadingSpinner size={14} className={styles.refreshIndicatorSpinner} />
           <span>{t('usage_stats.refreshing_data')}</span>
@@ -1220,10 +1228,18 @@ export function UsagePage() {
           </div>
           <div className={styles.timeRangeGroup}>
             <span className={styles.timeRangeLabel}>{t('usage_stats.chart_granularity')}</span>
-            <div className={styles.globalGranularityGroup} role="group" aria-label={t('usage_stats.chart_granularity')}>
+            <div
+              className={styles.globalGranularityGroup}
+              role="group"
+              aria-label={t('usage_stats.chart_granularity')}
+            >
               <button
                 type="button"
-                className={effectiveChartGranularity === 'hour' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                className={
+                  effectiveChartGranularity === 'hour'
+                    ? styles.globalGranularityButtonActive
+                    : styles.globalGranularityButton
+                }
                 aria-pressed={effectiveChartGranularity === 'hour'}
                 onClick={() => handleChartGranularityChange('hour')}
               >
@@ -1231,7 +1247,11 @@ export function UsagePage() {
               </button>
               <button
                 type="button"
-                className={effectiveChartGranularity === 'day' ? styles.globalGranularityButtonActive : styles.globalGranularityButton}
+                className={
+                  effectiveChartGranularity === 'day'
+                    ? styles.globalGranularityButtonActive
+                    : styles.globalGranularityButton
+                }
                 aria-pressed={effectiveChartGranularity === 'day'}
                 onClick={() => handleChartGranularityChange('day')}
                 disabled={timeRange === 'today'}
@@ -1252,7 +1272,10 @@ export function UsagePage() {
             />
           </div>
           {topCredentialRows.length > 0 && (
-            <div className={styles.topKeyQuickGroup} aria-label={t('usage_stats.top_key_quick_filter')}>
+            <div
+              className={styles.topKeyQuickGroup}
+              aria-label={t('usage_stats.top_key_quick_filter')}
+            >
               <span className={styles.topKeyQuickLabel}>{t('usage_stats.top_key')}</span>
               {topCredentialRows.map((row) => (
                 <button
@@ -1264,7 +1287,11 @@ export function UsagePage() {
                       : styles.topKeyQuickButton
                   }
                   aria-pressed={effectiveCredentialFilter === row.value}
-                  onClick={() => setCredentialFilter(effectiveCredentialFilter === row.value ? ALL_FILTER : row.value)}
+                  onClick={() =>
+                    setCredentialFilter(
+                      effectiveCredentialFilter === row.value ? ALL_FILTER : row.value
+                    )
+                  }
                   title={`${row.label}: ${row.requests.toLocaleString()}`}
                 >
                   <svg
@@ -1284,7 +1311,9 @@ export function UsagePage() {
                     <path d="m17.5 5.5 3 3" />
                   </svg>
                   <span className={styles.topKeyQuickText}>{row.label}</span>
-                  {effectiveCredentialFilter === row.value && <span className={styles.topKeyQuickStateDot} />}
+                  {effectiveCredentialFilter === row.value && (
+                    <span className={styles.topKeyQuickStateDot} />
+                  )}
                 </button>
               ))}
             </div>
@@ -1311,7 +1340,7 @@ export function UsagePage() {
             variant="secondary"
             size="sm"
             onClick={() => void loadUsage().catch(() => {})}
-            loading={isRefreshing}
+            loading={showRefreshFeedback}
             disabled={isInitialLoading || exporting || importing}
           >
             {t('usage_stats.refresh')}
@@ -1345,22 +1374,22 @@ export function UsagePage() {
       )}
 
       {/* Summary Cards - Top 4 KPIs */}
-      {isInitialLoading || usageDataPending ? (
+      {isInitialLoading || !filteredUsage ? (
         <SummaryCardsPlaceholder />
       ) : (
         <SummaryCards
           usage={scopedUsage}
           loading={isInitialLoading}
-          modelPrices={modelPrices}
+          modelPrices={visibleModelPrices}
         />
       )}
 
       {/* Stats Overview Cards - Collapsible */}
       {renderHeavyUsageSections ? (
         <StatCards
-          usage={scopedUsage}
+          usage={visibleScopedUsage}
           loading={isInitialLoading}
-          modelPrices={modelPrices}
+          modelPrices={visibleModelPrices}
           requestsChartData={requestsChartData}
           requestsChartOptions={requestsChartOptions}
           tokensChartData={tokensChartData}
@@ -1413,7 +1442,9 @@ export function UsagePage() {
                 loading: isInitialLoading,
                 isMobile,
                 isDark,
-                emptyText: hasPrices ? t('usage_stats.cost_no_data') : t('usage_stats.cost_need_price'),
+                emptyText: hasPrices
+                  ? t('usage_stats.cost_no_data')
+                  : t('usage_stats.cost_need_price'),
               },
             },
           ]}
@@ -1444,17 +1475,17 @@ export function UsagePage() {
           hasPrices={hasPrices}
           loading={isInitialLoading}
           isDark={isDark}
-          scopedUsage={scopedUsage}
+          scopedUsage={visibleScopedUsage}
           chartPeriod={chartPeriod}
           hourWindowHours={hourWindowHours}
-          modelPrices={modelPrices}
+          modelPrices={visibleModelPrices}
         />
       )}
 
       {/* Request Events Details */}
       {renderHeavyUsageSections && (
         <RequestEventsDetailsCard
-          usage={scopedUsage}
+          usage={visibleScopedUsage}
           loading={isInitialLoading}
           geminiKeys={config?.geminiApiKeys || []}
           claudeConfigs={config?.claudeApiKeys || []}
@@ -1472,7 +1503,9 @@ export function UsagePage() {
             type="button"
             role="tab"
             aria-selected={modelPanelTab === 'stats'}
-            className={modelPanelTab === 'stats' ? styles.modelPanelTabActive : styles.modelPanelTab}
+            className={
+              modelPanelTab === 'stats' ? styles.modelPanelTabActive : styles.modelPanelTab
+            }
             onClick={() => setModelPanelTab('stats')}
           >
             {t('usage_stats.models')}
@@ -1481,7 +1514,9 @@ export function UsagePage() {
             type="button"
             role="tab"
             aria-selected={modelPanelTab === 'credentials'}
-            className={modelPanelTab === 'credentials' ? styles.modelPanelTabActive : styles.modelPanelTab}
+            className={
+              modelPanelTab === 'credentials' ? styles.modelPanelTabActive : styles.modelPanelTab
+            }
             onClick={() => setModelPanelTab('credentials')}
           >
             {t('usage_stats.credential_stats')}
@@ -1490,7 +1525,9 @@ export function UsagePage() {
             type="button"
             role="tab"
             aria-selected={modelPanelTab === 'prices'}
-            className={modelPanelTab === 'prices' ? styles.modelPanelTabActive : styles.modelPanelTab}
+            className={
+              modelPanelTab === 'prices' ? styles.modelPanelTabActive : styles.modelPanelTab
+            }
             onClick={() => setModelPanelTab('prices')}
           >
             {t('usage_stats.model_price_settings')}
@@ -1498,13 +1535,17 @@ export function UsagePage() {
         </div>
         {renderHeavyUsageSections || modelPanelTab === 'prices' ? (
           modelPanelTab === 'stats' ? (
-            <ModelStatsCard modelStats={modelStats} loading={isInitialLoading} hasPrices={hasPrices} />
+            <ModelStatsCard
+              modelStats={modelStats}
+              loading={isInitialLoading}
+              hasPrices={hasPrices}
+            />
           ) : modelPanelTab === 'credentials' ? (
             <CredentialStatsCard
-              usage={scopedUsage}
+              usage={visibleScopedUsage}
               loading={isInitialLoading}
               apiKeyEntries={clientApiKeys}
-              modelPrices={modelPrices}
+              modelPrices={visibleModelPrices}
             />
           ) : (
             <PriceSettingsCard
@@ -1523,7 +1564,6 @@ export function UsagePage() {
           />
         )}
       </div>
-
     </div>
   );
 }

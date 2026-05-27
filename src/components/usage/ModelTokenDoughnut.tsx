@@ -40,14 +40,12 @@ const DOUGHNUT_COLORS: GradientColor[] = [
   { base: '#22d3ee', light: '#67e8f9' },
 ];
 
-
-
 const MAX_SEGMENTS = 7;
 
 function toGradient(
   ctx: CanvasRenderingContext2D,
   area: { top: number; bottom: number },
-  color: GradientColor,
+  color: GradientColor
 ): CanvasGradient {
   const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
   gradient.addColorStop(0, color.light);
@@ -86,33 +84,48 @@ function TokenUsageTrendChart({
   const { t } = useTranslation();
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const details = useMemo(() => collectUsageDetails(scopedUsage), [scopedUsage]);
 
-  const { labels, inputData, outputData, cacheCreationData, cacheReadData, cacheHitRateData, costData } = useMemo(() => {
-    const hourlyLabels = chartPeriod === 'hour' ? (() => {
-      const hourMs = 60 * 60 * 1000;
-      const resolvedHourWindow =
-        Number.isFinite(hourWindowHours) && hourWindowHours && hourWindowHours > 0
-          ? Math.min(Math.max(Math.floor(hourWindowHours), 1), 24 * 31)
-          : 24;
-      const currentHour = new Date();
-      currentHour.setMinutes(0, 0, 0);
-      const earliest = new Date(currentHour);
-      earliest.setHours(earliest.getHours() - (resolvedHourWindow - 1));
-      const earliestTime = earliest.getTime();
-      return Array.from({ length: resolvedHourWindow }, (_, index) =>
-        formatHourLabel(new Date(earliestTime + index * hourMs))
-      );
-    })() : [];
+  const {
+    labels,
+    inputData,
+    outputData,
+    cacheCreationData,
+    cacheReadData,
+    cacheHitRateData,
+    costData,
+  } = useMemo(() => {
+    const hourlyLabels =
+      chartPeriod === 'hour'
+        ? (() => {
+            const hourMs = 60 * 60 * 1000;
+            const resolvedHourWindow =
+              Number.isFinite(hourWindowHours) && hourWindowHours && hourWindowHours > 0
+                ? Math.min(Math.max(Math.floor(hourWindowHours), 1), 24 * 31)
+                : 24;
+            const currentHour = new Date();
+            currentHour.setMinutes(0, 0, 0);
+            const earliest = new Date(currentHour);
+            earliest.setHours(earliest.getHours() - (resolvedHourWindow - 1));
+            const earliestTime = earliest.getTime();
+            return Array.from({ length: resolvedHourWindow }, (_, index) =>
+              formatHourLabel(new Date(earliestTime + index * hourMs))
+            );
+          })()
+        : [];
 
-    const dailyLabels = chartPeriod === 'day' ? Array.from(
-      new Set(
-        details
-          .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
-          .filter(Boolean)
-      )
-    ).sort() : [];
+    const dailyLabels =
+      chartPeriod === 'day'
+        ? Array.from(
+            new Set(
+              details
+                .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
+                .filter(Boolean)
+            )
+          ).sort()
+        : [];
 
     const labelsList = chartPeriod === 'hour' ? hourlyLabels : dailyLabels;
     const labelIndexMap = new Map(labelsList.map((l, idx) => [l, idx]));
@@ -167,209 +180,227 @@ function TokenUsageTrendChart({
   }, [details, chartPeriod, hourWindowHours, modelPrices]);
 
   useEffect(() => {
-    let resizeObserver: ResizeObserver | null = null;
+    if (!chartRef.current) return;
 
-    const timer = setTimeout(() => {
-      if (!chartRef.current) return;
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.dispose();
+    }
 
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
-      }
-
-      const chart = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
-      chartInstanceRef.current = chart;
-      const inputLabel = t('usage_stats.input_tokens') || 'Input';
-      const outputLabel = t('usage_stats.output_tokens') || 'Output';
-      const cacheCreationLabel = t('usage_stats.cache_creation') || 'Cache Creation';
-      const cacheHitLabel = t('usage_stats.cache_hit') || 'Cache Hit';
-      const cacheHitRateLabel = t('usage_stats.cache_hit_rate') || 'Cache Hit Rate';
-
-      const option: echarts.EChartsOption = {
-        backgroundColor: 'transparent',
-        title: {
-          text: t('usage_stats.token_usage_trend') || 'Token Usage Trend',
-          textStyle: {
-            fontSize: 13,
-            fontWeight: 'bold',
-            color: isDark ? '#f8fafc' : '#111827',
-          },
-          top: 0,
-          left: 0,
-        },
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'cross' },
-          backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
-          textStyle: { color: isDark ? '#f8fafc' : '#111827' },
-          borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)',
-          borderWidth: 1,
-          padding: 10,
-          formatter: (params: unknown) => {
-            if (!Array.isArray(params) || params.length === 0) return '';
-            const firstParam = params[0] as { axisValue?: string | number; dataIndex?: number };
-            const header = `<strong>${firstParam.axisValue ?? ''}</strong>`;
-            const lines = [header];
-            
-            const dataIndex = typeof firstParam.dataIndex === 'number' ? firstParam.dataIndex : 0;
-            const inputVal = inputData[dataIndex] || 0;
-            const outputVal = outputData[dataIndex] || 0;
-            const cacheCreationVal = cacheCreationData[dataIndex] || 0;
-            const cacheReadVal = cacheReadData[dataIndex] || 0;
-            const hitRateVal = cacheHitRateData[dataIndex] || 0;
-            const costVal = costData[dataIndex] || 0;
-
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#3b82f6;"></span>${inputLabel}: ${inputVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#10b981;"></span>${outputLabel}: ${outputVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#f59e0b;"></span>${cacheCreationLabel}: ${cacheCreationVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#06b6d4;"></span>${cacheHitLabel}: ${cacheReadVal.toLocaleString()}`);
-            lines.push(`<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#8b5cf6;"></span>${cacheHitRateLabel}: ${hitRateVal.toFixed(1)}%`);
-            if (hasPrices && costVal > 0) {
-              lines.push(`<hr style="border-color:rgba(255,255,255,0.15);margin:5px 0;" />Cost: ${formatUsd(costVal)}`);
-            }
-            return lines.join('<br/>');
-          }
-        },
-        legend: {
-          show: true,
-          top: 0,
-          right: 0,
-          data: [inputLabel, outputLabel, cacheCreationLabel, cacheHitLabel, cacheHitRateLabel],
-          textStyle: {
-            color: isDark ? '#9CA3AF' : '#6B7280',
-            fontSize: 10,
-          },
-          itemWidth: 10,
-          itemHeight: 6,
-        },
-        grid: {
-          left: 8,
-          right: 8,
-          top: 38,
-          bottom: 12,
-          containLabel: true,
-        },
-        xAxis: {
-          type: 'category',
-          boundaryGap: false,
-          data: labels,
-          axisLabel: {
-            color: isDark ? '#94a3b8' : '#6b7280',
-            fontSize: 9,
-          },
-          axisTick: { show: false },
-          axisLine: { show: false },
-        },
-        yAxis: [
-          {
-            type: 'value',
-            axisLabel: {
-              color: isDark ? '#94a3b8' : '#6b7280',
-              fontSize: 9,
-              formatter: (value: number) => formatTokens(value),
-            },
-            splitLine: {
-              lineStyle: {
-                color: isDark ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.15)',
-              },
-            },
-          },
-          {
-            type: 'value',
-            min: 0,
-            max: 100,
-            axisLabel: {
-              color: isDark ? '#94a3b8' : '#6b7280',
-              fontSize: 9,
-              formatter: '{value}%',
-            },
-            splitLine: { show: false },
-          }
-        ],
-        series: [
-          {
-            name: inputLabel,
-            type: 'line',
-            data: inputData,
-            showSymbol: false,
-            symbol: 'circle',
-            symbolSize: 6,
-            itemStyle: { color: '#3b82f6' },
-            lineStyle: { width: 2 },
-            areaStyle: {
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: 'rgba(59, 130, 246, 0.12)' },
-                { offset: 1, color: 'rgba(59, 130, 246, 0.01)' }
-              ])
-            }
-          },
-          {
-            name: outputLabel,
-            type: 'line',
-            data: outputData,
-            showSymbol: false,
-            symbol: 'circle',
-            symbolSize: 6,
-            itemStyle: { color: '#10b981' },
-            lineStyle: { width: 2 },
-          },
-          {
-            name: cacheCreationLabel,
-            type: 'line',
-            data: cacheCreationData,
-            showSymbol: false,
-            symbol: 'circle',
-            symbolSize: 6,
-            itemStyle: { color: '#f59e0b' },
-            lineStyle: { width: 2 },
-          },
-          {
-            name: cacheHitLabel,
-            type: 'line',
-            data: cacheReadData,
-            showSymbol: false,
-            symbol: 'circle',
-            symbolSize: 6,
-            itemStyle: { color: '#06b6d4' },
-            lineStyle: { width: 2 },
-          },
-          {
-            name: cacheHitRateLabel,
-            type: 'line',
-            yAxisIndex: 1,
-            data: cacheHitRateData,
-            showSymbol: false,
-            symbol: 'circle',
-            symbolSize: 6,
-            itemStyle: { color: '#8b5cf6' },
-            lineStyle: { width: 2, type: 'dashed' },
-          }
-        ]
-      };
-
-      chart.setOption(option);
-
-      resizeObserver = new ResizeObserver(() => chart.resize());
-      resizeObserver.observe(chartRef.current);
-    }, 100);
+    const chart = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
+    chartInstanceRef.current = chart;
+    resizeObserverRef.current?.disconnect();
+    resizeObserverRef.current = new ResizeObserver(() => chart.resize());
+    resizeObserverRef.current.observe(chartRef.current);
 
     return () => {
-      clearTimeout(timer);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.dispose();
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+      chart.dispose();
+      if (chartInstanceRef.current === chart) {
         chartInstanceRef.current = null;
       }
     };
-  }, [labels, inputData, outputData, cacheCreationData, cacheReadData, cacheHitRateData, costData, isDark, t, hasPrices]);
+  }, [isDark]);
 
-  return (
-    <div
-      ref={chartRef}
-      style={{ width: '100%', height: 260 }}
-    />
-  );
+  useEffect(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    const inputLabel = t('usage_stats.input_tokens') || 'Input';
+    const outputLabel = t('usage_stats.output_tokens') || 'Output';
+    const cacheCreationLabel = t('usage_stats.cache_creation') || 'Cache Creation';
+    const cacheHitLabel = t('usage_stats.cache_hit') || 'Cache Hit';
+    const cacheHitRateLabel = t('usage_stats.cache_hit_rate') || 'Cache Hit Rate';
+
+    const option: echarts.EChartsOption = {
+      backgroundColor: 'transparent',
+      title: {
+        text: t('usage_stats.token_usage_trend') || 'Token Usage Trend',
+        textStyle: {
+          fontSize: 13,
+          fontWeight: 'bold',
+          color: isDark ? '#f8fafc' : '#111827',
+        },
+        top: 0,
+        left: 0,
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
+        textStyle: { color: isDark ? '#f8fafc' : '#111827' },
+        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)',
+        borderWidth: 1,
+        padding: 10,
+        formatter: (params: unknown) => {
+          if (!Array.isArray(params) || params.length === 0) return '';
+          const firstParam = params[0] as { axisValue?: string | number; dataIndex?: number };
+          const header = `<strong>${firstParam.axisValue ?? ''}</strong>`;
+          const lines = [header];
+
+          const dataIndex = typeof firstParam.dataIndex === 'number' ? firstParam.dataIndex : 0;
+          const inputVal = inputData[dataIndex] || 0;
+          const outputVal = outputData[dataIndex] || 0;
+          const cacheCreationVal = cacheCreationData[dataIndex] || 0;
+          const cacheReadVal = cacheReadData[dataIndex] || 0;
+          const hitRateVal = cacheHitRateData[dataIndex] || 0;
+          const costVal = costData[dataIndex] || 0;
+
+          lines.push(
+            `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#3b82f6;"></span>${inputLabel}: ${inputVal.toLocaleString()}`
+          );
+          lines.push(
+            `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#10b981;"></span>${outputLabel}: ${outputVal.toLocaleString()}`
+          );
+          lines.push(
+            `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#f59e0b;"></span>${cacheCreationLabel}: ${cacheCreationVal.toLocaleString()}`
+          );
+          lines.push(
+            `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#06b6d4;"></span>${cacheHitLabel}: ${cacheReadVal.toLocaleString()}`
+          );
+          lines.push(
+            `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:9px;height:9px;background-color:#8b5cf6;"></span>${cacheHitRateLabel}: ${hitRateVal.toFixed(1)}%`
+          );
+          if (hasPrices && costVal > 0) {
+            lines.push(
+              `<hr style="border-color:rgba(255,255,255,0.15);margin:5px 0;" />Cost: ${formatUsd(costVal)}`
+            );
+          }
+          return lines.join('<br/>');
+        },
+      },
+      legend: {
+        show: true,
+        top: 0,
+        right: 0,
+        data: [inputLabel, outputLabel, cacheCreationLabel, cacheHitLabel, cacheHitRateLabel],
+        textStyle: {
+          color: isDark ? '#9CA3AF' : '#6B7280',
+          fontSize: 10,
+        },
+        itemWidth: 10,
+        itemHeight: 6,
+      },
+      grid: {
+        left: 8,
+        right: 8,
+        top: 38,
+        bottom: 12,
+        containLabel: true,
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: labels,
+        axisLabel: {
+          color: isDark ? '#94a3b8' : '#6b7280',
+          fontSize: 9,
+        },
+        axisTick: { show: false },
+        axisLine: { show: false },
+      },
+      yAxis: [
+        {
+          type: 'value',
+          axisLabel: {
+            color: isDark ? '#94a3b8' : '#6b7280',
+            fontSize: 9,
+            formatter: (value: number) => formatTokens(value),
+          },
+          splitLine: {
+            lineStyle: {
+              color: isDark ? 'rgba(148,163,184,0.08)' : 'rgba(148,163,184,0.15)',
+            },
+          },
+        },
+        {
+          type: 'value',
+          min: 0,
+          max: 100,
+          axisLabel: {
+            color: isDark ? '#94a3b8' : '#6b7280',
+            fontSize: 9,
+            formatter: '{value}%',
+          },
+          splitLine: { show: false },
+        },
+      ],
+      series: [
+        {
+          name: inputLabel,
+          type: 'line',
+          data: inputData,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 6,
+          itemStyle: { color: '#3b82f6' },
+          lineStyle: { width: 2 },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(59, 130, 246, 0.12)' },
+              { offset: 1, color: 'rgba(59, 130, 246, 0.01)' },
+            ]),
+          },
+        },
+        {
+          name: outputLabel,
+          type: 'line',
+          data: outputData,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 6,
+          itemStyle: { color: '#10b981' },
+          lineStyle: { width: 2 },
+        },
+        {
+          name: cacheCreationLabel,
+          type: 'line',
+          data: cacheCreationData,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 6,
+          itemStyle: { color: '#f59e0b' },
+          lineStyle: { width: 2 },
+        },
+        {
+          name: cacheHitLabel,
+          type: 'line',
+          data: cacheReadData,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 6,
+          itemStyle: { color: '#06b6d4' },
+          lineStyle: { width: 2 },
+        },
+        {
+          name: cacheHitRateLabel,
+          type: 'line',
+          yAxisIndex: 1,
+          data: cacheHitRateData,
+          showSymbol: false,
+          symbol: 'circle',
+          symbolSize: 6,
+          itemStyle: { color: '#8b5cf6' },
+          lineStyle: { width: 2, type: 'dashed' },
+        },
+      ],
+    };
+
+    chart.setOption(option, { notMerge: false, lazyUpdate: true });
+  }, [
+    labels,
+    inputData,
+    outputData,
+    cacheCreationData,
+    cacheReadData,
+    cacheHitRateData,
+    costData,
+    isDark,
+    t,
+    hasPrices,
+  ]);
+
+  return <div ref={chartRef} style={{ width: '100%', height: 260 }} />;
 }
 
 export function ModelTokenDoughnut({
@@ -423,7 +454,11 @@ export function ModelTokenDoughnut({
             const { chart } = ctx;
             const area = chart.chartArea;
             if (!area) return segments[ctx.dataIndex]?.color.base ?? '#64748b';
-            return toGradient(chart.ctx, area, segments[ctx.dataIndex]?.color ?? { base: '#64748b', light: '#94a3b8' });
+            return toGradient(
+              chart.ctx,
+              area,
+              segments[ctx.dataIndex]?.color ?? { base: '#64748b', light: '#94a3b8' }
+            );
           },
           borderColor: isDark ? '#0f172a' : '#ffffff',
           borderWidth: 3,
