@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
+import { IconEye, IconEyeOff, IconCopy, IconPlus, IconMinus, IconChevronDown, IconChevronUp } from '@/components/ui/icons';
 import { useNotificationStore } from '@/stores';
 import { apiCallApi, getApiCallErrorMessage } from '@/services/api';
 import type { ApiKeyEntry } from '@/types';
@@ -28,70 +29,101 @@ const getErrorMessage = (err: unknown) => {
   return '';
 };
 
-// Status icon components
-function StatusLoadingIcon() {
+function StatusBadge({ status, message }: { status: KeyTestStatus['status']; message?: string }) {
+  const { t } = useTranslation();
+
+  const getBadgeClass = () => {
+    switch (status) {
+      case 'loading':
+        return styles.keyStatusBadgeLoading;
+      case 'success':
+        return styles.keyStatusBadgeSuccess;
+      case 'error':
+        return styles.keyStatusBadgeError;
+      default:
+        return styles.keyStatusBadgeIdle;
+    }
+  };
+
+  const getLabel = () => {
+    switch (status) {
+      case 'loading':
+        return t('ai_providers.openai_test_status_loading');
+      case 'success':
+        return t('ai_providers.openai_test_status_success');
+      case 'error':
+        return t('ai_providers.openai_test_status_error');
+      default:
+        return t('ai_providers.openai_test_status_idle');
+    }
+  };
+
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className={styles.statusIconSpin}>
-      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
-      <path
-        d="M8 1A7 7 0 0 1 8 15"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
+    <span className={`${styles.keyStatusBadge} ${getBadgeClass()}`} title={message || ''}>
+      {status === 'loading' && <span className={styles.statusSpinner}>⟳</span>}
+      {getLabel()}
+    </span>
+  );
+}
+
+function WeightStepper({
+  value,
+  onChange,
+  min = 1,
+  disabled = false,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  disabled?: boolean;
+}) {
+  const handleDecrement = () => {
+    if (value > min) {
+      onChange(value - 1);
+    }
+  };
+
+  const handleIncrement = () => {
+    onChange(value + 1);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.target.value, 10);
+    if (!isNaN(parsed) && parsed >= min) {
+      onChange(parsed);
+    }
+  };
+
+  return (
+    <div className={styles.weightStepper}>
+      <button
+        type="button"
+        className={styles.weightStepperBtn}
+        onClick={handleDecrement}
+        disabled={disabled || value <= min}
+        aria-label="Decrement"
+      >
+        <IconMinus size={12} />
+      </button>
+      <input
+        type="number"
+        className={styles.weightStepperValue}
+        value={value}
+        onChange={handleInputChange}
+        disabled={disabled}
+        min={min}
       />
-    </svg>
+      <button
+        type="button"
+        className={styles.weightStepperBtn}
+        onClick={handleIncrement}
+        disabled={disabled}
+        aria-label="Increment"
+      >
+        <IconPlus size={12} />
+      </button>
+    </div>
   );
-}
-
-function StatusSuccessIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="8" fill="var(--success-color, #22c55e)" />
-      <path
-        d="M4.5 8L7 10.5L11.5 6"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StatusErrorIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="8" fill="var(--danger-color, #c65746)" />
-      <path
-        d="M5 5L11 11M11 5L5 11"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function StatusIdleIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="7" stroke="var(--text-tertiary, #9ca3af)" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function StatusIcon({ status }: { status: KeyTestStatus['status'] }) {
-  switch (status) {
-    case 'loading':
-      return <StatusLoadingIcon />;
-    case 'success':
-      return <StatusSuccessIcon />;
-    case 'error':
-      return <StatusErrorIcon />;
-    default:
-      return <StatusIdleIcon />;
-  }
 }
 
 export function AiProvidersOpenAIEditPage() {
@@ -127,6 +159,8 @@ export function AiProvidersOpenAIEditPage() {
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
   const [isTestingKeys, setIsTestingKeys] = useState(false);
+  const [visibleKeyIndexes, setVisibleKeyIndexes] = useState<Set<number>>(new Set());
+  const [expandedProxyIndexes, setExpandedProxyIndexes] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -368,16 +402,44 @@ export function AiProvidersOpenAIEditPage() {
     navigate('models');
   };
 
+  // Toggle key visibility
+  const toggleKeyVisibility = (index: number) => {
+    setVisibleKeyIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  // Copy key to clipboard
+  const copyKeyToClipboard = async (apiKey: string) => {
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      showNotification(t('notification.copied_to_clipboard'), 'success');
+    } catch {
+      showNotification(t('notification.copy_failed'), 'error');
+    }
+  };
+
+  // Toggle proxy expanded
+  const toggleProxyExpanded = (index: number) => {
+    setExpandedProxyIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
   const renderKeyEntries = (entries: ApiKeyEntry[]) => {
     const list = entries.length ? entries : [buildApiKeyEntry()];
-
-    const normalizeWeightInput = (value: string): number | undefined => {
-      if (value.trim() === '') return undefined;
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed)) return undefined;
-      const normalized = Math.trunc(parsed);
-      return normalized > 0 ? normalized : 1;
-    };
 
     const updateEntry = (idx: number, patch: Partial<ApiKeyEntry>) => {
       const next = list.map((entry, i) => (i === idx ? { ...entry, ...patch } : entry));
@@ -428,7 +490,6 @@ export function AiProvidersOpenAIEditPage() {
             <div className={styles.keyTableColIndex}>#</div>
             <div className={styles.keyTableColStatus}>{t('common.status')}</div>
             <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
-            <div className={styles.keyTableColProxy}>{t('common.proxy_url')}</div>
             <div className={styles.keyTableColWeight}>{t('common.weight')}</div>
             <div className={styles.keyTableColAction}>{t('common.action')}</div>
           </div>
@@ -440,59 +501,83 @@ export function AiProvidersOpenAIEditPage() {
 
             return (
               <div key={index} className={styles.keyTableRow}>
-                {/* 序号 */}
+                {/* Index column */}
                 <div className={styles.keyTableColIndex}>{index + 1}</div>
 
-                {/* 状态指示灯 */}
-                <div
-                  className={styles.keyTableColStatus}
-                  title={keyTestStatuses[index]?.message || ''}
-                >
-                  <StatusIcon status={keyStatus} />
+                {/* Status column - replace StatusIcon with StatusBadge */}
+                <div className={styles.keyTableColStatus}>
+                  <StatusBadge status={keyStatus} message={keyTestStatuses[index]?.message} />
                 </div>
 
-                {/* Key 输入框 */}
+                {/* Key column - new structure with input group and expandable proxy */}
                 <div className={styles.keyTableColKey}>
-                  <input
-                    type="text"
-                    value={entry.apiKey}
-                    onChange={(e) => updateEntry(index, { apiKey: e.target.value })}
-                    disabled={saving || disableControls || isTestingKeys}
-                    className={`input ${styles.keyTableInput}`}
-                    placeholder={t('ai_providers.openai_key_placeholder')}
-                  />
+                  <div className={styles.keyInputGroup}>
+                    <div className={styles.keyInputWrapper}>
+                      <input
+                        type={visibleKeyIndexes.has(index) ? 'text' : 'password'}
+                        value={entry.apiKey}
+                        onChange={(e) => updateEntry(index, { apiKey: e.target.value })}
+                        disabled={saving || disableControls || isTestingKeys}
+                        className={`input ${styles.keyTableInput}`}
+                        placeholder={t('ai_providers.openai_key_placeholder')}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.keyInputToggle}
+                      onClick={() => toggleKeyVisibility(index)}
+                      title={visibleKeyIndexes.has(index) ? t('common.hide') : t('common.show')}
+                      disabled={saving || disableControls || isTestingKeys}
+                    >
+                      {visibleKeyIndexes.has(index) ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.keyInputCopy}
+                      onClick={() => copyKeyToClipboard(entry.apiKey)}
+                      title={t('common.copy')}
+                      disabled={saving || disableControls || isTestingKeys || !entry.apiKey?.trim()}
+                    >
+                      <IconCopy size={14} />
+                    </button>
+                  </div>
+
+                  {/* Expandable proxy URL section */}
+                  <div className={styles.keyProxySection}>
+                    <button
+                      type="button"
+                      className={styles.keyProxyToggle}
+                      onClick={() => toggleProxyExpanded(index)}
+                    >
+                      {expandedProxyIndexes.has(index) ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
+                      {expandedProxyIndexes.has(index) ? t('ai_providers.openai_proxy_collapse') : t('ai_providers.openai_proxy_expand')}
+                    </button>
+                    {expandedProxyIndexes.has(index) && (
+                      <div className={styles.keyProxyExpanded}>
+                        <input
+                          type="text"
+                          value={entry.proxyUrl ?? ''}
+                          onChange={(e) => updateEntry(index, { proxyUrl: e.target.value })}
+                          disabled={saving || disableControls || isTestingKeys}
+                          className={`input ${styles.keyProxyInput}`}
+                          placeholder={t('ai_providers.openai_proxy_placeholder')}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Proxy 输入框 */}
-                <div className={styles.keyTableColProxy}>
-                  <input
-                    type="text"
-                    value={entry.proxyUrl ?? ''}
-                    onChange={(e) => updateEntry(index, { proxyUrl: e.target.value })}
-                    disabled={saving || disableControls || isTestingKeys}
-                    className={`input ${styles.keyTableInput}`}
-                    placeholder={t('ai_providers.openai_proxy_placeholder')}
-                  />
-                </div>
-
-                {/* Weight 输入框 */}
+                {/* Weight column - replace input with WeightStepper */}
                 <div className={styles.keyTableColWeight}>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
+                  <WeightStepper
                     value={entry.weight ?? 1}
-                    onChange={(e) =>
-                      updateEntry(index, { weight: normalizeWeightInput(e.target.value) })
-                    }
+                    onChange={(val) => updateEntry(index, { weight: val })}
+                    min={1}
                     disabled={saving || disableControls || isTestingKeys}
-                    className={`input ${styles.keyTableInput}`}
-                    style={{ width: '60px' }}
-                    placeholder="1"
                   />
                 </div>
 
-                {/* 操作按钮 */}
+                {/* Action column */}
                 <div className={styles.keyTableColAction}>
                   <Button
                     variant="secondary"
@@ -504,7 +589,7 @@ export function AiProvidersOpenAIEditPage() {
                     {t('ai_providers.openai_test_single_action')}
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="danger"
                     size="sm"
                     onClick={() => removeEntry(index)}
                     disabled={saving || disableControls || isTestingKeys || list.length <= 1}
