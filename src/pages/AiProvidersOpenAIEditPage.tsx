@@ -29,7 +29,7 @@ const getErrorMessage = (err: unknown) => {
   return '';
 };
 
-function StatusBadge({ status, message }: { status: KeyTestStatus['status']; message?: string }) {
+function StatusBadge({ status, message, latency }: { status: KeyTestStatus['status']; message?: string; latency?: number }) {
   const { t } = useTranslation();
 
   const getBadgeClass = () => {
@@ -50,7 +50,9 @@ function StatusBadge({ status, message }: { status: KeyTestStatus['status']; mes
       case 'loading':
         return t('ai_providers.openai_test_status_loading');
       case 'success':
-        return t('ai_providers.openai_test_status_success');
+        return latency
+          ? `${t('ai_providers.openai_test_status_success')} (${latency}ms)`
+          : t('ai_providers.openai_test_status_success');
       case 'error':
         return t('ai_providers.openai_test_status_error');
       default:
@@ -59,8 +61,8 @@ function StatusBadge({ status, message }: { status: KeyTestStatus['status']; mes
   };
 
   return (
-    <span className={`${styles.keyStatusBadge} ${getBadgeClass()}`} title={message || ''}>
-      {status === 'loading' && <span className={styles.statusSpinner}>⟳</span>}
+    <span className={`${styles.keyStatusBadge} ${getBadgeClass()}`} title={message || undefined} role="status" aria-live="polite">
+      {status === 'loading' && <span className={styles.statusSpinner} aria-hidden="true">⟳</span>}
       {getLabel()}
     </span>
   );
