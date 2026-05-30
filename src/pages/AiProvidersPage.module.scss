@@ -2037,3 +2037,139 @@ $openai-toolbar-control-height: 36px;
     border-color: rgba(255, 255, 255, 0.04);
   }
 }
+
+// ============================================
+// API Key Card Layout (replaces table layout)
+// ============================================
+
+// Card list container
+.keyCardList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+// Individual key card
+.keyCard {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: $radius-lg;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
+
+// Card main row: index + status + key input + weight + actions
+.keyCardMain {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+// Card index number
+.keyCardIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+// Status badge column
+.keyCardStatus {
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+// Key input section (grows to fill space)
+.keyCardKeySection {
+  flex: 1 1 280px;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+// Weight stepper column
+.keyCardWeight {
+  flex-shrink: 0;
+}
+
+// Card actions (Test + Delete buttons)
+.keyCardActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex-shrink: 0;
+}
+
+// Card input styling (replaces keyTableInput)
+.keyCardInput {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: monospace;
+  min-height: 38px;
+}
+
+// Mobile responsive
+@include mobile {
+  .keyCardMain {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $spacing-sm;
+  }
+
+  .keyCardIndex {
+    align-self: flex-start;
+  }
+
+  .keyCardStatus {
+    width: 100%;
+  }
+
+  .keyCardKeySection {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .keyCardWeight {
+    width: 100%;
+  }
+
+  .keyCardActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+// Temporarily hide old table layout (Task 1-2 migration)
+.keyTableShell {
+  display: none;
+}
+
+.keyTableHeader {
+  display: none;
+}
+
+.keyTableRow {
+  display: none;
+}
