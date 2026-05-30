@@ -78,6 +78,20 @@ $openai-toolbar-control-height: 36px;
   align-items: stretch;
   gap: $spacing-sm;
   min-height: 0;
+  transition:
+    border-color $transition-fast,
+    background-color $transition-fast,
+    opacity $transition-fast;
+}
+
+.openaiProviderCardDisabled {
+  opacity: 0.68;
+  background: color-mix(in srgb, var(--bg-primary) 84%, var(--bg-secondary));
+}
+
+.openaiProviderCardProblem {
+  border-color: color-mix(in srgb, var(--failure-badge-border, #fecaca) 74%, var(--border-color));
+  background: color-mix(in srgb, var(--failure-badge-bg, #fee2e2) 18%, var(--bg-primary));
 }
 
 .openaiProviderMeta {
@@ -98,9 +112,213 @@ $openai-toolbar-control-height: 36px;
 .openaiProviderTitle {
   font-weight: 700;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
-// 排序控件
+.openaiProviderTopLine {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  border-radius: 8px;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 4px;
+  }
+}
+
+.openaiProviderTitleBlock {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.providerStatusEnabled,
+.providerStatusDisabled {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.providerStatusEnabled {
+  color: var(--success-badge-text, #065f46);
+  background: var(--success-badge-bg, #d1fae5);
+  border-color: var(--success-badge-border, #6ee7b7);
+}
+
+.providerStatusDisabled {
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
+}
+
+.providerHealthSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.providerHealthRate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: $radius-full;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.providerHealthGood {
+  color: var(--success-badge-text, #065f46);
+  background: var(--success-badge-bg, #d1fae5);
+  border-color: var(--success-badge-border, #6ee7b7);
+}
+
+.providerHealthWarn {
+  color: var(--warning-text, #92400e);
+  background: var(--warning-bg, #fef3c7);
+  border-color: var(--warning-border, #fbbf24);
+}
+
+.providerHealthBad {
+  color: var(--failure-badge-text);
+  background: var(--failure-badge-bg);
+  border-color: var(--failure-badge-border);
+}
+
+.providerHealthIdle {
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
+}
+
+.providerHealthCounts {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.providerSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.providerSummaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+
+  &:first-child {
+    grid-column: 1 / -1;
+  }
+
+  span {
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.providerCompactMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid var(--border-secondary);
+    border-radius: $radius-full;
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.providerDetails {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+  padding-top: $spacing-sm;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.providerDetailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.providerModelsSection {
+  min-width: 0;
+}
+
+// Sort controls
 .sortControls {
   display: flex;
   align-items: center;
@@ -123,7 +341,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 排序方向按钮
+// Sort direction button
 .sortDirectionButton:global(.btn.btn-secondary) {
   flex: 0 0 74px;
   min-width: 74px;
@@ -160,7 +378,7 @@ $openai-toolbar-control-height: 36px;
   flex-shrink: 0;
 }
 
-// 卡片头部操作区
+// Card header actions
 .cardHeaderActions {
   display: flex;
   align-items: center;
@@ -177,6 +395,97 @@ $openai-toolbar-control-height: 36px;
   display: flex;
   align-items: center;
   gap: $spacing-sm;
+}
+
+.statusFilterTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: $openai-toolbar-control-height;
+  padding: 3px;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.statusFilterTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 64px;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color $transition-fast,
+    color $transition-fast;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: $radius-full;
+    background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+    color: inherit;
+    font-size: 11px;
+  }
+}
+
+.statusFilterTabActive {
+  background: var(--primary-color);
+  color: var(--primary-contrast, #fff);
+
+  &:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: var(--primary-contrast, #fff);
+  }
+
+  strong {
+    background: color-mix(in srgb, var(--primary-contrast, #fff) 22%, transparent);
+  }
+}
+
+@include mobile {
+  .openaiProviderTopLine {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .providerHealthSummary {
+    justify-content: space-between;
+  }
+
+  .providerSummaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statusFilterTabs {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
 }
 
 .collapseToggleButton:global(.btn.btn-secondary) {
@@ -221,7 +530,7 @@ $openai-toolbar-control-height: 36px;
   border-radius: 0;
 }
 
-// 模型多选下拉框
+// Model multi-select dropdown
 .modelMultiSelectWrapper {
   position: relative;
 }
@@ -441,7 +750,7 @@ $openai-toolbar-control-height: 36px;
   font-size: 13px;
 }
 
-// 成功失败次数统计样式
+// Success and failure count styles
 .cardStats {
   display: flex;
   flex-wrap: wrap;
@@ -477,7 +786,7 @@ $openai-toolbar-control-height: 36px;
   border-color: var(--failure-badge-border);
 }
 
-// 字段行样式：标签 + 值
+// Field row styles: label plus value
 .fieldRow {
   display: flex;
   flex-wrap: wrap;
@@ -502,7 +811,7 @@ $openai-toolbar-control-height: 36px;
   font-family: 'Monaco', 'Menlo', 'Consolas', 'Ubuntu Mono', monospace;
 }
 
-// 自定义请求头徽章
+// Custom header badges
 .headerBadgeList {
   display: flex;
   flex-wrap: wrap;
@@ -527,7 +836,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 模型标签容器
+// Model tag container
 .modelTagList {
   display: flex;
   flex-wrap: wrap;
@@ -547,7 +856,7 @@ $openai-toolbar-control-height: 36px;
   flex-shrink: 0;
 }
 
-// 单个模型标签
+// Individual model tag
 .modelTag {
   display: inline-flex;
   align-items: center;
@@ -583,7 +892,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 排除模型标签（警告色）
+// Excluded model tag warning style
 .excludedModelTag {
   background: var(--warning-bg, #fef3c7);
   border-color: var(--warning-border, #fbbf24);
@@ -594,7 +903,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 排除模型区块
+// Excluded models section
 .excludedModelsSection {
   margin-top: 8px;
 }
@@ -606,7 +915,7 @@ $openai-toolbar-control-height: 36px;
   margin-bottom: 4px;
 }
 
-// API密钥条目列表（二级卡片）
+// API key entry list
 .apiKeyEntriesSection {
   margin-top: 10px;
 }
@@ -622,6 +931,18 @@ $openai-toolbar-control-height: 36px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.providerDetails .apiKeyEntryList {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.providerDetails .modelTagList {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .apiKeyEntryCard {
@@ -697,7 +1018,7 @@ $openai-toolbar-control-height: 36px;
   color: var(--failure-badge-text);
 }
 
-// OpenAI 模型发现（二级界面）
+// OpenAI model discovery secondary view
 .modelDiscoveryList {
   display: flex;
   flex-direction: column;
@@ -798,7 +1119,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 状态监测栏
+// Status monitoring bar
 .statusBar {
   display: flex;
   align-items: center;
@@ -860,7 +1181,7 @@ $openai-toolbar-control-height: 36px;
   pointer-events: none;
   color: var(--text-primary);
 
-  // 小箭头
+  // Small arrow
   &::after {
     content: '';
     position: absolute;
@@ -882,7 +1203,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 防止左右溢出
+// Prevent horizontal overflow
 .statusTooltipLeft {
   left: 0;
   transform: translateX(0);
@@ -1233,10 +1554,188 @@ $openai-toolbar-control-height: 36px;
   border-radius: $radius-md;
 }
 
-// 表头
+// Status Badge styles
+.keyStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.keyStatusBadgeIdle {
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  border-color: var(--border-secondary);
+}
+
+.keyStatusBadgeLoading {
+  background: #3b82f6;
+  color: white;
+}
+
+.keyStatusBadgeSuccess {
+  background: var(--success-badge-bg, #d1fae5);
+  color: var(--success-badge-text, #065f46);
+  border-color: var(--success-badge-border, #6ee7b7);
+}
+
+.keyStatusBadgeError {
+  background: var(--failure-badge-bg);
+  color: var(--failure-badge-text);
+  border-color: var(--failure-badge-border);
+}
+
+// Key input group (input + toggle + copy)
+.keyInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.keyInputWrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.keyInputToggle,
+.keyInputCopy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--primary-color);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Weight stepper
+.weightStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.weightStepperBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.weightStepperValue {
+  width: 36px;
+  height: 32px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &:focus {
+    outline: none;
+    background: var(--bg-tertiary);
+  }
+}
+
+// Proxy URL expandable section
+.keyProxySection {
+  margin-top: $spacing-sm;
+  padding: $spacing-sm;
+  border: 1px dashed var(--border-secondary);
+  border-radius: $radius-md;
+  background: var(--bg-secondary);
+}
+
+.keyProxyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+}
+
+.keyProxyExpanded {
+  margin-top: $spacing-xs;
+}
+
+.keyProxyInput {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  min-height: 36px;
+  text-align: left;
+}
+
+// Table header
 .keyTableHeader {
   display: grid;
-  grid-template-columns: 46px minmax(320px, 1fr) 120px 120px;
+  grid-template-columns: 46px 120px minmax(280px, 1fr) 90px auto;
   gap: $spacing-sm;
   min-width: 700px;
   padding: 10px $spacing-md;
@@ -1252,10 +1751,10 @@ $openai-toolbar-control-height: 36px;
   text-align: center;
 }
 
-// 数据行
+// Data rows
 .keyTableRow {
   display: grid;
-  grid-template-columns: 46px minmax(320px, 1fr) 120px 120px;
+  grid-template-columns: 46px 120px minmax(280px, 1fr) 90px auto;
   gap: $spacing-sm;
   min-width: 700px;
   padding: 10px $spacing-md;
@@ -1273,7 +1772,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 列定义
+// Column definitions
 .keyTableColIndex {
   display: flex;
   align-items: center;
@@ -1368,7 +1867,7 @@ $openai-toolbar-control-height: 36px;
   }
 }
 
-// 暗色主题适配
+// Dark theme adaptation
 :global([data-theme='dark']) {
   .headerBadge {
     background: rgba($primary-color, 0.14);
@@ -1444,9 +1943,17 @@ $openai-toolbar-control-height: 36px;
 
 // Codex Provider Cards
 .codexProviderList {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  gap: $spacing-md;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @include mobile {
+    grid-template-columns: 1fr;
+  }
 }
 
 .codexProviderCard {
