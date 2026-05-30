@@ -16,6 +16,7 @@ import { apiCallApi, getApiCallErrorMessage } from '@/services/api';
 import type { ApiKeyEntry } from '@/types';
 import { buildHeaderObject, hasHeader } from '@/utils/headers';
 import { buildApiKeyEntry, buildOpenAIChatCompletionsEndpoint } from '@/components/providers/utils';
+import { maskApiKey } from '@/utils/format';
 import type { OpenAIEditOutletContext } from './AiProvidersOpenAIEditLayout';
 import type { KeyTestStatus } from '@/stores/useOpenAIEditDraftStore';
 import styles from './AiProvidersPage.module.scss';
@@ -309,6 +310,32 @@ export function AiProvidersOpenAIEditPage() {
     [isTestingKeys, runSingleKeyTest]
   );
 
+  const removeEntry = (idx: number) => {
+    const list = form.apiKeyEntries.length ? form.apiKeyEntries : [buildApiKeyEntry()];
+    const next = list.filter((_, i) => i !== idx);
+    const nextLength = next.length ? next.length : 1;
+    setForm((prev) => ({
+      ...prev,
+      apiKeyEntries: next.length ? next : [buildApiKeyEntry()],
+    }));
+    resetDraftKeyTestStatuses(nextLength);
+    setTestStatus('idle');
+    setTestMessage('');
+  };
+
+  const handleDeleteConfirmation = (index: number) => {
+    useNotificationStore.getState().showConfirmation({
+      title: t('ai_providers.openai_key_delete_confirm_title'),
+      message: `${t('ai_providers.openai_key_delete_confirm_message')}: ${maskApiKey(form.apiKeyEntries[index]?.apiKey || '')}`,
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      variant: 'danger',
+      onConfirm: async () => {
+        removeEntry(index);
+      },
+    });
+  };
+
   // Test all keys
   const testAllKeys = useCallback(async () => {
     if (isTestingKeys) return;
@@ -451,18 +478,6 @@ export function AiProvidersOpenAIEditPage() {
       setTestMessage('');
     };
 
-    const removeEntry = (idx: number) => {
-      const next = list.filter((_, i) => i !== idx);
-      const nextLength = next.length ? next.length : 1;
-      setForm((prev) => ({
-        ...prev,
-        apiKeyEntries: next.length ? next : [buildApiKeyEntry()],
-      }));
-      resetDraftKeyTestStatuses(nextLength);
-      setTestStatus('idle');
-      setTestMessage('');
-    };
-
     const addEntry = () => {
       setForm((prev) => ({ ...prev, apiKeyEntries: [...list, buildApiKeyEntry()] }));
       resetDraftKeyTestStatuses(list.length + 1);
@@ -486,118 +501,111 @@ export function AiProvidersOpenAIEditPage() {
             {t('ai_providers.openai_keys_add_btn')}
           </Button>
         </div>
-        <div className={styles.keyTableShell}>
-          {/* 表头 */}
-          <div className={styles.keyTableHeader}>
-            <div className={styles.keyTableColIndex}>#</div>
-            <div className={styles.keyTableColStatus}>{t('common.status')}</div>
-            <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
-            <div className={styles.keyTableColWeight}>{t('common.weight')}</div>
-            <div className={styles.keyTableColAction}>{t('common.action')}</div>
-          </div>
-
-          {/* 数据行 */}
+        <div className={styles.keyCardList}>
           {list.map((entry, index) => {
             const keyStatus = keyTestStatuses[index]?.status ?? 'idle';
             const canTestKey = Boolean(entry.apiKey?.trim()) && hasConfiguredModels;
 
             return (
-              <div key={index} className={styles.keyTableRow}>
-                {/* Index column */}
-                <div className={styles.keyTableColIndex}>{index + 1}</div>
+              <div key={index} className={styles.keyCard}>
+                {/* 卡片主体：状态 + 密钥 + 权重 + 代理开关 */}
+                <div className={styles.keyCardMain}>
+                  {/* 序号 */}
+                  <span className={styles.keyCardIndex}>{index + 1}</span>
 
-                {/* Status column - replace StatusIcon with StatusBadge */}
-                <div className={styles.keyTableColStatus}>
-                  <StatusBadge status={keyStatus} message={keyTestStatuses[index]?.message} />
-                </div>
-
-                {/* Key column - new structure with input group and expandable proxy */}
-                <div className={styles.keyTableColKey}>
-                  <div className={styles.keyInputGroup}>
-                    <div className={styles.keyInputWrapper}>
-                      <input
-                        type={visibleKeyIndexes.has(index) ? 'text' : 'password'}
-                        value={entry.apiKey}
-                        onChange={(e) => updateEntry(index, { apiKey: e.target.value })}
-                        disabled={saving || disableControls || isTestingKeys}
-                        className={`input ${styles.keyTableInput}`}
-                        placeholder={t('ai_providers.openai_key_placeholder')}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className={styles.keyInputToggle}
-                      onClick={() => toggleKeyVisibility(index)}
-                      title={visibleKeyIndexes.has(index) ? t('common.hide') : t('common.show')}
-                      disabled={saving || disableControls || isTestingKeys}
-                    >
-                      {visibleKeyIndexes.has(index) ? <IconEyeOff size={14} /> : <IconEye size={14} />}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.keyInputCopy}
-                      onClick={() => copyKeyToClipboard(entry.apiKey)}
-                      title={t('common.copy')}
-                      disabled={saving || disableControls || isTestingKeys || !entry.apiKey?.trim()}
-                    >
-                      <IconCopy size={14} />
-                    </button>
+                  {/* 状态 */}
+                  <div className={styles.keyCardStatus}>
+                    <StatusBadge status={keyStatus} message={keyTestStatuses[index]?.message} />
                   </div>
 
-                  {/* Expandable proxy URL section */}
-                  <div className={styles.keyProxySection}>
-                    <button
-                      type="button"
-                      className={styles.keyProxyToggle}
-                      onClick={() => toggleProxyExpanded(index)}
-                    >
-                      {expandedProxyIndexes.has(index) ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
-                      {expandedProxyIndexes.has(index) ? t('ai_providers.openai_proxy_collapse') : t('ai_providers.openai_proxy_expand')}
-                    </button>
-                    {expandedProxyIndexes.has(index) && (
-                      <div className={styles.keyProxyExpanded}>
+                  {/* 密钥输入 + 操作图标 */}
+                  <div className={styles.keyCardKeySection}>
+                    <div className={styles.keyInputGroup}>
+                      <div className={styles.keyInputWrapper}>
                         <input
-                          type="text"
-                          value={entry.proxyUrl ?? ''}
-                          onChange={(e) => updateEntry(index, { proxyUrl: e.target.value })}
+                          type={visibleKeyIndexes.has(index) ? 'text' : 'password'}
+                          value={entry.apiKey}
+                          onChange={(e) => updateEntry(index, { apiKey: e.target.value })}
                           disabled={saving || disableControls || isTestingKeys}
-                          className={`input ${styles.keyProxyInput}`}
-                          placeholder={t('ai_providers.openai_proxy_placeholder')}
+                          className={`input ${styles.keyCardInput}`}
+                          placeholder={t('ai_providers.openai_key_placeholder')}
                         />
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        className={styles.keyInputToggle}
+                        onClick={() => toggleKeyVisibility(index)}
+                        title={visibleKeyIndexes.has(index) ? t('common.hide') : t('common.show')}
+                        disabled={saving || disableControls || isTestingKeys}
+                      >
+                        {visibleKeyIndexes.has(index) ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.keyInputCopy}
+                        onClick={() => copyKeyToClipboard(entry.apiKey)}
+                        title={t('common.copy')}
+                        disabled={saving || disableControls || isTestingKeys || !entry.apiKey?.trim()}
+                      >
+                        <IconCopy size={14} />
+                      </button>
+                    </div>
+
+                    {/* 代理展开区 - 固定在密钥行下方 */}
+                    <div className={styles.keyProxySection}>
+                      <button
+                        type="button"
+                        className={styles.keyProxyToggle}
+                        onClick={() => toggleProxyExpanded(index)}
+                      >
+                        {expandedProxyIndexes.has(index) ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />}
+                        {expandedProxyIndexes.has(index) ? t('ai_providers.openai_proxy_collapse') : t('ai_providers.openai_proxy_expand')}
+                      </button>
+                      {expandedProxyIndexes.has(index) && (
+                        <div className={styles.keyProxyExpanded}>
+                          <input
+                            type="text"
+                            value={entry.proxyUrl ?? ''}
+                            onChange={(e) => updateEntry(index, { proxyUrl: e.target.value })}
+                            disabled={saving || disableControls || isTestingKeys}
+                            className={`input ${styles.keyProxyInput}`}
+                            placeholder={t('ai_providers.openai_proxy_placeholder')}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Weight column - replace input with WeightStepper */}
-                <div className={styles.keyTableColWeight}>
-                  <WeightStepper
-                    value={entry.weight ?? 1}
-                    onChange={(val) => updateEntry(index, { weight: val })}
-                    min={1}
-                    disabled={saving || disableControls || isTestingKeys}
-                  />
-                </div>
+                  {/* 权重 */}
+                  <div className={styles.keyCardWeight}>
+                    <WeightStepper
+                      value={entry.weight ?? 1}
+                      onChange={(val) => updateEntry(index, { weight: val })}
+                      min={1}
+                      disabled={saving || disableControls || isTestingKeys}
+                    />
+                  </div>
 
-                {/* Action column */}
-                <div className={styles.keyTableColAction}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => void testSingleKey(index)}
-                    disabled={saving || disableControls || isTestingKeys || !canTestKey}
-                    loading={keyStatus === 'loading'}
-                  >
-                    {t('ai_providers.openai_test_single_action')}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => removeEntry(index)}
-                    disabled={saving || disableControls || isTestingKeys || list.length <= 1}
-                  >
-                    {t('common.delete')}
-                  </Button>
+                  {/* 操作按钮 */}
+                  <div className={styles.keyCardActions}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void testSingleKey(index)}
+                      disabled={saving || disableControls || isTestingKeys || !canTestKey}
+                      loading={keyStatus === 'loading'}
+                    >
+                      {t('ai_providers.openai_test_single_action')}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDeleteConfirmation(index)}
+                      disabled={saving || disableControls || isTestingKeys || list.length <= 1}
+                    >
+                      {t('common.delete')}
+                    </Button>
+                  </div>
                 </div>
               </div>
             );
