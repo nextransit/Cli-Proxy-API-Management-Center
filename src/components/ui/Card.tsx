@@ -1,4 +1,4 @@
-import type { KeyboardEvent, PropsWithChildren, ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, PropsWithChildren, ReactNode } from 'react';
 import { useState } from 'react';
 
 interface CardProps {
@@ -10,7 +10,7 @@ interface CardProps {
   headerAriaLabel?: string;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
-  /** 折叠状态下右侧显示的微摘要 */
+  /** Micro summary shown on the right while collapsed. */
   summary?: ReactNode;
 }
 
@@ -38,13 +38,16 @@ export function Card({
   summary,
 }: PropsWithChildren<CardProps>) {
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
-  
+
   const isControlled = headerExpandedProp !== undefined;
   const isCollapsed = isControlled ? !headerExpandedProp : internalCollapsed;
-  
+
   const clickable = typeof onHeaderClick === 'function' || collapsible;
-  
-  const handleHeaderClick = () => {
+
+  const handleHeaderClick = (event?: MouseEvent<HTMLDivElement>) => {
+    if (event && shouldIgnoreHeaderToggle(event.target, event.currentTarget)) {
+      return;
+    }
     if (typeof onHeaderClick === 'function') {
       onHeaderClick();
     }
@@ -80,19 +83,25 @@ export function Card({
             {collapsible && (
               <span className={`card-collapse-icon ${isCollapsed ? 'collapsed' : ''}`}>
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path
+                    d="M4 6L8 10L12 6"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </span>
             )}
             <span className="card-title">{title}</span>
           </div>
-          
+
           <div className="card-header-right">
-            {/* 折叠时显示微摘要 */}
+            {/* Show the micro summary while collapsed. */}
             {collapsible && isCollapsed && summary && (
               <span className="card-summary">{summary}</span>
             )}
-            {/* 展开时的额外按钮 */}
+            {/* Show extra actions while expanded. */}
             {!collapsible && extra}
             {collapsible && !isCollapsed && extra}
           </div>

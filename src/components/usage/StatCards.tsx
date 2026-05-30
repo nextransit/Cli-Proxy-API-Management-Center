@@ -12,7 +12,16 @@ import { SkeletonBlock } from '@/components/ui/Skeleton';
 import styles from '@/pages/UsagePage.module.scss';
 
 const IconCount = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M3 3v18h18" />
     <path d="M18 17V9" />
     <path d="M13 17V5" />
@@ -21,13 +30,31 @@ const IconCount = () => (
 );
 
 const IconToken = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
 
 const IconDollar = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <line x1="12" y1="1" x2="12" y2="23" />
     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
   </svg>
@@ -97,33 +124,9 @@ function formatMetricValue(value: string) {
   );
 }
 
-export function StatCards({
-  usage,
-  loading,
-  modelPrices = {},
-}: StatCardsProps) {
+export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) {
   const { t } = useTranslation();
-
-  // Show skeleton when loading
-  if (loading) {
-    return (
-      <div className={styles.statsGrid}>
-        {[1, 2, 3].map((i) => (
-          <section key={i} className={styles.metricCard}>
-            <div className={styles.metricCardHeader}>
-              <SkeletonBlock width={20} height={20} />
-              <SkeletonBlock width={100} height={16} />
-            </div>
-            <div className={styles.metricCardBody}>
-              <SkeletonBlock width="80%" height={24} />
-              <SkeletonBlock width="60%" height={14} className="mt-8" />
-              <SkeletonBlock width="40%" height={14} className="mt-8" />
-            </div>
-          </section>
-        ))}
-      </div>
-    );
-  }
+  const showSkeleton = Boolean(loading && !usage);
 
   const stats = useMemo(() => {
     if (!usage) {
@@ -152,18 +155,24 @@ export function StatCards({
     let totalLatency = 0;
     let latencyCount = 0;
     const hasPrices = Object.keys(modelPrices).length > 0;
-    
+
     details.forEach((detail) => {
       if (!detail.failed) successRequests++;
       else failureRequests++;
-      
+
       const tokens = detail.tokens || {};
       inputTokens += toSafeNumber(tokens.input_tokens);
       outputTokens += toSafeNumber(tokens.output_tokens);
-      cachedTokens += Math.max(toSafeNumber(tokens.cached_tokens), toSafeNumber(tokens.cache_tokens));
+      cachedTokens += Math.max(
+        toSafeNumber(tokens.cached_tokens),
+        toSafeNumber(tokens.cache_tokens)
+      );
       reasoningTokens += toSafeNumber(tokens.reasoning_tokens);
       const latencyMs = extractLatencyMs(detail);
-      if (latencyMs !== null) { totalLatency += latencyMs; latencyCount++; }
+      if (latencyMs !== null) {
+        totalLatency += latencyMs;
+        latencyCount++;
+      }
       if (hasPrices) totalCost += calculateCost(detail, modelPrices);
     });
 
@@ -172,7 +181,8 @@ export function StatCards({
       successRequests,
       failureRequests,
       avgLatency: latencyCount > 0 ? totalLatency / latencyCount : null,
-      totalTokens: usage.total_tokens ?? inputTokens + outputTokens + cachedTokens + reasoningTokens,
+      totalTokens:
+        usage.total_tokens ?? inputTokens + outputTokens + cachedTokens + reasoningTokens,
       inputTokens,
       outputTokens,
       cachedTokens,
@@ -193,10 +203,19 @@ export function StatCards({
     : undefined;
   const requestSuccessRate = percentOf(stats.successRequests, stats.totalRequests);
 
-  // Summary for requests card
+  const skeletonSummary = (
+    <>
+      <SkeletonBlock width="66%" height={30} />
+      <SkeletonBlock width="86%" height={18} />
+      <SkeletonBlock width="72%" height={10} />
+    </>
+  );
+
   const requestsSummary = (
     <div className={styles.metricSummary} title={preciseRequestsTitle}>
-      <span className={styles.metricMainValue}>{formatMetricValue(formatCompactNumber(stats.totalRequests))}</span>
+      <span className={styles.metricMainValue}>
+        {formatMetricValue(formatCompactNumber(stats.totalRequests))}
+      </span>
       <span className={styles.metricSubDetails}>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleSuccess}`}>
           ✓ {stats.successRequests.toLocaleString()}
@@ -224,10 +243,11 @@ export function StatCards({
     </div>
   );
 
-  // Summary for tokens card
   const tokensSummary = (
     <div className={styles.metricSummary} title={preciseTokensTitle}>
-      <span className={styles.metricMainValue}>{formatMetricValue(formatTokenCount(stats.totalTokens))}</span>
+      <span className={styles.metricMainValue}>
+        {formatMetricValue(formatTokenCount(stats.totalTokens))}
+      </span>
       <span className={styles.metricSubDetails}>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleInput}`}>
           ↙ {t('usage_stats.input_short')}: {formatTokenCount(stats.inputTokens)}
@@ -260,7 +280,6 @@ export function StatCards({
     </div>
   );
 
-  // Summary for cost card
   const costSummary = (
     <div className={styles.metricSummary} title={preciseCostTitle}>
       <span className={`${styles.metricMainValue} ${styles.metricCostValue}`}>
@@ -275,35 +294,39 @@ export function StatCards({
   );
 
   return (
-    <div className={styles.statsGrid}>
+    <div className={styles.statsGrid} aria-busy={showSkeleton || undefined}>
       <section className={styles.metricCard} aria-label={t('usage_stats.total_requests')}>
         <div className={styles.metricCardHeader}>
-          <span className={styles.metricCardIcon}><IconCount /></span>
+          <span className={styles.metricCardIcon}>
+            <IconCount />
+          </span>
           <span className={styles.metricCardTitle}>{t('usage_stats.total_requests')}</span>
         </div>
         <div className={styles.metricCardBody}>
-          {requestsSummary}
+          {showSkeleton ? skeletonSummary : requestsSummary}
         </div>
       </section>
 
       <section className={styles.metricCard} aria-label={t('usage_stats.total_tokens')}>
         <div className={styles.metricCardHeader}>
-          <span className={styles.metricCardIcon}><IconToken /></span>
+          <span className={styles.metricCardIcon}>
+            <IconToken />
+          </span>
           <span className={styles.metricCardTitle}>{t('usage_stats.total_tokens')}</span>
         </div>
         <div className={styles.metricCardBody}>
-          {tokensSummary}
+          {showSkeleton ? skeletonSummary : tokensSummary}
         </div>
       </section>
 
       <section className={styles.metricCard} aria-label={t('usage_stats.total_cost')}>
         <div className={styles.metricCardHeader}>
-          <span className={styles.metricCardIcon}><IconDollar /></span>
+          <span className={styles.metricCardIcon}>
+            <IconDollar />
+          </span>
           <span className={styles.metricCardTitle}>{t('usage_stats.total_cost')}</span>
         </div>
-        <div className={styles.metricCardBody}>
-          {costSummary}
-        </div>
+        <div className={styles.metricCardBody}>{showSkeleton ? skeletonSummary : costSummary}</div>
       </section>
     </div>
   );

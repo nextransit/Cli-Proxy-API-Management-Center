@@ -3,16 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { IconCheck, IconChevronDown, IconChevronUp, IconX } from '@/components/ui/icons';
+import {
+  IconCheck,
+  IconChevronDown,
+  IconChevronUp,
+  IconKey,
+  IconModelCluster,
+  IconX,
+} from '@/components/ui/icons';
 import iconClaude from '@/assets/icons/claude.svg';
 import type { ProviderKeyConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { type KeyStats } from '@/utils/usage';
+import { type KeyStatBucket, type KeyStats } from '@/utils/usage';
 import styles from '@/pages/AiProvidersPage.module.scss';
-import {
-  getStatsForIdentity,
-  hasDisableAllModelsRule,
-} from '../utils';
+import { getStatsForIdentity, hasDisableAllModelsRule } from '../utils';
 
 interface ClaudeSectionProps {
   configs: ProviderKeyConfig[];
@@ -31,6 +35,52 @@ interface GroupedConfigs {
   items: Array<{ config: ProviderKeyConfig; index: number }>;
 }
 
+const getStatsTotal = (stats: KeyStatBucket) => stats.success + stats.failure;
+
+const getSuccessRate = (stats: KeyStatBucket) => {
+  const total = getStatsTotal(stats);
+  if (total === 0) {
+    return null;
+  }
+  return (stats.success / total) * 100;
+};
+
+const formatSuccessRate = (rate: number | null) => {
+  if (rate === null) {
+    return '--';
+  }
+
+  const rounded = rate.toFixed(1);
+  return `${rounded.endsWith('.0') ? rounded.slice(0, -2) : rounded}%`;
+};
+
+const getHealthClassName = (rate: number | null) => {
+  if (rate === null) {
+    return styles.providerHealthIdle;
+  }
+  if (rate >= 95) {
+    return styles.providerHealthGood;
+  }
+  if (rate >= 80) {
+    return styles.providerHealthWarn;
+  }
+  return styles.providerHealthBad;
+};
+
+const isProblemGroup = (disabled: boolean, stats: KeyStatBucket) => {
+  if (disabled) {
+    return true;
+  }
+
+  const total = getStatsTotal(stats);
+  if (total === 0) {
+    return false;
+  }
+
+  const failureRate = stats.failure / total;
+  return failureRate >= 0.2 || stats.failure > stats.success;
+};
+
 export function ClaudeSection({
   configs,
   keyStats,
@@ -44,6 +94,7 @@ export function ClaudeSection({
 }: ClaudeSectionProps) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set());
   const actionsDisabled = disableControls || loading || isSwitching;
   const toggleDisabled = disableControls || loading || isSwitching;
 
@@ -65,6 +116,33 @@ export function ClaudeSection({
     }));
   }, [configs]);
 
+  const toggleGroupExpanded = (groupKey: string) => {
+    setExpandedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  };
+
+  const getGroupStats = (group: GroupedConfigs): KeyStatBucket =>
+    group.items.reduce(
+      (acc, { config }) => {
+        const stats = getStatsForIdentity(
+          { authIndex: config.authIndex, apiKey: config.apiKey, prefix: config.prefix },
+          keyStats
+        );
+        return {
+          success: acc.success + stats.success,
+          failure: acc.failure + stats.failure,
+        };
+      },
+      { success: 0, failure: 0 }
+    );
+
   const renderProviderCard = ({ config, index }: { config: ProviderKeyConfig; index: number }) => {
     const stats = getStatsForIdentity(
       { authIndex: config.authIndex, apiKey: config.apiKey, prefix: config.prefix },
@@ -76,13 +154,11 @@ export function ClaudeSection({
       <div
         key={`claude-entry-${index}`}
         className={styles.codexKeyEntryCard}
-        style={actionsDisabled ? { opacity: 0.6 } : undefined}
+        style={actionsDisabled || configDisabled ? { opacity: 0.6 } : undefined}
       >
         <span className={styles.apiKeyEntryIndex}>{index + 1}</span>
         <span className={styles.apiKeyEntryKey}>{maskApiKey(config.apiKey)}</span>
-        {config.proxyUrl && (
-          <span className={styles.apiKeyEntryProxy}>{config.proxyUrl}</span>
-        )}
+        {config.proxyUrl && <span className={styles.apiKeyEntryProxy}>{config.proxyUrl}</span>}
         <div className={styles.apiKeyEntryStats}>
           <span className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatSuccess}`}>
             <IconCheck size={12} /> {stats.success}
@@ -124,122 +200,245 @@ export function ClaudeSection({
     if (!firstConfig) return null;
 
     const headerEntries = Object.entries(firstConfig.headers || {});
-    const configDisabled = hasDisableAllModelsRule(firstConfig.excludedModels);
     const excludedModels = firstConfig.excludedModels ?? [];
-    const isGroupDisabled = configDisabled;
+    const isGroupDisabled = group.items.every(({ config }) =>
+      hasDisableAllModelsRule(config.excludedModels)
+    );
+    const groupStats = getGroupStats(group);
+    const totalRequests = getStatsTotal(groupStats);
+    const successRate = getSuccessRate(groupStats);
+    const problem = isProblemGroup(isGroupDisabled, groupStats);
+    const healthClassName = getHealthClassName(successRate);
+    const groupKey = group.baseUrl || 'default';
+    const expanded = expandedGroupKeys.has(groupKey);
+    const models = firstConfig.models ?? [];
+    const groupTitle = group.baseUrl || t('ai_providers.claude_default_base');
+    const cloakMode = (() => {
+      const raw = (firstConfig.cloak?.mode ?? '').trim().toLowerCase();
+      const key = raw === 'always' || raw === 'never' ? raw : 'auto';
+      return t(`ai_providers.claude_cloak_mode_${key}`);
+    })();
 
     return (
       <div
         key={`claude-group-${group.baseUrl || 'default'}`}
-        className={styles.codexProviderCard}
+        className={[
+          styles.openaiProviderCard,
+          isGroupDisabled ? styles.openaiProviderCardDisabled : '',
+          problem && !isGroupDisabled ? styles.openaiProviderCardProblem : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={actionsDisabled ? { opacity: 0.6 } : undefined}
       >
-        <div className={styles.codexProviderMeta}>
-          <div className={styles.codexProviderTitle}>
-            {group.baseUrl || t('ai_providers.claude_default_base')}
-          </div>
-          {firstConfig.priority !== undefined && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('common.priority')}:</span>
-              <span className={styles.fieldValue}>{firstConfig.priority}</span>
-            </div>
-          )}
-          {firstConfig.prefix && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
-              <span className={styles.fieldValue}>{firstConfig.prefix}</span>
-            </div>
-          )}
-          <div className={styles.fieldRow}>
-            <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
-            <span className={styles.fieldValue}>{group.baseUrl || '-'}</span>
-          </div>
-          {firstConfig.proxyUrl && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('common.proxy_url')}:</span>
-              <span className={styles.fieldValue}>{firstConfig.proxyUrl}</span>
-            </div>
-          )}
-          {firstConfig.cloak && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('ai_providers.claude_cloak_mode_label')}:</span>
-              <span className={styles.fieldValue}>
-                {(() => {
-                  const raw = (firstConfig.cloak?.mode ?? '').trim().toLowerCase();
-                  const key = raw === 'always' || raw === 'never' ? raw : 'auto';
-                  return t(`ai_providers.claude_cloak_mode_${key}`);
-                })()}
+        <div className={styles.openaiProviderMeta}>
+          <div
+            className={styles.openaiProviderTopLine}
+            role="button"
+            tabIndex={0}
+            aria-expanded={expanded}
+            onClick={() => toggleGroupExpanded(groupKey)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+              }
+              event.preventDefault();
+              toggleGroupExpanded(groupKey);
+            }}
+          >
+            <div className={styles.openaiProviderTitleBlock}>
+              <div className={styles.openaiProviderTitle}>{groupTitle}</div>
+              <span
+                className={
+                  isGroupDisabled ? styles.providerStatusDisabled : styles.providerStatusEnabled
+                }
+              >
+                {isGroupDisabled
+                  ? t('ai_providers.status_filter_disabled')
+                  : t('ai_providers.status_filter_enabled')}
               </span>
             </div>
-          )}
-          {firstConfig.cloak?.strictMode ? (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('ai_providers.claude_cloak_strict_label')}:</span>
-              <span className={styles.fieldValue}>{t('common.yes')}</span>
-            </div>
-          ) : null}
-          {firstConfig.cloak?.sensitiveWords?.length ? (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>
-                {t('ai_providers.claude_cloak_sensitive_words_count')}:
+            <div className={styles.providerHealthSummary}>
+              <span className={`${styles.providerHealthRate} ${healthClassName}`}>
+                {formatSuccessRate(successRate)}
               </span>
-              <span className={styles.fieldValue}>{firstConfig.cloak.sensitiveWords.length}</span>
+              <span className={styles.providerHealthCounts}>
+                {groupStats.success}/{groupStats.failure}
+              </span>
             </div>
-          ) : null}
-          {isGroupDisabled && (
-            <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
-              {t('ai_providers.config_disabled_badge')}
+          </div>
+          <div className={styles.providerSummaryGrid}>
+            <div className={styles.providerSummaryItem}>
+              <span>{t('common.base_url')}</span>
+              <strong title={groupTitle}>{groupTitle}</strong>
             </div>
-          )}
-          {headerEntries.length > 0 && (
-            <div className={styles.headerBadgeList}>
-              {headerEntries.map(([key, value]) => (
-                <span key={key} className={styles.headerBadge}>
-                  <strong>{key}:</strong> {value}
+            <div className={styles.providerSummaryItem}>
+              <span>{t('ai_providers.claude_keys_count')}</span>
+              <strong>{group.items.length}</strong>
+            </div>
+            <div className={styles.providerSummaryItem}>
+              <span>{t('ai_providers.claude_models_count')}</span>
+              <strong>{models.length}</strong>
+            </div>
+            <div className={styles.providerSummaryItem}>
+              <span>{t('ai_providers.openai_requests_count')}</span>
+              <strong>{totalRequests}</strong>
+            </div>
+          </div>
+          {(firstConfig.priority !== undefined || firstConfig.prefix || firstConfig.cloak) && (
+            <div className={styles.providerCompactMeta}>
+              {firstConfig.priority !== undefined && (
+                <span>
+                  {t('common.priority')}: <strong>{firstConfig.priority}</strong>
                 </span>
-              ))}
+              )}
+              {firstConfig.prefix && (
+                <span>
+                  {t('common.prefix')}: <strong>{firstConfig.prefix}</strong>
+                </span>
+              )}
+              {firstConfig.cloak && (
+                <span>
+                  {t('ai_providers.claude_cloak_mode_label')} <strong>{cloakMode}</strong>
+                </span>
+              )}
             </div>
           )}
-        </div>
-
-        <div className={styles.codexKeysSection}>
-          <div className={styles.codexKeysLabel}>
-            {t('ai_providers.claude_keys_count')}: {group.items.length}
-          </div>
-          <div className={styles.codexKeyList}>
-            {group.items.map(({ config, index }) => renderProviderCard({ config, index }))}
-          </div>
-        </div>
-
-        {firstConfig.models?.length ? (
-          <div className={styles.modelTagList}>
-            <span className={styles.modelCountLabel}>
-              {t('ai_providers.claude_models_count')}: {firstConfig.models.length}
+          {expanded && (
+            <div className={styles.providerDetails}>
+              {firstConfig.priority !== undefined && (
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>{t('common.priority')}:</span>
+                  <span className={styles.fieldValue}>{firstConfig.priority}</span>
+                </div>
+              )}
+              {firstConfig.prefix && (
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
+                  <span className={styles.fieldValue}>{firstConfig.prefix}</span>
+                </div>
+              )}
+              <div className={styles.fieldRow}>
+                <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
+                <span className={styles.fieldValue}>{group.baseUrl || '-'}</span>
+              </div>
+              {firstConfig.proxyUrl && (
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>{t('common.proxy_url')}:</span>
+                  <span className={styles.fieldValue}>{firstConfig.proxyUrl}</span>
+                </div>
+              )}
+              {firstConfig.cloak && (
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>
+                    {t('ai_providers.claude_cloak_mode_label')}
+                  </span>
+                  <span className={styles.fieldValue}>{cloakMode}</span>
+                </div>
+              )}
+              {firstConfig.cloak?.strictMode ? (
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>
+                    {t('ai_providers.claude_cloak_strict_label')}
+                  </span>
+                  <span className={styles.fieldValue}>{t('common.yes')}</span>
+                </div>
+              ) : null}
+              {firstConfig.cloak?.sensitiveWords?.length ? (
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>
+                    {t('ai_providers.claude_cloak_sensitive_words_count')}:
+                  </span>
+                  <span className={styles.fieldValue}>
+                    {firstConfig.cloak.sensitiveWords.length}
+                  </span>
+                </div>
+              ) : null}
+              {isGroupDisabled && (
+                <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
+                  {t('ai_providers.config_disabled_badge')}
+                </div>
+              )}
+              {headerEntries.length > 0 && (
+                <div className={styles.headerBadgeList}>
+                  {headerEntries.map(([key, value]) => (
+                    <span key={key} className={styles.headerBadge}>
+                      <strong>{key}:</strong> {value}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className={styles.apiKeyEntriesSection}>
+                <div className={styles.providerDetailHeader}>
+                  <span>
+                    <IconKey size={14} /> {t('ai_providers.claude_keys_count')}:{' '}
+                    {group.items.length}
+                  </span>
+                </div>
+                <div className={styles.apiKeyEntryList}>
+                  {group.items.map(({ config, index }) => renderProviderCard({ config, index }))}
+                </div>
+              </div>
+              {models.length ? (
+                <div className={styles.providerModelsSection}>
+                  <div className={styles.providerDetailHeader}>
+                    <span>
+                      <IconModelCluster size={14} /> {t('ai_providers.claude_models_count')}:{' '}
+                      {models.length}
+                    </span>
+                  </div>
+                  <div className={styles.modelTagList}>
+                    {models.map((model) => (
+                      <span key={model.name} className={styles.modelTag}>
+                        <span className={styles.modelName}>{model.name}</span>
+                        {model.alias && model.alias !== model.name && (
+                          <span className={styles.modelAlias}>{model.alias}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {excludedModels.length ? (
+                <div className={styles.excludedModelsSection}>
+                  <div className={styles.excludedModelsLabel}>
+                    {t('ai_providers.excluded_models_count', { count: excludedModels.length })}
+                  </div>
+                  <div className={styles.modelTagList}>
+                    {excludedModels.map((model) => (
+                      <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
+                        <span className={styles.modelName}>{model}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+          <div className={styles.cardStats}>
+            <span className={`${styles.statPill} ${styles.statSuccess}`}>
+              {t('stats.success')}: {groupStats.success}
             </span>
-            {firstConfig.models.map((model) => (
-              <span key={model.name} className={styles.modelTag}>
-                <span className={styles.modelName}>{model.name}</span>
-                {model.alias && model.alias !== model.name && (
-                  <span className={styles.modelAlias}>{model.alias}</span>
-                )}
-              </span>
-            ))}
+            <span className={`${styles.statPill} ${styles.statFailure}`}>
+              {t('stats.failure')}: {groupStats.failure}
+            </span>
           </div>
-        ) : null}
-        {excludedModels.length ? (
-          <div className={styles.excludedModelsSection}>
-            <div className={styles.excludedModelsLabel}>
-              {t('ai_providers.excluded_models_count', { count: excludedModels.length })}
-            </div>
-            <div className={styles.modelTagList}>
-              {excludedModels.map((model) => (
-                <span key={model} className={`${styles.modelTag} ${styles.excludedModelTag}`}>
-                  <span className={styles.modelName}>{model}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        </div>
+
+        <div className={styles.openaiProviderActions}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => toggleGroupExpanded(groupKey)}
+            disabled={actionsDisabled}
+            aria-expanded={expanded}
+          >
+            <span className={styles.collapseToggleIcon} aria-hidden="true">
+              {expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+            </span>
+            {expanded ? t('ai_providers.hide_details') : t('ai_providers.show_details')}
+          </Button>
+        </div>
       </div>
     );
   };
@@ -277,13 +476,12 @@ export function ClaudeSection({
           </div>
         }
       >
-        {!collapsed && (configs.length === 0 ? (
-          <div className="hint">{t('ai_providers.claude_empty_title')}</div>
-        ) : (
-          <div className={styles.codexProviderList}>
-            {groupedConfigs.map(renderGroupedCard)}
-          </div>
-        ))}
+        {!collapsed &&
+          (configs.length === 0 ? (
+            <div className="hint">{t('ai_providers.claude_empty_title')}</div>
+          ) : (
+            <div className={styles.codexProviderList}>{groupedConfigs.map(renderGroupedCard)}</div>
+          ))}
       </Card>
     </>
   );

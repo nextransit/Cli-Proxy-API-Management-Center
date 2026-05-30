@@ -144,26 +144,6 @@ function SummaryCardsPlaceholder() {
   );
 }
 
-function StatCardsPlaceholder() {
-  return (
-    <div className={styles.statsGrid} aria-busy="true">
-      {[0, 1, 2].map((item) => (
-        <section key={item} className={styles.metricCard}>
-          <div className={styles.metricCardHeader}>
-            <SkeletonLine width={24} height={24} />
-            <SkeletonLine width={118} height={14} />
-          </div>
-          <div className={styles.metricCardBody}>
-            <SkeletonLine width="66%" height={30} />
-            <SkeletonLine width="86%" height={18} />
-            <SkeletonLine width="72%" height={10} />
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
 function TrendTabsPlaceholder({ title }: { title: string }) {
   return (
     <div className={styles.trendTabsCard} aria-busy="true">
@@ -1385,19 +1365,15 @@ export function UsagePage() {
       )}
 
       {/* Stats Overview Cards - Collapsible */}
-      {renderHeavyUsageSections ? (
-        <StatCards
-          usage={visibleScopedUsage}
-          loading={isInitialLoading}
-          modelPrices={visibleModelPrices}
-          requestsChartData={requestsChartData}
-          requestsChartOptions={requestsChartOptions}
-          tokensChartData={tokensChartData}
-          tokensChartOptions={tokensChartOptions}
-        />
-      ) : (
-        <StatCardsPlaceholder />
-      )}
+      <StatCards
+        usage={visibleScopedUsage}
+        loading={isInitialLoading}
+        modelPrices={visibleModelPrices}
+        requestsChartData={requestsChartData}
+        requestsChartOptions={requestsChartOptions}
+        tokensChartData={tokensChartData}
+        tokensChartOptions={tokensChartOptions}
+      />
 
       {renderHeavyUsageSections ? (
         <TrendTabsCard

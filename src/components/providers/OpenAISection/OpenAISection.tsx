@@ -11,6 +11,8 @@ import {
   IconCheck,
   IconChevronDown,
   IconChevronUp,
+  IconKey,
+  IconModelCluster,
   IconSlidersHorizontal,
   IconX,
 } from '@/components/ui/icons';
@@ -18,7 +20,7 @@ import iconOpenaiLight from '@/assets/icons/openai-light.svg';
 import iconOpenaiDark from '@/assets/icons/openai-dark.svg';
 import type { OpenAIProviderConfig } from '@/types';
 import { maskApiKey } from '@/utils/format';
-import { calculateStatusBarData, type KeyStats } from '@/utils/usage';
+import { calculateStatusBarData, type KeyStatBucket, type KeyStats } from '@/utils/usage';
 import { type UsageDetailsByAuthIndex, type UsageDetailsBySource } from '@/utils/usageIndex';
 import styles from '@/pages/AiProvidersPage.module.scss';
 import { ProviderStatusBar } from '../ProviderStatusBar';
@@ -32,6 +34,7 @@ import {
 
 type SortOption = 'name' | 'priority' | 'recent-success';
 type SortDirection = 'asc' | 'desc';
+type StatusFilter = 'enabled' | 'disabled' | 'problem' | 'all';
 
 interface FloatingToolbarStyle {
   left: number;
@@ -41,6 +44,7 @@ interface FloatingToolbarStyle {
 }
 
 const EMPTY_STATUS_BAR = calculateStatusBarData([]);
+const DEFAULT_STATUS_FILTER: StatusFilter = 'enabled';
 
 interface OpenAISectionProps {
   configs: OpenAIProviderConfig[];
@@ -70,6 +74,39 @@ const getApiKeyEntryRenderKey = (
   return authIndex ? `auth-index-${authIndex}` : `api-key-entry-${entryIndex}`;
 };
 
+const getStatsTotal = (stats: KeyStatBucket) => stats.success + stats.failure;
+
+const getSuccessRate = (stats: KeyStatBucket) => {
+  const total = getStatsTotal(stats);
+  if (total === 0) {
+    return null;
+  }
+  return (stats.success / total) * 100;
+};
+
+const formatSuccessRate = (rate: number | null) => {
+  if (rate === null) {
+    return '--';
+  }
+
+  const rounded = rate.toFixed(1);
+  return `${rounded.endsWith('.0') ? rounded.slice(0, -2) : rounded}%`;
+};
+
+const isProblemProvider = (provider: OpenAIProviderConfig, stats: KeyStatBucket) => {
+  if (provider.disabled === true) {
+    return true;
+  }
+
+  const total = getStatsTotal(stats);
+  if (total === 0) {
+    return false;
+  }
+
+  const failureRate = stats.failure / total;
+  return failureRate >= 0.2 || stats.failure > stats.success;
+};
+
 export function OpenAISection({
   configs,
   keyStats,
@@ -92,7 +129,9 @@ export function OpenAISection({
   const [collapsed, setCollapsed] = useState(true);
   const [sortOption, setSortOption] = useState<SortOption>('priority');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(DEFAULT_STATUS_FILTER);
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
+  const [expandedProviderKeys, setExpandedProviderKeys] = useState<Set<string>>(new Set());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [dropdownLayout, setDropdownLayout] = useState({ openAbove: false, maxHeight: 300 });
   const [floatingToolbarStyle, setFloatingToolbarStyle] = useState<FloatingToolbarStyle>({
@@ -108,13 +147,6 @@ export function OpenAISection({
 
   const shouldRenderFloatingToolbar =
     !collapsed && !isTransitionAnimating && floatingToolbarStyle.visible;
-
-  useEffect(() => {
-    if (!collapsed) {
-      return;
-    }
-    setIsDropdownOpen(false);
-  }, [collapsed]);
 
   useEffect(() => {
     if (isTransitionAnimating) {
@@ -177,6 +209,7 @@ export function OpenAISection({
     selectedModels,
     sortDirection,
     sortOption,
+    statusFilter,
     collapsed,
   ]);
 
@@ -290,12 +323,73 @@ export function OpenAISection({
     [t]
   );
 
+  const statusOptions = useMemo(() => {
+    const counts = configs.reduce(
+      (acc, provider) => {
+        const stats = getOpenAIProviderStats(provider, keyStats);
+        const disabled = provider.disabled === true;
+
+        acc.all += 1;
+        if (disabled) {
+          acc.disabled += 1;
+        } else {
+          acc.enabled += 1;
+        }
+        if (isProblemProvider(provider, stats)) {
+          acc.problem += 1;
+        }
+
+        return acc;
+      },
+      { all: 0, enabled: 0, disabled: 0, problem: 0 }
+    );
+
+    return [
+      {
+        value: 'all' as const,
+        label: t('ai_providers.status_filter_all'),
+        count: counts.all,
+      },
+      {
+        value: 'enabled' as const,
+        label: t('ai_providers.status_filter_enabled'),
+        count: counts.enabled,
+      },
+      {
+        value: 'disabled' as const,
+        label: t('ai_providers.status_filter_disabled'),
+        count: counts.disabled,
+      },
+      {
+        value: 'problem' as const,
+        label: t('ai_providers.status_filter_problem'),
+        count: counts.problem,
+      },
+    ];
+  }, [configs, keyStats, t]);
+
   const sortedConfigs = useMemo<IndexedOpenAIProvider[]>(() => {
     const indexed = configs.map((config, originalIndex) => ({ config, originalIndex }));
-    const filtered = indexed.filter(({ config }) => {
-      if (selectedModels.size === 0) return true;
-      return config.models?.some((model) => selectedModels.has(model.name));
-    });
+    const filtered = indexed
+      .filter(({ config }) => {
+        if (selectedModels.size === 0) return true;
+        return config.models?.some((model) => selectedModels.has(model.name));
+      })
+      .filter(({ config }) => {
+        const disabled = config.disabled === true;
+
+        if (statusFilter === 'enabled') {
+          return !disabled;
+        }
+        if (statusFilter === 'disabled') {
+          return disabled;
+        }
+        if (statusFilter === 'problem') {
+          return isProblemProvider(config, getOpenAIProviderStats(config, keyStats));
+        }
+
+        return true;
+      });
 
     const sorted = [...filtered];
     const direction = sortDirection === 'desc' ? -1 : 1;
@@ -339,7 +433,7 @@ export function OpenAISection({
     }
 
     return sorted;
-  }, [configs, sortOption, sortDirection, keyStats, selectedModels]);
+  }, [configs, sortOption, sortDirection, keyStats, selectedModels, statusFilter]);
 
   const toggleModelSelection = (modelName: string) => {
     setSelectedModels((prev) => {
@@ -365,7 +459,51 @@ export function OpenAISection({
     setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
 
+  const toggleProviderExpanded = (providerKey: string) => {
+    setExpandedProviderKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(providerKey)) {
+        next.delete(providerKey);
+      } else {
+        next.add(providerKey);
+      }
+      return next;
+    });
+  };
+
+  const clearListFilters = () => {
+    setSelectedModels(new Set());
+    setStatusFilter('all');
+  };
+
+  const toggleSectionCollapsed = () => {
+    setCollapsed((prev) => !prev);
+    setIsDropdownOpen(false);
+  };
+
   const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
+
+  const renderStatusFilters = () => (
+    <div className={styles.statusFilterTabs} role="group" aria-label={t('common.status')}>
+      {statusOptions.map((option) => {
+        const selected = statusFilter === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            className={`${styles.statusFilterTab} ${selected ? styles.statusFilterTabActive : ''}`}
+            onClick={() => setStatusFilter(option.value)}
+            disabled={actionsDisabled}
+            aria-pressed={selected}
+            data-card-header-ignore-click="true"
+          >
+            <span>{option.label}</span>
+            <strong>{option.count}</strong>
+          </button>
+        );
+      })}
+    </div>
+  );
 
   const renderSortControls = () => (
     <div className={styles.sortControls}>
@@ -418,7 +556,7 @@ export function OpenAISection({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => setCollapsed((prev) => !prev)}
+          onClick={toggleSectionCollapsed}
           className={styles.collapseToggleButton}
           aria-expanded={!collapsed}
           data-card-header-ignore-click="true"
@@ -429,106 +567,109 @@ export function OpenAISection({
           {collapsed ? t('ai_providers.expand') : t('ai_providers.collapse')}
         </Button>
         {!collapsed && (
-          <div
-            className={styles.modelMultiSelectWrapper}
-            ref={isFloating ? floatingDropdownRef : topDropdownRef}
-          >
+          <>
+            {renderStatusFilters()}
             <div
-              className={[
-                styles.modelFilterControl,
-                modelFilterActive ? styles.modelFilterControlActive : '',
-                actionsDisabled ? styles.modelFilterControlDisabled : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              className={styles.modelMultiSelectWrapper}
+              ref={isFloating ? floatingDropdownRef : topDropdownRef}
             >
-              <button
-                type="button"
-                className={styles.modelFilterTrigger}
-                onClick={toggleDropdown}
-                disabled={actionsDisabled}
-                title={modelFilterTitle}
-                aria-label={modelFilterTitle}
-                aria-haspopup="true"
-                aria-expanded={isActiveToolbar && isDropdownOpen}
+              <div
+                className={[
+                  styles.modelFilterControl,
+                  modelFilterActive ? styles.modelFilterControlActive : '',
+                  actionsDisabled ? styles.modelFilterControlDisabled : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
-                <span className={styles.modelFilterIcon} aria-hidden="true">
-                  <IconSlidersHorizontal size={14} />
-                </span>
-                <span className={styles.modelFilterText}>{modelFilterLabel}</span>
-                {modelFilterActive && (
-                  <span className={styles.modelFilterCount}>{selectedModelNames.length}</span>
-                )}
-                <span className={styles.modelFilterChevron} aria-hidden="true">
-                  <IconChevronDown size={14} />
-                </span>
-              </button>
-              {modelFilterActive && (
                 <button
                   type="button"
-                  className={styles.modelFilterInlineClear}
-                  onClick={clearAllModels}
+                  className={styles.modelFilterTrigger}
+                  onClick={toggleDropdown}
                   disabled={actionsDisabled}
-                  aria-label={t('ai_providers.model_search_clear')}
-                  title={t('ai_providers.model_search_clear')}
+                  title={modelFilterTitle}
+                  aria-label={modelFilterTitle}
+                  aria-haspopup="true"
+                  aria-expanded={isActiveToolbar && isDropdownOpen}
                 >
-                  <IconX size={14} />
-                </button>
-              )}
-            </div>
-            {isActiveToolbar && isDropdownOpen && (
-              <div
-                className={dropdownClassName}
-                style={{ maxHeight: `${dropdownLayout.maxHeight}px` }}
-              >
-                <div className={styles.modelDropdownHeader}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedModels(new Set(allModelNames))}
-                    className={styles.modelDropdownSelectAll}
-                    disabled={actionsDisabled || allModelNames.length === 0}
-                  >
-                    {t('ai_providers.model_select_all')}
-                  </Button>
+                  <span className={styles.modelFilterIcon} aria-hidden="true">
+                    <IconSlidersHorizontal size={14} />
+                  </span>
+                  <span className={styles.modelFilterText}>{modelFilterLabel}</span>
                   {modelFilterActive && (
+                    <span className={styles.modelFilterCount}>{selectedModelNames.length}</span>
+                  )}
+                  <span className={styles.modelFilterChevron} aria-hidden="true">
+                    <IconChevronDown size={14} />
+                  </span>
+                </button>
+                {modelFilterActive && (
+                  <button
+                    type="button"
+                    className={styles.modelFilterInlineClear}
+                    onClick={clearAllModels}
+                    disabled={actionsDisabled}
+                    aria-label={t('ai_providers.model_search_clear')}
+                    title={t('ai_providers.model_search_clear')}
+                  >
+                    <IconX size={14} />
+                  </button>
+                )}
+              </div>
+              {isActiveToolbar && isDropdownOpen && (
+                <div
+                  className={dropdownClassName}
+                  style={{ maxHeight: `${dropdownLayout.maxHeight}px` }}
+                >
+                  <div className={styles.modelDropdownHeader}>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={clearAllModels}
-                      className={styles.modelDropdownClear}
-                      disabled={actionsDisabled}
+                      onClick={() => setSelectedModels(new Set(allModelNames))}
+                      className={styles.modelDropdownSelectAll}
+                      disabled={actionsDisabled || allModelNames.length === 0}
                     >
-                      {t('ai_providers.model_search_clear')}
+                      {t('ai_providers.model_select_all')}
                     </Button>
-                  )}
-                </div>
-                <div
-                  className={styles.modelDropdownItems}
-                  role="group"
-                  aria-label={t('ai_providers.model_search_placeholder')}
-                >
-                  {allModelNames.length === 0 ? (
-                    <div className={styles.modelDropdownEmpty}>
-                      {t('ai_providers.model_filter_empty')}
-                    </div>
-                  ) : (
-                    allModelNames.map((name) => (
-                      <SelectionCheckbox
-                        key={`top-option-${name}`}
-                        checked={selectedModels.has(name)}
-                        onChange={() => toggleModelSelection(name)}
+                    {modelFilterActive && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearAllModels}
+                        className={styles.modelDropdownClear}
                         disabled={actionsDisabled}
-                        className={styles.modelDropdownItem}
-                        labelClassName={styles.modelDropdownItemLabel}
-                        label={<span title={name}>{name}</span>}
-                      />
-                    ))
-                  )}
+                      >
+                        {t('ai_providers.model_search_clear')}
+                      </Button>
+                    )}
+                  </div>
+                  <div
+                    className={styles.modelDropdownItems}
+                    role="group"
+                    aria-label={t('ai_providers.model_search_placeholder')}
+                  >
+                    {allModelNames.length === 0 ? (
+                      <div className={styles.modelDropdownEmpty}>
+                        {t('ai_providers.model_filter_empty')}
+                      </div>
+                    ) : (
+                      allModelNames.map((name) => (
+                        <SelectionCheckbox
+                          key={`top-option-${name}`}
+                          checked={selectedModels.has(name)}
+                          onChange={() => toggleModelSelection(name)}
+                          disabled={actionsDisabled}
+                          className={styles.modelDropdownItem}
+                          labelClassName={styles.modelDropdownItemLabel}
+                          label={<span title={name}>{name}</span>}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </>
         )}
         {!collapsed && renderSortControls()}
         <Button
@@ -558,107 +699,181 @@ export function OpenAISection({
     const stats = getOpenAIProviderStats(provider, keyStats);
     const headerEntries = Object.entries(provider.headers || {});
     const apiKeyEntries = provider.apiKeyEntries || [];
-    const statusData =
-      statusBarCache.get(getOpenAIProviderKey(provider, originalIndex)) || EMPTY_STATUS_BAR;
+    const models = provider.models || [];
+    const providerKey = getOpenAIProviderKey(provider, originalIndex);
+    const statusData = statusBarCache.get(providerKey) || EMPTY_STATUS_BAR;
     const providerDisabled = provider.disabled === true;
+    const expanded = expandedProviderKeys.has(providerKey);
+    const totalRequests = getStatsTotal(stats);
+    const successRate = getSuccessRate(stats);
+    const problem = isProblemProvider(provider, stats);
+    const healthClassName =
+      successRate === null
+        ? styles.providerHealthIdle
+        : successRate >= 95
+          ? styles.providerHealthGood
+          : successRate >= 80
+            ? styles.providerHealthWarn
+            : styles.providerHealthBad;
 
     return (
       <div
         key={`openai-provider-${originalIndex}`}
-        className={styles.openaiProviderCard}
+        className={[
+          styles.openaiProviderCard,
+          providerDisabled ? styles.openaiProviderCardDisabled : '',
+          problem && !providerDisabled ? styles.openaiProviderCardProblem : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         style={actionsDisabled ? { opacity: 0.6 } : undefined}
       >
         <div className={styles.openaiProviderMeta}>
-          <div className={styles.openaiProviderTitle}>{provider.name}</div>
-          {provider.priority !== undefined && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('common.priority')}:</span>
-              <span className={styles.fieldValue}>{provider.priority}</span>
+          <div
+            className={styles.openaiProviderTopLine}
+            role="button"
+            tabIndex={0}
+            aria-expanded={expanded}
+            onClick={() => toggleProviderExpanded(providerKey)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+              }
+              event.preventDefault();
+              toggleProviderExpanded(providerKey);
+            }}
+          >
+            <div className={styles.openaiProviderTitleBlock}>
+              <div className={styles.openaiProviderTitle}>{provider.name}</div>
+              <span
+                className={
+                  providerDisabled ? styles.providerStatusDisabled : styles.providerStatusEnabled
+                }
+              >
+                {providerDisabled
+                  ? t('ai_providers.status_filter_disabled')
+                  : t('ai_providers.status_filter_enabled')}
+              </span>
             </div>
-          )}
-          {provider.prefix && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('common.prefix')}:</span>
-              <span className={styles.fieldValue}>{provider.prefix}</span>
+            <div className={styles.providerHealthSummary}>
+              <span className={`${styles.providerHealthRate} ${healthClassName}`}>
+                {formatSuccessRate(successRate)}
+              </span>
+              <span className={styles.providerHealthCounts}>
+                {stats.success}/{stats.failure}
+              </span>
             </div>
-          )}
-          <div className={styles.fieldRow}>
-            <span className={styles.fieldLabel}>{t('common.base_url')}:</span>
-            <span className={styles.fieldValue}>{provider.baseUrl}</span>
           </div>
-          {providerDisabled && (
-            <div className="status-badge warning" style={{ marginTop: 8, marginBottom: 0 }}>
-              {t('ai_providers.config_disabled_badge')}
+          <div className={styles.providerSummaryGrid}>
+            <div className={styles.providerSummaryItem}>
+              <span>{t('common.base_url')}</span>
+              <strong title={provider.baseUrl}>{provider.baseUrl}</strong>
             </div>
-          )}
-          {headerEntries.length > 0 && (
-            <div className={styles.headerBadgeList}>
-              {headerEntries.map(([key, value]) => (
-                <span key={key} className={styles.headerBadge}>
-                  <strong>{key}:</strong> {value}
-                </span>
-              ))}
+            <div className={styles.providerSummaryItem}>
+              <span>{t('ai_providers.openai_keys_count')}</span>
+              <strong>{apiKeyEntries.length}</strong>
             </div>
-          )}
-          {apiKeyEntries.length > 0 && (
-            <div className={styles.apiKeyEntriesSection}>
-              <div className={styles.apiKeyEntriesLabel}>
-                {t('ai_providers.openai_keys_count')}: {apiKeyEntries.length}
-              </div>
-              <div className={styles.apiKeyEntryList}>
-                {apiKeyEntries.map((entry, entryIndex) => {
-                  const entryStats = getStatsForIdentity(
-                    { authIndex: entry.authIndex, apiKey: entry.apiKey },
-                    keyStats
-                  );
-                  return (
-                    <div
-                      key={getApiKeyEntryRenderKey(entry, entryIndex)}
-                      className={styles.apiKeyEntryCard}
-                    >
-                      <span className={styles.apiKeyEntryIndex}>{entryIndex + 1}</span>
-                      <span className={styles.apiKeyEntryKey}>{maskApiKey(entry.apiKey)}</span>
-                      {entry.proxyUrl && (
-                        <span className={styles.apiKeyEntryProxy}>{entry.proxyUrl}</span>
-                      )}
-                      <div className={styles.apiKeyEntryStats}>
-                        <span
-                          className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatSuccess}`}
-                        >
-                          <IconCheck size={12} /> {entryStats.success}
-                        </span>
-                        <span
-                          className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatFailure}`}
-                        >
-                          <IconX size={12} /> {entryStats.failure}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            <div className={styles.providerSummaryItem}>
+              <span>{t('ai_providers.openai_models_count')}</span>
+              <strong>{models.length}</strong>
             </div>
-          )}
-          <div className={styles.fieldRow} style={{ marginTop: '8px' }}>
-            <span className={styles.fieldLabel}>{t('ai_providers.openai_models_count')}:</span>
-            <span className={styles.fieldValue}>{provider.models?.length || 0}</span>
+            <div className={styles.providerSummaryItem}>
+              <span>{t('ai_providers.openai_requests_count')}</span>
+              <strong>{totalRequests}</strong>
+            </div>
           </div>
-          {provider.models?.length ? (
-            <div className={styles.modelTagList}>
-              {provider.models.map((model) => (
-                <span key={model.name} className={styles.modelTag}>
-                  <span className={styles.modelName}>{model.name}</span>
-                  {model.alias && model.alias !== model.name && (
-                    <span className={styles.modelAlias}>{model.alias}</span>
-                  )}
+          {(provider.priority !== undefined || provider.prefix || provider.testModel) && (
+            <div className={styles.providerCompactMeta}>
+              {provider.priority !== undefined && (
+                <span>
+                  {t('common.priority')}: <strong>{provider.priority}</strong>
                 </span>
-              ))}
+              )}
+              {provider.prefix && (
+                <span>
+                  {t('common.prefix')}: <strong>{provider.prefix}</strong>
+                </span>
+              )}
+              {provider.testModel && (
+                <span>
+                  {t('ai_providers.openai_test_model')}: <strong>{provider.testModel}</strong>
+                </span>
+              )}
             </div>
-          ) : null}
-          {provider.testModel && (
-            <div className={styles.fieldRow}>
-              <span className={styles.fieldLabel}>{t('ai_providers.openai_test_model')}:</span>
-              <span className={styles.fieldValue}>{provider.testModel}</span>
+          )}
+          {expanded && (
+            <div className={styles.providerDetails}>
+              {headerEntries.length > 0 && (
+                <div className={styles.headerBadgeList}>
+                  {headerEntries.map(([key, value]) => (
+                    <span key={key} className={styles.headerBadge}>
+                      <strong>{key}:</strong> {value}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {apiKeyEntries.length > 0 && (
+                <div className={styles.apiKeyEntriesSection}>
+                  <div className={styles.providerDetailHeader}>
+                    <span>
+                      <IconKey size={14} /> {t('ai_providers.openai_keys_count')}:{' '}
+                      {apiKeyEntries.length}
+                    </span>
+                  </div>
+                  <div className={styles.apiKeyEntryList}>
+                    {apiKeyEntries.map((entry, entryIndex) => {
+                      const entryStats = getStatsForIdentity(
+                        { authIndex: entry.authIndex, apiKey: entry.apiKey },
+                        keyStats
+                      );
+                      return (
+                        <div
+                          key={getApiKeyEntryRenderKey(entry, entryIndex)}
+                          className={styles.apiKeyEntryCard}
+                        >
+                          <span className={styles.apiKeyEntryIndex}>{entryIndex + 1}</span>
+                          <span className={styles.apiKeyEntryKey}>{maskApiKey(entry.apiKey)}</span>
+                          {entry.proxyUrl && (
+                            <span className={styles.apiKeyEntryProxy}>{entry.proxyUrl}</span>
+                          )}
+                          <div className={styles.apiKeyEntryStats}>
+                            <span
+                              className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatSuccess}`}
+                            >
+                              <IconCheck size={12} /> {entryStats.success}
+                            </span>
+                            <span
+                              className={`${styles.apiKeyEntryStat} ${styles.apiKeyEntryStatFailure}`}
+                            >
+                              <IconX size={12} /> {entryStats.failure}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {models.length > 0 && (
+                <div className={styles.providerModelsSection}>
+                  <div className={styles.providerDetailHeader}>
+                    <span>
+                      <IconModelCluster size={14} /> {t('ai_providers.openai_models_count')}:{' '}
+                      {models.length}
+                    </span>
+                  </div>
+                  <div className={styles.modelTagList}>
+                    {models.map((model) => (
+                      <span key={model.name} className={styles.modelTag}>
+                        <span className={styles.modelName}>{model.name}</span>
+                        {model.alias && model.alias !== model.name && (
+                          <span className={styles.modelAlias}>{model.alias}</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div className={styles.cardStats}>
@@ -672,6 +887,18 @@ export function OpenAISection({
           <ProviderStatusBar statusData={statusData} />
         </div>
         <div className={styles.openaiProviderActions}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => toggleProviderExpanded(providerKey)}
+            disabled={actionsDisabled}
+            aria-expanded={expanded}
+          >
+            <span className={styles.collapseToggleIcon} aria-hidden="true">
+              {expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+            </span>
+            {expanded ? t('ai_providers.hide_details') : t('ai_providers.show_details')}
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -704,7 +931,7 @@ export function OpenAISection({
       <div ref={sectionRef}>
         <Card
           title={renderStaticTitle()}
-          onHeaderClick={() => setCollapsed((prev) => !prev)}
+          onHeaderClick={toggleSectionCollapsed}
           headerExpanded={!collapsed}
           headerAriaLabel={collapsed ? t('ai_providers.expand') : t('ai_providers.collapse')}
           extra={
@@ -727,7 +954,7 @@ export function OpenAISection({
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={clearAllModels}
+                    onClick={clearListFilters}
                     disabled={actionsDisabled}
                   >
                     {t('ai_providers.model_search_clear')}
@@ -740,7 +967,9 @@ export function OpenAISection({
                 description={t('ai_providers.openai_empty_desc')}
               />
             ) : (
-              <div className={styles.openaiProviderList}>{sortedConfigs.map(renderProviderCard)}</div>
+              <div className={styles.openaiProviderList}>
+                {sortedConfigs.map(renderProviderCard)}
+              </div>
             ))}
         </Card>
       </div>
