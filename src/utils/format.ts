@@ -24,7 +24,7 @@ export function parseValidDate(value: unknown): Date | null {
 }
 
 /**
- * Hide the middle part of an API key and keep only the first and last characters.
+ * Hide the middle part of an API key and keep the first 6 / last 4 characters.
  */
 export function maskApiKey(key: string): string {
   const trimmed = String(key || '').trim();
@@ -32,14 +32,17 @@ export function maskApiKey(key: string): string {
     return '';
   }
 
-  const MASKED_LENGTH = 10;
-  const visibleChars = trimmed.length < 4 ? 1 : 2;
-  const start = trimmed.slice(0, visibleChars);
-  const end = trimmed.slice(-visibleChars);
-  const maskedLength = Math.max(MASKED_LENGTH - visibleChars * 2, 1);
-  const masked = '*'.repeat(maskedLength);
+  const visiblePrefix = 6;
+  const visibleSuffix = 4;
+  if (trimmed.length <= visiblePrefix + visibleSuffix) {
+    const visibleChars = trimmed.length < 4 ? 1 : 2;
+    const start = trimmed.slice(0, visibleChars);
+    const end = trimmed.slice(-visibleChars);
+    const maskedLength = Math.max(10 - visibleChars * 2, 1);
+    return `${start}${'*'.repeat(maskedLength)}${end}`;
+  }
 
-  return `${start}${masked}${end}`;
+  return `${trimmed.slice(0, visiblePrefix)}${'*'.repeat(8)}${trimmed.slice(-visibleSuffix)}`;
 }
 
 /**

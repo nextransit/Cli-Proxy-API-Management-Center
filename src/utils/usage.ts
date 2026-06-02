@@ -1411,10 +1411,18 @@ export interface ChartDataset {
     | ((context: ScriptableContext<'line'>) => string | CanvasGradient);
   pointBackgroundColor?: string;
   pointBorderColor?: string;
+  pointRadius?: number;
+  pointHoverRadius?: number;
+  pointHitRadius?: number;
+  pointBorderWidth?: number;
+  pointHoverBorderWidth?: number;
+  borderWidth?: number;
+  hoverBorderWidth?: number;
   fill: boolean;
   tension: number;
   yAxisID?: string;
   borderDash?: number[];
+  order?: number;
 }
 
 export interface ChartData {

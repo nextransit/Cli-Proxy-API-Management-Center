@@ -18,6 +18,59 @@
   min-width: 88px;
 }
 
+.dirtyActionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: min(720px, calc(100vw - 48px));
+}
+
+.dirtyActionMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+
+  span:last-child {
+    min-width: 0;
+  }
+}
+
+.dirtyActionDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--primary-color);
+  box-shadow: 0 0 0 5px rgba(124, 58, 237, 0.14);
+  flex-shrink: 0;
+}
+
+.dirtyActionButtons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .dirtyActionBar {
+    min-width: 0;
+    width: calc(100vw - 32px);
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dirtyActionButtons {
+    justify-content: flex-end;
+  }
+}
+
 .upstreamApiKeyRow {
   display: flex;
   align-items: center;

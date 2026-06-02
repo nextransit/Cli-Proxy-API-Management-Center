@@ -33,7 +33,7 @@ export interface UseUsageDataReturn {
   importing: boolean;
 }
 
-export function useUsageData(): UseUsageDataReturn {
+export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
   const { t } = useTranslation();
   const { showNotification } = useNotificationStore();
   const usageSnapshot = useUsageStatsStore((state) => state.usage);
@@ -48,11 +48,11 @@ export function useUsageData(): UseUsageDataReturn {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadUsage = useCallback(async () => {
-    await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS });
-  }, [loadUsageStats]);
+    await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange });
+  }, [loadUsageStats, timeRange]);
 
   useEffect(() => {
-    void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
+    void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange }).catch(() => {});
     const localPrices = loadModelPrices();
     setModelPrices(localPrices);
 
@@ -81,20 +81,20 @@ export function useUsageData(): UseUsageDataReturn {
       .catch(() => {
         // Server unavailable, fallback to localStorage
       });
-  }, [loadUsageStats]);
+  }, [loadUsageStats, timeRange]);
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         return;
       }
-      void loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS }).catch(() => {});
+      void loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange }).catch(() => {});
     }, AUTO_REFRESH_INTERVAL_MS);
 
     return () => {
       window.clearInterval(timerId);
     };
-  }, [loadUsageStats]);
+  }, [loadUsageStats, timeRange]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -153,7 +153,7 @@ export function useUsageData(): UseUsageDataReturn {
         'success'
       );
       try {
-        await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS });
+        await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : '';
         showNotification(

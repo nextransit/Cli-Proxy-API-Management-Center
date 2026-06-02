@@ -35,8 +35,10 @@ export type ClaudeEditOutletContext = {
   testMessage: string;
   setTestMessage: Dispatch<SetStateAction<string>>;
   availableModels: string[];
+  isDirty: boolean;
   handleBack: () => void;
   handleSave: () => Promise<void>;
+  discardChanges: () => void;
   mergeDiscoveredModels: (selectedModels: ModelInfo[]) => void;
 };
 
@@ -58,6 +60,8 @@ const parseIndexParam = (value: string | undefined) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const getClaudeBaseUrlGroupKey = (baseUrl?: string) => String(baseUrl ?? '').trim();
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -102,6 +106,26 @@ const buildClaudeBaseline = (form: ClaudeEditFormState): ClaudeEditBaseline => (
   models: normalizeClaudeModelEntries(form.modelEntries),
   excludedModels: parseExcludedModels(form.excludedText ?? ''),
   cloak: normalizeCloakConfig(form.cloak),
+});
+
+const buildFormFromClaudeBaseline = (baseline: ClaudeEditBaseline): ClaudeEditFormState => ({
+  apiKeys: baseline.apiKeys.length ? baseline.apiKeys : [''],
+  priority: baseline.priority ?? undefined,
+  prefix: baseline.prefix,
+  baseUrl: baseline.baseUrl,
+  proxyUrl: baseline.proxyUrl,
+  headers: baseline.headers,
+  models: baseline.models,
+  excludedModels: baseline.excludedModels,
+  modelEntries: baseline.models.length ? baseline.models : [{ name: '', alias: '' }],
+  excludedText: excludedModelsToText(baseline.excludedModels),
+  cloak: baseline.cloak
+    ? {
+        mode: baseline.cloak.mode,
+        strictMode: baseline.cloak.strictMode,
+        sensitiveWords: baseline.cloak.sensitiveWords ?? [],
+      }
+    : undefined,
 });
 
 const areCloakConfigsEqual = (left: ClaudeEditBaseline['cloak'], right: ClaudeEditBaseline['cloak']) => {
@@ -196,8 +220,8 @@ export function AiProvidersClaudeEditLayout() {
   // This ensures all related API keys are loaded into the form for editing.
   const sameBaseUrlConfigs = useMemo(() => {
     if (editIndex === null || !initialData) return [];
-    const editBaseUrl = initialData.baseUrl || '';
-    return configs.filter((c) => c.baseUrl === editBaseUrl);
+    const editBaseUrl = getClaudeBaseUrlGroupKey(initialData.baseUrl);
+    return configs.filter((c) => getClaudeBaseUrlGroupKey(c.baseUrl) === editBaseUrl);
   }, [configs, editIndex, initialData]);
 
   const invalidIndex = editIndex !== null && !initialData;
@@ -336,6 +360,13 @@ export function AiProvidersClaudeEditLayout() {
       isModelsDirty ||
       isExcludedModelsDirty ||
       isCloakDirty);
+
+  const discardChanges = useCallback(() => {
+    if (!baseline) return;
+    setForm(buildFormFromClaudeBaseline(baseline));
+    setTestStatus('idle');
+    setTestMessage('');
+  }, [baseline, setForm, setTestMessage, setTestStatus]);
   const editorRootPath = useMemo(() => {
     if (hasIndexParam) {
       return `/ai-providers/claude/${params.index ?? ''}`;
@@ -454,22 +485,19 @@ export function AiProvidersClaudeEditLayout() {
 
       let nextList: ProviderKeyConfig[];
       if (editIndex !== null) {
-        // Find the range of configs with the same baseUrl starting at editIndex
-        const editBaseUrl = configs[editIndex]?.baseUrl || '';
-        let endIndex = editIndex;
-        for (let i = editIndex + 1; i < configs.length; i++) {
-          if (configs[i].baseUrl === editBaseUrl) {
-            endIndex = i;
-          } else {
-            break;
+        const editBaseUrl = getClaudeBaseUrlGroupKey(configs[editIndex]?.baseUrl);
+        let inserted = false;
+        nextList = [];
+        configs.forEach((config) => {
+          if (getClaudeBaseUrlGroupKey(config.baseUrl) !== editBaseUrl) {
+            nextList.push(config);
+            return;
           }
-        }
-        // Replace the range with new configs
-        nextList = [
-          ...configs.slice(0, editIndex),
-          ...newConfigs,
-          ...configs.slice(endIndex + 1),
-        ];
+          if (!inserted) {
+            nextList.push(...newConfigs);
+            inserted = true;
+          }
+        });
       } else {
         // Adding new configs
         nextList = [...configs, ...newConfigs];
@@ -529,8 +557,10 @@ export function AiProvidersClaudeEditLayout() {
         testMessage,
         setTestMessage,
         availableModels,
+        isDirty,
         handleBack,
         handleSave,
+        discardChanges,
         mergeDiscoveredModels,
       } satisfies ClaudeEditOutletContext}
     />

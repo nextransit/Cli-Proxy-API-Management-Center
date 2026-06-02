@@ -9,12 +9,22 @@ import { ModelInputList } from '@/components/ui/ModelInputList';
 import { Modal } from '@/components/ui/Modal';
 import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import {
+  IconCopy,
+  IconEye,
+  IconEyeOff,
+  IconPlus,
+  IconRefreshCw,
+  IconTrash2,
+} from '@/components/ui/icons';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { modelsApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { ProviderKeyConfig } from '@/types';
+import { copyToClipboard } from '@/utils/clipboard';
+import { maskApiKey } from '@/utils/format';
 import { buildHeaderObject, headersToEntries, normalizeHeaderEntries } from '@/utils/headers';
 import { areKeyValueEntriesEqual, areModelEntriesEqual, areStringArraysEqual } from '@/utils/compare';
 import { entriesToModels, modelsToEntries } from '@/components/ui/modelInputListUtils';
@@ -25,6 +35,7 @@ import layoutStyles from './AiProvidersEditLayout.module.scss';
 import styles from './AiProvidersPage.module.scss';
 
 type LocationState = { fromAiProviders?: boolean } | null;
+type CodexKeyTestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface CodexEditFormState extends Omit<ProviderFormState, 'apiKey'> {
   apiKeys: string[];
@@ -49,6 +60,8 @@ const parseIndexParam = (value: string | undefined) => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : null;
 };
+
+const getCodexBaseUrlGroupKey = (baseUrl?: string) => String(baseUrl ?? '').trim();
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -93,6 +106,55 @@ const buildCodexBaseline = (form: CodexEditFormState): CodexFormBaseline => ({
   excludedModels: parseExcludedModels(form.excludedText ?? ''),
 });
 
+const buildFormFromCodexBaseline = (baseline: CodexFormBaseline): CodexEditFormState => ({
+  apiKeys: baseline.apiKeys.length ? baseline.apiKeys : [''],
+  priority: baseline.priority ?? undefined,
+  prefix: baseline.prefix,
+  baseUrl: baseline.baseUrl,
+  websockets: baseline.websockets,
+  proxyUrl: baseline.proxyUrl,
+  headers: baseline.headers,
+  models: baseline.models,
+  excludedModels: baseline.excludedModels,
+  modelEntries: baseline.models.length ? baseline.models : [{ name: '', alias: '' }],
+  excludedText: excludedModelsToText(baseline.excludedModels),
+});
+
+function CodexKeyStatusBadge({
+  status,
+  message,
+}: {
+  status: CodexKeyTestStatus;
+  message?: string;
+}) {
+  const { t } = useTranslation();
+
+  const statusClassName =
+    status === 'loading'
+      ? styles.keyStatusBadgeLoading
+      : status === 'success'
+        ? styles.keyStatusBadgeSuccess
+        : status === 'error'
+          ? styles.keyStatusBadgeError
+          : styles.keyStatusBadgeIdle;
+
+  const label =
+    status === 'loading'
+      ? t('ai_providers.openai_test_status_loading')
+      : status === 'success'
+        ? t('ai_providers.openai_test_status_success')
+        : status === 'error'
+          ? t('ai_providers.openai_test_status_error')
+          : t('ai_providers.openai_test_status_idle');
+
+  return (
+    <span className={`${styles.keyStatusBadge} ${statusClassName}`} title={message} role="status">
+      {status === 'loading' && <span className={styles.statusSpinner} aria-hidden="true" />}
+      {label}
+    </span>
+  );
+}
+
 export function AiProvidersCodexEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -113,6 +175,10 @@ export function AiProvidersCodexEditPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState<CodexEditFormState>(() => buildEmptyForm());
   const [baseline, setBaseline] = useState(() => buildCodexBaseline(buildEmptyForm()));
+  const [showKeys, setShowKeys] = useState(false);
+  const [keyTestStatuses, setKeyTestStatuses] = useState<
+    Record<number, { status: CodexKeyTestStatus; message?: string }>
+  >({});
 
   const [modelDiscoveryOpen, setModelDiscoveryOpen] = useState(false);
   const [modelDiscoveryEndpoint, setModelDiscoveryEndpoint] = useState('');
@@ -132,6 +198,12 @@ export function AiProvidersCodexEditPage() {
     if (editIndex === null) return undefined;
     return configs[editIndex];
   }, [configs, editIndex]);
+
+  const sameBaseUrlConfigs = useMemo(() => {
+    if (editIndex === null || !initialData) return [];
+    const editBaseUrl = getCodexBaseUrlGroupKey(initialData.baseUrl);
+    return configs.filter((config) => getCodexBaseUrlGroupKey(config.baseUrl) === editBaseUrl);
+  }, [configs, editIndex, initialData]);
 
   const invalidIndex = editIndex !== null && !initialData;
 
@@ -196,7 +268,9 @@ export function AiProvidersCodexEditPage() {
         headers: headersToEntries(initialData.headers),
         modelEntries: modelsToEntries(initialData.models),
         excludedText: excludedModelsToText(initialData.excludedModels),
-        apiKeys: [initialData.apiKey],
+        apiKeys: sameBaseUrlConfigs.length
+          ? sameBaseUrlConfigs.map((config) => config.apiKey)
+          : [initialData.apiKey],
       };
       setForm(nextForm);
       setBaseline(buildCodexBaseline(nextForm));
@@ -205,7 +279,7 @@ export function AiProvidersCodexEditPage() {
     const nextForm = buildEmptyForm();
     setForm(nextForm);
     setBaseline(buildCodexBaseline(nextForm));
-  }, [initialData, loading]);
+  }, [initialData, loading, sameBaseUrlConfigs]);
 
   const normalizedHeaders = useMemo(() => normalizeHeaderEntries(form.headers), [form.headers]);
   const normalizedModels = useMemo(
@@ -268,6 +342,109 @@ export function AiProvidersCodexEditPage() {
   });
 
   const canSave = !disableControls && !saving && !loading && !invalidIndexParam && !invalidIndex;
+
+  const discardChanges = useCallback(() => {
+    setForm(buildFormFromCodexBaseline(baseline));
+    setKeyTestStatuses({});
+  }, [baseline]);
+
+  const copyKeyToClipboard = useCallback(
+    async (apiKey: string) => {
+      const copied = await copyToClipboard(apiKey);
+      showNotification(
+        copied ? t('notification.copied_to_clipboard') : t('notification.copy_failed'),
+        copied ? 'success' : 'error'
+      );
+    },
+    [showNotification, t]
+  );
+
+  const copyAllKeysToClipboard = useCallback(async () => {
+    const keys = form.apiKeys.map((apiKey) => apiKey.trim()).filter(Boolean);
+    if (!keys.length) {
+      showNotification(t('notification.codex_api_key_required'), 'error');
+      return;
+    }
+
+    const copied = await copyToClipboard(keys.join('\n'));
+    showNotification(
+      copied ? t('notification.copied_to_clipboard') : t('notification.copy_failed'),
+      copied ? 'success' : 'error'
+    );
+  }, [form.apiKeys, showNotification, t]);
+
+  const updateApiKeyAt = useCallback(
+    (index: number, value: string) => {
+      const newKeys = [...form.apiKeys];
+      newKeys[index] = value;
+      setForm((prev) => ({ ...prev, apiKeys: newKeys }));
+      setKeyTestStatuses((prev) => ({ ...prev, [index]: { status: 'idle' } }));
+    },
+    [form.apiKeys]
+  );
+
+  const addApiKeyRow = useCallback(() => {
+    setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }));
+    setShowKeys(true);
+  }, []);
+
+  const removeApiKeyRow = useCallback(
+    (index: number) => {
+      const newKeys = form.apiKeys.filter((_, i) => i !== index);
+      setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
+      setKeyTestStatuses((prev) => {
+        const next: Record<number, { status: CodexKeyTestStatus; message?: string }> = {};
+        Object.entries(prev).forEach(([key, status]) => {
+          const oldIndex = Number(key);
+          if (!Number.isFinite(oldIndex) || oldIndex === index) return;
+          next[oldIndex > index ? oldIndex - 1 : oldIndex] = status;
+        });
+        return next;
+      });
+    },
+    [form.apiKeys]
+  );
+
+  const testCodexKey = useCallback(
+    async (apiKey: string, keyIndex: number) => {
+      const baseUrl = (form.baseUrl ?? '').trim();
+      if (!baseUrl) {
+        const message = t('notification.codex_base_url_required');
+        setKeyTestStatuses((prev) => ({ ...prev, [keyIndex]: { status: 'error', message } }));
+        showNotification(message, 'error');
+        return;
+      }
+
+      const headerObject = buildHeaderObject(form.headers);
+      const hasCustomAuthorization = Object.keys(headerObject).some(
+        (key) => key.toLowerCase() === 'authorization'
+      );
+
+      setKeyTestStatuses((prev) => ({
+        ...prev,
+        [keyIndex]: {
+          status: 'loading',
+          message: t('ai_providers.codex_models_fetch_loading'),
+        },
+      }));
+
+      try {
+        await modelsApi.fetchV1ModelsViaApiCall(
+          baseUrl,
+          hasCustomAuthorization ? undefined : apiKey,
+          headerObject
+        );
+        const message = t('ai_providers.openai_test_status_success');
+        setKeyTestStatuses((prev) => ({ ...prev, [keyIndex]: { status: 'success', message } }));
+        showNotification(message, 'success');
+      } catch (err: unknown) {
+        const message = `${t('ai_providers.codex_models_fetch_error')}: ${getErrorMessage(err)}`;
+        setKeyTestStatuses((prev) => ({ ...prev, [keyIndex]: { status: 'error', message } }));
+        showNotification(message, 'error');
+      }
+    },
+    [form.baseUrl, form.headers, showNotification, t]
+  );
 
   const discoveredModelsFiltered = useMemo(() => {
     const filter = modelDiscoverySearch.trim().toLowerCase();
@@ -485,28 +662,26 @@ export function AiProvidersCodexEditPage() {
 
       let nextList: ProviderKeyConfig[];
       if (editIndex !== null) {
-        // Find the range of configs with the same baseUrl starting at editIndex
-        const editBaseUrl = configs[editIndex]?.baseUrl || '';
-        let endIndex = editIndex;
-        for (let i = editIndex + 1; i < configs.length; i++) {
-          if (configs[i].baseUrl === editBaseUrl) {
-            endIndex = i;
-          } else {
-            break;
+        const editBaseUrl = getCodexBaseUrlGroupKey(configs[editIndex]?.baseUrl);
+        let inserted = false;
+        nextList = [];
+        configs.forEach((config) => {
+          if (getCodexBaseUrlGroupKey(config.baseUrl) !== editBaseUrl) {
+            nextList.push(config);
+            return;
           }
-        }
-        // Replace the range with new configs
-        nextList = [
-          ...configs.slice(0, editIndex),
-          ...newConfigs,
-          ...configs.slice(endIndex + 1),
-        ];
+          if (!inserted) {
+            nextList.push(...newConfigs);
+            inserted = true;
+          }
+        });
       } else {
         // Adding new configs
         nextList = [...configs, ...newConfigs];
       }
 
       await providersApi.saveCodexConfigs(nextList);
+      setConfigs(nextList);
       updateConfigValue('codex-api-key', nextList);
       clearCache('codex-api-key');
       showNotification(
@@ -559,25 +734,57 @@ export function AiProvidersCodexEditPage() {
       hideTopBarBackButton
       hideTopBarRightAction
       floatingAction={
-        <div className={layoutStyles.floatingActions}>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleBack}
-            className={layoutStyles.floatingBackButton}
-          >
-            {t('common.back')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            loading={saving}
-            disabled={!canSave}
-            className={layoutStyles.floatingSaveButton}
-          >
-            {t('common.save')}
-          </Button>
-        </div>
+        isDirty ? (
+          <div className={layoutStyles.dirtyActionBar}>
+            <div className={layoutStyles.dirtyActionMeta}>
+              <span className={layoutStyles.dirtyActionDot} aria-hidden="true" />
+              <span>
+                {t('ai_providers.codex_dirty_message', {
+                  defaultValue: '检测到 Codex 渠道有未保存的密钥变更。',
+                })}
+              </span>
+            </div>
+            <div className={layoutStyles.dirtyActionButtons}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={discardChanges}
+                disabled={saving || disableControls}
+              >
+                {t('common.discard', { defaultValue: '放弃' })}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void handleSave()}
+                loading={saving}
+                disabled={!canSave}
+                className={layoutStyles.floatingSaveButton}
+              >
+                {t('common.save')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className={layoutStyles.floatingActions}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleBack}
+              className={layoutStyles.floatingBackButton}
+            >
+              {t('common.back')}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void handleSave()}
+              loading={saving}
+              disabled={!canSave}
+              className={layoutStyles.floatingSaveButton}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        )
       }
       isLoading={loading}
       loadingLabel={t('common.loading')}
@@ -598,60 +805,130 @@ export function AiProvidersCodexEditPage() {
                   <span className={styles.keyEntriesCount}>
                     {t('ai_providers.codex_keys_count')}: {form.apiKeys.length}
                   </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }))}
-                    disabled={saving || disableControls}
-                    className={styles.addKeyButton}
-                  >
-                    {t('ai_providers.codex_keys_add_btn')}
-                  </Button>
-                </div>
-                <div className={styles.keyTableShell}>
-                  <div className={styles.keyTableHeader}>
-                    <div className={styles.keyTableColIndex}>#</div>
-                    <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
-                    <div className={styles.keyTableColProxy}>{t('common.proxy_url')}</div>
-                    <div className={styles.keyTableColAction}>{t('common.action')}</div>
+                  <div className={styles.claudeKeyToolbarActions}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowKeys((prev) => !prev)}
+                      disabled={saving || disableControls}
+                      title={
+                        showKeys
+                          ? t('common.hide', { defaultValue: '隐藏' })
+                          : t('common.show', { defaultValue: '显示' })
+                      }
+                    >
+                      {showKeys ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void copyAllKeysToClipboard()}
+                      disabled={
+                        saving ||
+                        disableControls ||
+                        !form.apiKeys.some((apiKey) => apiKey.trim())
+                      }
+                      title={t('common.copy')}
+                    >
+                      <IconCopy size={14} />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={addApiKeyRow}
+                      disabled={saving || disableControls}
+                      className={styles.addKeyButton}
+                    >
+                      <IconPlus size={14} />
+                      {t('ai_providers.codex_keys_add_btn')}
+                    </Button>
                   </div>
-                  {form.apiKeys.map((apiKey, index) => (
-                    <div key={index} className={styles.keyTableRow}>
-                      <div className={styles.keyTableColIndex}>{index + 1}</div>
-                      <div className={styles.keyTableColKey}>
-                        <input
-                          type="text"
-                          value={apiKey}
-                          onChange={(e) => {
-                            const newKeys = [...form.apiKeys];
-                            newKeys[index] = e.target.value;
-                            setForm((prev) => ({ ...prev, apiKeys: newKeys }));
-                          }}
-                          disabled={saving || disableControls}
-                          className={`input ${styles.keyTableInput}`}
-                          placeholder={t('ai_providers.codex_add_modal_key_placeholder')}
-                        />
-                      </div>
-                      <div className={styles.keyTableColProxy}>
-                        <span className={styles.keyTableProxyHint}>
-                          {t('ai_providers.codex_keys_same_proxy_hint')}
-                        </span>
-                      </div>
-                      <div className={styles.keyTableColAction}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newKeys = form.apiKeys.filter((_, i) => i !== index);
-                            setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
-                          }}
-                          disabled={saving || disableControls || form.apiKeys.length <= 1}
-                        >
-                          {t('common.delete')}
-                        </Button>
-                      </div>
+                </div>
+                <div className={styles.claudeKeyMatrixShell}>
+                  <div className={styles.claudeKeyMatrixScroller}>
+                    <div className={styles.claudeKeyMatrixHeader}>
+                      <div className={styles.claudeKeyMatrixColStatus}>{t('common.status')}</div>
+                      <div className={styles.claudeKeyMatrixColIndex}>#</div>
+                      <div className={styles.claudeKeyMatrixColKey}>{t('common.api_key')}</div>
+                      <div className={styles.claudeKeyMatrixColRoute}>{t('common.base_url')}</div>
+                      <div className={styles.claudeKeyMatrixColAction}>{t('common.action')}</div>
                     </div>
-                  ))}
+                    {form.apiKeys.map((apiKey, index) => {
+                      const trimmedKey = apiKey.trim();
+                      const rowStatus = keyTestStatuses[index]?.status ?? 'idle';
+                      const rowMessage = keyTestStatuses[index]?.message;
+                      return (
+                        <div key={index} className={styles.claudeKeyMatrixRow}>
+                          <div className={styles.claudeKeyMatrixColStatus}>
+                            <CodexKeyStatusBadge status={rowStatus} message={rowMessage} />
+                          </div>
+                          <div className={styles.claudeKeyMatrixColIndex}>{index + 1}</div>
+                          <div className={styles.claudeKeyMatrixColKey}>
+                            <div className={styles.claudeKeyInputGroup}>
+                              <input
+                                type="text"
+                                value={showKeys || !apiKey ? apiKey : maskApiKey(apiKey)}
+                                onChange={(e) => updateApiKeyAt(index, e.target.value)}
+                                readOnly={!showKeys && Boolean(apiKey)}
+                                disabled={saving || disableControls}
+                                className={`input ${styles.claudeKeyInput} ${
+                                  showKeys ? '' : styles.claudeKeyInputMasked
+                                }`}
+                                placeholder={t('ai_providers.codex_add_modal_key_placeholder')}
+                                autoComplete="new-password"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                spellCheck={false}
+                              />
+                              <button
+                                type="button"
+                                className={styles.claudeKeyIconButton}
+                                onClick={() => void copyKeyToClipboard(apiKey)}
+                                title={t('common.copy')}
+                                disabled={saving || disableControls || !trimmedKey}
+                              >
+                                <IconCopy size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className={styles.claudeKeyMatrixColRoute}>
+                            <span className={styles.claudeKeyRouteText}>
+                              {(form.baseUrl ?? '').trim() || '-'}
+                            </span>
+                            <span className={styles.claudeKeyRouteHint}>
+                              {form.proxyUrl?.trim()
+                                ? `${t('common.proxy_url')}: ${form.proxyUrl.trim()}`
+                                : t('ai_providers.codex_keys_same_proxy_hint')}
+                            </span>
+                          </div>
+                          <div className={styles.claudeKeyMatrixColAction}>
+                            <button
+                              type="button"
+                              className={styles.claudeKeyActionButton}
+                              onClick={() => void testCodexKey(trimmedKey, index)}
+                              disabled={saving || disableControls || !trimmedKey}
+                              title={t('ai_providers.openai_test_single_action')}
+                            >
+                              <IconRefreshCw
+                                size={14}
+                                className={rowStatus === 'loading' ? styles.statusIconSpin : undefined}
+                              />
+                              {t('ai_providers.openai_test_single_action')}
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.claudeKeyActionButton} ${styles.claudeKeyDeleteButton}`}
+                              onClick={() => removeApiKeyRow(index)}
+                              disabled={saving || disableControls || form.apiKeys.length <= 1}
+                              title={t('common.delete')}
+                            >
+                              <IconTrash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

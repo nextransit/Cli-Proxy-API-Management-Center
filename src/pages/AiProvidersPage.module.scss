@@ -1549,6 +1549,194 @@ $openai-toolbar-control-height: 36px;
   color: var(--text-secondary);
 }
 
+.claudeKeyToolbarActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+
+  button > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.claudeKeyMatrixShell {
+  border: 1px solid var(--border-color);
+  border-radius: $radius-md;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.claudeKeyMatrixScroller {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.claudeKeyMatrixHeader,
+.claudeKeyMatrixRow {
+  display: grid;
+  grid-template-columns: 118px 46px minmax(280px, 1fr) minmax(180px, 240px) minmax(170px, auto);
+  gap: $spacing-sm;
+  min-width: 860px;
+  align-items: center;
+}
+
+.claudeKeyMatrixHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px $spacing-md;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.claudeKeyMatrixRow {
+  padding: 10px $spacing-md;
+  border-bottom: 1px solid var(--border-secondary);
+  transition: background 0.15s ease;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &:hover {
+    background: var(--bg-tertiary);
+  }
+}
+
+.claudeKeyMatrixColStatus,
+.claudeKeyMatrixColIndex,
+.claudeKeyMatrixColKey,
+.claudeKeyMatrixColRoute,
+.claudeKeyMatrixColAction {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.claudeKeyMatrixColStatus,
+.claudeKeyMatrixColIndex {
+  justify-content: center;
+}
+
+.claudeKeyMatrixColIndex {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.claudeKeyMatrixColKey {
+  justify-content: stretch;
+}
+
+.claudeKeyMatrixColRoute {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.claudeKeyMatrixColAction {
+  justify-content: flex-end;
+  gap: $spacing-xs;
+  white-space: nowrap;
+}
+
+.claudeKeyInputGroup {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  width: 100%;
+  min-width: 0;
+}
+
+.claudeKeyInput {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  text-align: left;
+}
+
+.claudeKeyInputMasked {
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  cursor: default;
+}
+
+.claudeKeyIconButton,
+.claudeKeyActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+  }
+}
+
+.claudeKeyIconButton {
+  width: 34px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.claudeKeyActionButton {
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.claudeKeyDeleteButton {
+  width: 34px;
+  padding: 0;
+
+  &:hover:not(:disabled) {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+  }
+}
+
+.claudeKeyRouteText,
+.claudeKeyRouteHint {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claudeKeyRouteText {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.claudeKeyRouteHint {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 .keyTableShell {
   overflow-x: auto;
   border-radius: $radius-md;

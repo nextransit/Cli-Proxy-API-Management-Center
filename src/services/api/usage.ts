@@ -26,7 +26,13 @@ export const usageApi = {
   /**
    * 获取使用统计原始数据
    */
-  getUsage: () => apiClient.get<Record<string, unknown>>('/usage', { timeout: USAGE_TIMEOUT_MS }),
+  getUsage: (options?: { timeRange?: string }) =>
+    apiClient.get<Record<string, unknown>>('/usage', {
+      timeout: USAGE_TIMEOUT_MS,
+      params: options?.timeRange && options.timeRange !== 'all'
+        ? { time_range: options.timeRange }
+        : undefined,
+    }),
 
   /**
    * 导出使用统计快照

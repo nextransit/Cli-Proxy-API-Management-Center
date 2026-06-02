@@ -48,7 +48,7 @@ import {
   type UsageTimeRange,
 } from '@/utils/usage';
 import { maskApiKey } from '@/utils/format';
-import type { ChartOptions, TooltipItem } from 'chart.js';
+import type { ChartOptions, ScriptableContext, TooltipItem } from 'chart.js';
 import { buildChartOptions } from '@/utils/usage/chartConfig';
 import styles from './UsagePage.module.scss';
 
@@ -93,10 +93,10 @@ const ALL_FILTER = 'all';
 const REQUEST_EVENTS_ALL_FILTER = '__all__';
 const EMPTY_CHART_DATA: ChartData = { labels: [], datasets: [] };
 const TOKEN_FOCUS_CHART_COLORS = {
-  input: '#3b82f6',
-  cache: '#f59e0b',
-  output: '#10b981',
-  rate: '#8b5cf6',
+  input: '#00E5FF',
+  cache: '#7C4DFF',
+  output: '#22c55e',
+  rate: '#94a3b8',
 };
 
 type IdleWindow = Window & {
@@ -271,17 +271,23 @@ const withAlpha = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(alpha, 1))})`;
 };
 
-const CHART_COLORS = [
-  '#06b6d4',
-  '#22d3ee',
-  '#8b5cf6',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#6366f1',
-  '#14b8a6',
-  '#f472b6',
-];
+const CHART_COLORS = ['#00E5FF', '#7C4DFF'];
+const TAIL_LINE_COLOR = 'rgba(255, 255, 255, 0.22)';
+
+const buildTelemetryAreaGradient = (
+  context: ScriptableContext<'line'>,
+  color: string,
+  topAlpha = 0.14
+): string | CanvasGradient => {
+  const area = context.chart.chartArea;
+  if (!area) return withAlpha(color, topAlpha);
+
+  const gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+  gradient.addColorStop(0, withAlpha(color, topAlpha));
+  gradient.addColorStop(0.42, withAlpha(color, topAlpha * 0.42));
+  gradient.addColorStop(1, withAlpha(color, 0));
+  return gradient;
+};
 
 type TrendMetric = 'requests' | 'tokens' | 'cost';
 type TrendPeriod = 'hour' | 'day';
@@ -425,6 +431,16 @@ export function UsagePage() {
     source: OpenAIProviderConfig[] | undefined;
     providers: OpenAIProviderConfig[];
   } | null>(null);
+  const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
+  const [chartCompareMode, setChartCompareMode] = useState<ChartCompareMode>(loadChartCompareMode);
+  const [credentialFilter, setCredentialFilter] = useState<string>(loadCredentialFilter);
+  const [modelPanelTab, setModelPanelTab] = useState<'stats' | 'credentials' | 'prices'>('stats');
+  const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
+  const [chartGranularity, setChartGranularity] = useState<TrendGranularity>('hour');
+  const [activeTrendTab, setActiveTrendTab] = useState<string>('requests');
+  const [detailModelFilter, setDetailModelFilter] = useState<string>(REQUEST_EVENTS_ALL_FILTER);
 
   // Data hook
   const {
@@ -441,7 +457,7 @@ export function UsagePage() {
     importInputRef,
     exporting,
     importing,
-  } = useUsageData();
+  } = useUsageData(timeRange);
   const isInitialLoading = loading && !usage;
   const isRefreshing = loading && Boolean(usage);
   const [showRefreshFeedback, setShowRefreshFeedback] = useState(false);
@@ -462,17 +478,6 @@ export function UsagePage() {
       window.clearTimeout(timerId);
     };
   }, [isRefreshing]);
-
-  const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [chartLines, setChartLines] = useState<string[]>(loadChartLines);
-  const [chartCompareMode, setChartCompareMode] = useState<ChartCompareMode>(loadChartCompareMode);
-  const [credentialFilter, setCredentialFilter] = useState<string>(loadCredentialFilter);
-  const [modelPanelTab, setModelPanelTab] = useState<'stats' | 'credentials' | 'prices'>('stats');
-  const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
-  const [chartGranularity, setChartGranularity] = useState<TrendGranularity>('hour');
-  const [activeTrendTab, setActiveTrendTab] = useState<string>('requests');
-  const [detailModelFilter, setDetailModelFilter] = useState<string>(REQUEST_EVENTS_ALL_FILTER);
 
   useEffect(() => {
     let cancelled = false;
@@ -876,8 +881,7 @@ export function UsagePage() {
 
       const selectedLines =
         resolvedChartLines.length > 0 ? resolvedChartLines : DEFAULT_CHART_LINES;
-      const multiLine = selectedLines.length > 1 && !selectedLines.includes(ALL_FILTER);
-      const datasets = selectedLines.map((line, index) => {
+      const rawSeries = selectedLines.map((line) => {
         const isAll = line === ALL_FILTER;
         const data = isAll
           ? labels.map((_, labelIndexValue) =>
@@ -887,24 +891,49 @@ export function UsagePage() {
               )
             )
           : dataByKey.get(line) || new Array(labels.length).fill(0);
-        const color = CHART_COLORS[index % CHART_COLORS.length];
+        const total = data.reduce((sum, value) => sum + value, 0);
 
         return {
+          line,
+          total,
           label: isAll
             ? chartCompareMode === 'credential'
               ? t('usage_stats.chart_line_all_credentials')
               : t('usage_stats.chart_line_all')
             : lineLabels.get(line) || formatCredentialShortName(line),
           data,
+        };
+      });
+      const rankedLines = [...rawSeries].sort((a, b) => b.total - a.total);
+      const rankByLine = new Map(rankedLines.map((series, index) => [series.line, index]));
+      const datasets = rawSeries.map((series) => {
+        const rank = rankByLine.get(series.line) ?? 0;
+        const isPrimary = rank === 0;
+        const isSecondary = rank === 1;
+        const color = isPrimary
+          ? CHART_COLORS[0]
+          : isSecondary
+            ? CHART_COLORS[1]
+            : TAIL_LINE_COLOR;
+
+        return {
+          label: series.label,
+          data: series.data,
           borderColor: color,
-          // Multi-line: use semi-transparent fills so overlapping areas are visible.
-          // Single/"all": full opacity gradient fill.
-          backgroundColor: multiLine ? withAlpha(color, 0.08) : withAlpha(color, 0.18),
+          backgroundColor: isPrimary
+            ? (context: ScriptableContext<'line'>) => buildTelemetryAreaGradient(context, color, 0.16)
+            : 'rgba(255, 255, 255, 0)',
           pointBackgroundColor: color,
           pointBorderColor: color,
-          // Enable fill for all datasets — stacked-like visual with translucent overlap
-          fill: true,
-          tension: 0.35,
+          borderWidth: isPrimary ? 2.4 : isSecondary ? 1.8 : 1.15,
+          pointRadius: 0,
+          pointHoverRadius: isPrimary ? 5 : 3,
+          pointHitRadius: 10,
+          pointBorderWidth: 0,
+          pointHoverBorderWidth: 2,
+          fill: isPrimary,
+          tension: 0.42,
+          order: rank,
         };
       });
 
@@ -969,41 +998,58 @@ export function UsagePage() {
             label: t('usage_stats.input_tokens'),
             data: inputData,
             borderColor: TOKEN_FOCUS_CHART_COLORS.input,
-            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.input, 0.12),
+            backgroundColor: (context: ScriptableContext<'line'>) =>
+              buildTelemetryAreaGradient(context, TOKEN_FOCUS_CHART_COLORS.input, 0.15),
             pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.input,
             pointBorderColor: TOKEN_FOCUS_CHART_COLORS.input,
+            borderWidth: 2.4,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHitRadius: 10,
             fill: true,
-            tension: 0.35,
+            tension: 0.42,
           },
           {
             label: t('usage_stats.output_tokens'),
             data: outputData,
             borderColor: TOKEN_FOCUS_CHART_COLORS.output,
-            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.output, 0.1),
+            backgroundColor: 'rgba(255, 255, 255, 0)',
             pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.output,
             pointBorderColor: TOKEN_FOCUS_CHART_COLORS.output,
-            fill: true,
-            tension: 0.35,
+            borderWidth: 1.9,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            pointHitRadius: 10,
+            fill: false,
+            tension: 0.42,
           },
           {
             label: t('usage_stats.cache_hit'),
             data: cacheData,
             borderColor: TOKEN_FOCUS_CHART_COLORS.cache,
-            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.cache, 0.1),
+            backgroundColor: 'rgba(255, 255, 255, 0)',
             pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.cache,
             pointBorderColor: TOKEN_FOCUS_CHART_COLORS.cache,
-            fill: true,
-            tension: 0.35,
+            borderWidth: 1.8,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            pointHitRadius: 10,
+            fill: false,
+            tension: 0.42,
           },
           {
             label: t('usage_stats.cache_hit_rate'),
             data: cacheHitRateData,
             borderColor: TOKEN_FOCUS_CHART_COLORS.rate,
-            backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.rate, 0.08),
+            backgroundColor: 'rgba(255, 255, 255, 0)',
             pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.rate,
             pointBorderColor: TOKEN_FOCUS_CHART_COLORS.rate,
+            borderWidth: 1.4,
+            pointRadius: 0,
+            pointHoverRadius: 3,
+            pointHitRadius: 10,
             fill: false,
-            tension: 0.35,
+            tension: 0.42,
             yAxisID: 'yRate',
             borderDash: [5, 4],
           },

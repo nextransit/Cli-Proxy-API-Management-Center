@@ -27,10 +27,10 @@ export interface ChartConfigOptions {
  * Build chart options with theme and responsive awareness.
  *
  * Key optimizations:
- * - Smooth curves (tension: 0.35) for organic-looking trend lines
+ * - Smooth curves with hidden steady-state points for telemetry-style trend lines
  * - Axis-triggered tooltip (mode: 'index', intersect: false) so hovering
  *   shows all datasets at the same timestamp
- * - Subtle grid lines for improved readability
+ * - Subtle oscilloscope-style grid lines for improved readability
  * - Formatted tooltip labels with K/M suffixes
  * - spanGaps enabled so missing data points don't break the curve
  */
@@ -40,16 +40,19 @@ export function buildChartOptions({
   isDark,
   isMobile
 }: ChartConfigOptions): ChartOptions<'line'> {
-  const pointRadius = isMobile && period === 'hour' ? 0 : isMobile ? 2 : 4;
   const tickFontSize = isMobile ? 10 : 12;
-  const maxTickLabelCount = isMobile ? (period === 'hour' ? 8 : 6) : period === 'hour' ? 12 : 10;
-  const axisBorderColor = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(17, 24, 39, 0.14)';
-  const tickColor = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(17, 24, 39, 0.72)';
-  const tooltipBg = isDark ? 'rgba(18, 18, 18, 0.94)' : 'rgba(255, 255, 255, 0.98)';
-  const tooltipTitle = isDark ? '#ffffff' : '#111827';
-  const tooltipBody = isDark ? 'rgba(238, 229, 255, 0.9)' : '#374151';
-  const tooltipBorder = isDark ? 'rgba(6, 182, 212, 0.34)' : 'rgba(17, 24, 39, 0.10)';
-  const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(17, 24, 39, 0.06)';
+  const maxTickLabelCount = isMobile ? (period === 'hour' ? 6 : 5) : period === 'hour' ? 10 : 8;
+  const axisBorderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(17, 24, 39, 0.12)';
+  const tickColor = isDark ? 'rgba(226, 232, 240, 0.58)' : 'rgba(17, 24, 39, 0.66)';
+  const tooltipBg = isDark ? 'rgba(3, 7, 18, 0.88)' : 'rgba(255, 255, 255, 0.96)';
+  const tooltipTitle = isDark ? '#e0faff' : '#0f172a';
+  const tooltipBody = isDark ? 'rgba(226, 232, 240, 0.9)' : '#334155';
+  const tooltipBorder = isDark ? 'rgba(0, 229, 255, 0.42)' : 'rgba(6, 182, 212, 0.26)';
+  const gridColor = isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(17, 24, 39, 0.055)';
+  const tickFont = {
+    size: tickFontSize,
+    family: 'JetBrains Mono, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+  };
 
   return {
     responsive: true,
@@ -67,24 +70,35 @@ export function buildChartOptions({
         bodyColor: tooltipBody,
         borderColor: tooltipBorder,
         borderWidth: 1,
+        cornerRadius: 8,
         padding: 12,
         displayColors: true,
         usePointStyle: true,
+        titleFont: { ...tickFont, weight: 700 },
+        bodyFont: tickFont,
+        footerFont: tickFont,
         boxPadding: 4,
+        caretSize: 5,
         // Ensure tooltip shows all datasets at the same index
         mode: 'index',
         intersect: false,
         callbacks: {
+          title: (items) => {
+            const label = items[0]?.label || '';
+            return label ? `[TIMESTAMP] ${label}` : '[TIMESTAMP]';
+          },
           label: (ctx) => {
             const label = ctx.dataset.label || '';
             const value = Number(ctx.raw);
             if (!Number.isFinite(value)) return label;
-            const formatted = value >= 1e6
-              ? (value / 1e6).toFixed(2) + 'M'
-              : value >= 1e3
-                ? (value / 1e3).toFixed(2) + 'K'
-                : value.toLocaleString();
-            return `  ${label}: ${formatted}`;
+            const formatted = value >= 1e9
+              ? (value / 1e9).toFixed(2) + 'B'
+              : value >= 1e6
+                ? (value / 1e6).toFixed(2) + 'M'
+                : value >= 1e3
+                  ? (value / 1e3).toFixed(2) + 'K'
+                  : value.toLocaleString();
+            return `${label.padEnd(18, ' ')} : ${formatted}`;
           }
         }
       }
@@ -102,8 +116,8 @@ export function buildChartOptions({
         },
         ticks: {
           color: tickColor,
-          font: { size: tickFontSize },
-          maxRotation: isMobile ? 0 : 45,
+          font: tickFont,
+          maxRotation: 0,
           minRotation: 0,
           autoSkip: true,
           maxTicksLimit: maxTickLabelCount,
@@ -142,22 +156,22 @@ export function buildChartOptions({
         ticks: {
           display: false,
           color: tickColor,
-          font: { size: tickFontSize }
+          font: tickFont
         }
       }
     },
     elements: {
       line: {
-        // Smoother curves: lower tension = more rounded interpolation
-        tension: 0.35,
+        tension: 0.42,
         borderWidth: isMobile ? 1.5 : 2,
         // Prevent gaps when data points are missing
         spanGaps: true
       },
       point: {
-        borderWidth: 2,
-        radius: pointRadius,
-        hoverRadius: 5
+        borderWidth: 0,
+        radius: 0,
+        hitRadius: 10,
+        hoverRadius: isMobile ? 4 : 5
       }
     }
   };

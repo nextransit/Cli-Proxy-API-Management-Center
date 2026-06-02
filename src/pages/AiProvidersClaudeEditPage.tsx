@@ -8,10 +8,20 @@ import { Select } from '@/components/ui/Select';
 import { HeaderInputList } from '@/components/ui/HeaderInputList';
 import { ModelInputList } from '@/components/ui/ModelInputList';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import {
+  IconCopy,
+  IconEye,
+  IconEyeOff,
+  IconPlus,
+  IconRefreshCw,
+  IconTrash2,
+} from '@/components/ui/icons';
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
 import { apiCallApi, getApiCallErrorMessage } from '@/services/api';
 import { useNotificationStore } from '@/stores';
+import { copyToClipboard } from '@/utils/clipboard';
+import { maskApiKey } from '@/utils/format';
 import { buildHeaderObject } from '@/utils/headers';
 import { buildClaudeMessagesEndpoint, parseTextList } from '@/components/providers/utils';
 import type { ClaudeEditOutletContext } from './AiProvidersClaudeEditLayout';
@@ -20,6 +30,7 @@ import layoutStyles from './AiProvidersEditLayout.module.scss';
 
 const CLAUDE_TEST_TIMEOUT_MS = 30_000;
 const DEFAULT_ANTHROPIC_VERSION = '2023-06-01';
+type ClaudeKeyTestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof Error) return err.message;
@@ -41,6 +52,41 @@ const resolveBearerTokenFromAuthorization = (headers: Record<string, string>): s
   return match?.[1]?.trim() || '';
 };
 
+function ClaudeKeyStatusBadge({
+  status,
+  message,
+}: {
+  status: ClaudeKeyTestStatus;
+  message?: string;
+}) {
+  const { t } = useTranslation();
+
+  const statusClassName =
+    status === 'loading'
+      ? styles.keyStatusBadgeLoading
+      : status === 'success'
+        ? styles.keyStatusBadgeSuccess
+        : status === 'error'
+          ? styles.keyStatusBadgeError
+          : styles.keyStatusBadgeIdle;
+
+  const label =
+    status === 'loading'
+      ? t('ai_providers.openai_test_status_loading')
+      : status === 'success'
+        ? t('ai_providers.openai_test_status_success')
+        : status === 'error'
+          ? t('ai_providers.openai_test_status_error')
+          : t('ai_providers.openai_test_status_idle');
+
+  return (
+    <span className={`${styles.keyStatusBadge} ${statusClassName}`} title={message} role="status">
+      {status === 'loading' && <span className={styles.statusSpinner} aria-hidden="true" />}
+      {label}
+    </span>
+  );
+}
+
 export function AiProvidersClaudeEditPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -61,8 +107,10 @@ export function AiProvidersClaudeEditPage() {
     testMessage,
     setTestMessage,
     availableModels,
+    isDirty,
     handleBack,
     handleSave,
+    discardChanges,
   } = useOutletContext<ClaudeEditOutletContext>();
 
   const title = hasIndexParam
@@ -71,6 +119,10 @@ export function AiProvidersClaudeEditPage() {
 
   const swipeRef = useEdgeSwipeBack({ onBack: handleBack });
   const [isTesting, setIsTesting] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
+  const [keyTestStatuses, setKeyTestStatuses] = useState<
+    Record<number, { status: ClaudeKeyTestStatus; message?: string }>
+  >({});
   const lastCloakConfigRef = useRef<typeof form.cloak>(null);
 
   useEffect(() => {
@@ -131,7 +183,7 @@ export function AiProvidersClaudeEditPage() {
       .map((entry) => `${entry.name.trim()}:${entry.alias.trim()}`)
       .join('|');
     return [
-      form.apiKeys[0]?.trim() || '',
+      form.apiKeys.map((key) => key.trim()).join('|'),
       form.baseUrl?.trim() ?? '',
       testModel.trim(),
       headersSignature,
@@ -148,26 +200,96 @@ export function AiProvidersClaudeEditPage() {
     previousConnectivityConfigRef.current = connectivityConfigSignature;
     setTestStatus('idle');
     setTestMessage('');
+    setKeyTestStatuses({});
   }, [connectivityConfigSignature, setTestMessage, setTestStatus]);
 
   const openClaudeModelDiscovery = () => {
     navigate('models');
   };
 
-  const runClaudeConnectivityTest = useCallback(async () => {
+  const copyKeyToClipboard = useCallback(
+    async (apiKey: string) => {
+      const copied = await copyToClipboard(apiKey);
+      showNotification(
+        copied ? t('notification.copied_to_clipboard') : t('notification.copy_failed'),
+        copied ? 'success' : 'error'
+      );
+    },
+    [showNotification, t]
+  );
+
+  const copyAllKeysToClipboard = useCallback(async () => {
+    const keys = form.apiKeys.map((apiKey) => apiKey.trim()).filter(Boolean);
+    if (!keys.length) {
+      showNotification(t('notification.claude_api_key_required'), 'error');
+      return;
+    }
+
+    const copied = await copyToClipboard(keys.join('\n'));
+    showNotification(
+      copied ? t('notification.copied_to_clipboard') : t('notification.copy_failed'),
+      copied ? 'success' : 'error'
+    );
+  }, [form.apiKeys, showNotification, t]);
+
+  const updateApiKeyAt = useCallback(
+    (index: number, value: string) => {
+      const newKeys = [...form.apiKeys];
+      newKeys[index] = value;
+      setForm((prev) => ({ ...prev, apiKeys: newKeys }));
+      setKeyTestStatuses((prev) => ({
+        ...prev,
+        [index]: { status: 'idle' },
+      }));
+    },
+    [form.apiKeys, setForm]
+  );
+
+  const addApiKeyRow = useCallback(() => {
+    setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }));
+    setShowKeys(true);
+  }, [setForm]);
+
+  const removeApiKeyRow = useCallback(
+    (index: number) => {
+      const newKeys = form.apiKeys.filter((_, i) => i !== index);
+      setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
+      setKeyTestStatuses((prev) => {
+        const next: Record<number, { status: ClaudeKeyTestStatus; message?: string }> = {};
+        Object.entries(prev).forEach(([key, status]) => {
+          const oldIndex = Number(key);
+          if (!Number.isFinite(oldIndex) || oldIndex === index) return;
+          next[oldIndex > index ? oldIndex - 1 : oldIndex] = status;
+        });
+        return next;
+      });
+    },
+    [form.apiKeys, setForm]
+  );
+
+  const runClaudeConnectivityTest = useCallback(async (input?: { apiKey?: string; keyIndex?: number }) => {
     if (isTesting) return;
+    const keyIndex = input?.keyIndex;
+    const setRowStatus = (status: ClaudeKeyTestStatus, message?: string) => {
+      if (keyIndex === undefined) return;
+      setKeyTestStatuses((prev) => ({ ...prev, [keyIndex]: { status, message } }));
+    };
 
     const modelName = testModel.trim() || availableModels[0] || '';
     if (!modelName) {
       const message = t('ai_providers.claude_test_model_required');
       setTestStatus('error');
       setTestMessage(message);
+      setRowStatus('error', message);
       showNotification(message, 'error');
       return;
     }
 
     const customHeaders = buildHeaderObject(form.headers);
-    const apiKey = form.apiKeys[0]?.trim() || '';
+    const apiKey =
+      input && Object.prototype.hasOwnProperty.call(input, 'apiKey')
+        ? String(input.apiKey ?? '').trim()
+        : form.apiKeys[0]?.trim() || '';
     const hasApiKeyHeader = hasHeader(customHeaders, 'x-api-key');
     const apiKeyFromAuthorization = resolveBearerTokenFromAuthorization(customHeaders);
     const resolvedApiKey = apiKey || apiKeyFromAuthorization;
@@ -176,6 +298,7 @@ export function AiProvidersClaudeEditPage() {
       const message = t('ai_providers.claude_test_key_required');
       setTestStatus('error');
       setTestMessage(message);
+      setRowStatus('error', message);
       showNotification(message, 'error');
       return;
     }
@@ -185,6 +308,7 @@ export function AiProvidersClaudeEditPage() {
       const message = t('ai_providers.claude_test_endpoint_invalid');
       setTestStatus('error');
       setTestMessage(message);
+      setRowStatus('error', message);
       showNotification(message, 'error');
       return;
     }
@@ -211,6 +335,7 @@ export function AiProvidersClaudeEditPage() {
     setIsTesting(true);
     setTestStatus('loading');
     setTestMessage(t('ai_providers.claude_test_running'));
+    setRowStatus('loading', t('ai_providers.claude_test_running'));
 
     try {
       const result = await apiCallApi.request(
@@ -234,6 +359,7 @@ export function AiProvidersClaudeEditPage() {
       const message = t('ai_providers.claude_test_success');
       setTestStatus('success');
       setTestMessage(message);
+      setRowStatus('success', message);
       showNotification(message, 'success');
     } catch (err: unknown) {
       const message = getErrorMessage(err);
@@ -247,6 +373,7 @@ export function AiProvidersClaudeEditPage() {
         : `${t('ai_providers.claude_test_failed')}: ${message || t('common.unknown_error')}`;
       setTestStatus('error');
       setTestMessage(resolvedMessage);
+      setRowStatus('error', resolvedMessage);
       showNotification(resolvedMessage, 'error');
     } finally {
       setIsTesting(false);
@@ -275,25 +402,57 @@ export function AiProvidersClaudeEditPage() {
       hideTopBarBackButton
       hideTopBarRightAction
       floatingAction={
-        <div className={layoutStyles.floatingActions}>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleBack}
-            className={layoutStyles.floatingBackButton}
-          >
-            {t('common.back')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => void handleSave()}
-            loading={saving}
-            disabled={!canSave}
-            className={layoutStyles.floatingSaveButton}
-          >
-            {t('common.save')}
-          </Button>
-        </div>
+        isDirty ? (
+          <div className={layoutStyles.dirtyActionBar}>
+            <div className={layoutStyles.dirtyActionMeta}>
+              <span className={layoutStyles.dirtyActionDot} aria-hidden="true" />
+              <span>
+                {t('ai_providers.claude_dirty_message', {
+                  defaultValue: '检测到 Claude 渠道有未保存的密钥变更。',
+                })}
+              </span>
+            </div>
+            <div className={layoutStyles.dirtyActionButtons}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={discardChanges}
+                disabled={saving || isTesting}
+              >
+                {t('common.discard', { defaultValue: '放弃' })}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void handleSave()}
+                loading={saving}
+                disabled={!canSave}
+                className={layoutStyles.floatingSaveButton}
+              >
+                {t('common.save')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className={layoutStyles.floatingActions}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleBack}
+              className={layoutStyles.floatingBackButton}
+            >
+              {t('common.back')}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => void handleSave()}
+              loading={saving}
+              disabled={!canSave}
+              className={layoutStyles.floatingSaveButton}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        )
       }
       isLoading={loading}
       loadingLabel={t('common.loading')}
@@ -313,60 +472,141 @@ export function AiProvidersClaudeEditPage() {
                   <span className={styles.keyEntriesCount}>
                     {t('ai_providers.claude_keys_count')}: {form.apiKeys.length}
                   </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }))}
-                    disabled={saving || disableControls || isTesting}
-                    className={styles.addKeyButton}
-                  >
-                    {t('ai_providers.claude_keys_add_btn')}
-                  </Button>
-                </div>
-                <div className={styles.keyTableShell}>
-                  <div className={styles.keyTableHeader}>
-                    <div className={styles.keyTableColIndex}>#</div>
-                    <div className={styles.keyTableColKey}>{t('common.api_key')}</div>
-                    <div className={styles.keyTableColProxy}>{t('common.proxy_url')}</div>
-                    <div className={styles.keyTableColAction}>{t('common.action')}</div>
+                  <div className={styles.claudeKeyToolbarActions}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowKeys((prev) => !prev)}
+                      disabled={saving || disableControls || isTesting}
+                      title={
+                        showKeys
+                          ? t('common.hide', { defaultValue: '隐藏' })
+                          : t('common.show', { defaultValue: '显示' })
+                      }
+                    >
+                      {showKeys ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void copyAllKeysToClipboard()}
+                      disabled={
+                        saving ||
+                        disableControls ||
+                        isTesting ||
+                        !form.apiKeys.some((apiKey) => apiKey.trim())
+                      }
+                      title={t('common.copy')}
+                    >
+                      <IconCopy size={14} />
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={addApiKeyRow}
+                      disabled={saving || disableControls || isTesting}
+                      className={styles.addKeyButton}
+                    >
+                      <IconPlus size={14} />
+                      {t('ai_providers.claude_keys_add_btn')}
+                    </Button>
                   </div>
-                  {form.apiKeys.map((apiKey, index) => (
-                    <div key={index} className={styles.keyTableRow}>
-                      <div className={styles.keyTableColIndex}>{index + 1}</div>
-                      <div className={styles.keyTableColKey}>
-                        <input
-                          type="text"
-                          value={apiKey}
-                          onChange={(e) => {
-                            const newKeys = [...form.apiKeys];
-                            newKeys[index] = e.target.value;
-                            setForm((prev) => ({ ...prev, apiKeys: newKeys }));
-                          }}
-                          disabled={saving || disableControls || isTesting}
-                          className={`input ${styles.keyTableInput}`}
-                          placeholder={t('ai_providers.claude_add_modal_key_placeholder')}
-                        />
-                      </div>
-                      <div className={styles.keyTableColProxy}>
-                        <span className={styles.keyTableProxyHint}>
-                          {t('ai_providers.claude_keys_same_proxy_hint')}
-                        </span>
-                      </div>
-                      <div className={styles.keyTableColAction}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newKeys = form.apiKeys.filter((_, i) => i !== index);
-                            setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
-                          }}
-                          disabled={saving || disableControls || isTesting || form.apiKeys.length <= 1}
-                        >
-                          {t('common.delete')}
-                        </Button>
-                      </div>
+                </div>
+                <div className={styles.claudeKeyMatrixShell}>
+                  <div className={styles.claudeKeyMatrixScroller}>
+                    <div className={styles.claudeKeyMatrixHeader}>
+                      <div className={styles.claudeKeyMatrixColStatus}>{t('common.status')}</div>
+                      <div className={styles.claudeKeyMatrixColIndex}>#</div>
+                      <div className={styles.claudeKeyMatrixColKey}>{t('common.api_key')}</div>
+                      <div className={styles.claudeKeyMatrixColRoute}>{t('common.base_url')}</div>
+                      <div className={styles.claudeKeyMatrixColAction}>{t('common.action')}</div>
                     </div>
-                  ))}
+                    {form.apiKeys.map((apiKey, index) => {
+                      const trimmedKey = apiKey.trim();
+                      const rowStatus = keyTestStatuses[index]?.status ?? 'idle';
+                      const rowMessage = keyTestStatuses[index]?.message;
+                      return (
+                        <div key={index} className={styles.claudeKeyMatrixRow}>
+                          <div className={styles.claudeKeyMatrixColStatus}>
+                            <ClaudeKeyStatusBadge status={rowStatus} message={rowMessage} />
+                          </div>
+                          <div className={styles.claudeKeyMatrixColIndex}>{index + 1}</div>
+                          <div className={styles.claudeKeyMatrixColKey}>
+                            <div className={styles.claudeKeyInputGroup}>
+                              <input
+                                type="text"
+                                value={showKeys || !apiKey ? apiKey : maskApiKey(apiKey)}
+                                onChange={(e) => updateApiKeyAt(index, e.target.value)}
+                                readOnly={!showKeys && Boolean(apiKey)}
+                                disabled={saving || disableControls || isTesting}
+                                className={`input ${styles.claudeKeyInput} ${
+                                  showKeys ? '' : styles.claudeKeyInputMasked
+                                }`}
+                                placeholder={t('ai_providers.claude_add_modal_key_placeholder')}
+                                autoComplete="new-password"
+                                data-lpignore="true"
+                                data-1p-ignore="true"
+                                spellCheck={false}
+                              />
+                              <button
+                                type="button"
+                                className={styles.claudeKeyIconButton}
+                                onClick={() => void copyKeyToClipboard(apiKey)}
+                                title={t('common.copy')}
+                                disabled={saving || disableControls || isTesting || !trimmedKey}
+                              >
+                                <IconCopy size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <div className={styles.claudeKeyMatrixColRoute}>
+                            <span className={styles.claudeKeyRouteText}>
+                              {(form.baseUrl ?? '').trim() || t('ai_providers.claude_default_base')}
+                            </span>
+                            <span className={styles.claudeKeyRouteHint}>
+                              {form.proxyUrl?.trim()
+                                ? `${t('common.proxy_url')}: ${form.proxyUrl.trim()}`
+                                : t('ai_providers.claude_keys_same_proxy_hint')}
+                            </span>
+                          </div>
+                          <div className={styles.claudeKeyMatrixColAction}>
+                            <button
+                              type="button"
+                              className={styles.claudeKeyActionButton}
+                              onClick={() =>
+                                void runClaudeConnectivityTest({ apiKey: trimmedKey, keyIndex: index })
+                              }
+                              disabled={
+                                saving ||
+                                disableControls ||
+                                isTesting ||
+                                !trimmedKey ||
+                                availableModels.length === 0
+                              }
+                              title={t('ai_providers.claude_test_action')}
+                            >
+                              <IconRefreshCw
+                                size={14}
+                                className={rowStatus === 'loading' ? styles.statusIconSpin : undefined}
+                              />
+                              {t('ai_providers.claude_test_action')}
+                            </button>
+                            <button
+                              type="button"
+                              className={`${styles.claudeKeyActionButton} ${styles.claudeKeyDeleteButton}`}
+                              onClick={() => removeApiKeyRow(index)}
+                              disabled={
+                                saving || disableControls || isTesting || form.apiKeys.length <= 1
+                              }
+                              title={t('common.delete')}
+                            >
+                              <IconTrash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

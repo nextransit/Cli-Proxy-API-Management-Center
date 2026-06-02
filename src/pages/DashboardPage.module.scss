@@ -1,69 +1,27 @@
-@use 'sass:color';
 @use '../styles/variables.scss' as *;
 
-// ─── Container ──────────────────────────────────────────
-
 .dashboard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: $spacing-xl;
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
-  position: relative;
+  isolation: isolate;
 }
 
-// ─── Decorative Background Orbs ─────────────────────────
-
-.backgroundOrbs {
+.backgroundGrid {
   position: absolute;
-  inset: 0;
+  inset: -32px;
+  z-index: -1;
   pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-  opacity: 0.42;
-  filter: blur(16px);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border-color) 28%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border-color) 28%, transparent) 1px, transparent 1px);
+  background-size: 12px 12px;
+  mask-image: radial-gradient(circle at 50% 18%, black 0%, transparent 72%);
+  opacity: 0.22;
 }
-
-.orb1 {
-  position: absolute;
-  width: 420px;
-  height: 420px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--primary-color) 6%, transparent),
-    transparent 70%
-  );
-  top: -140px;
-  right: -80px;
-  animation: orbFloat 22s ease-in-out infinite alternate;
-}
-
-.orb2 {
-  position: absolute;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--success-color) 4%, transparent),
-    transparent 70%
-  );
-  bottom: 18%;
-  left: -100px;
-  animation: orbFloat 28s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes orbFloat {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  100% {
-    transform: translate(30px, -20px) scale(1.1);
-  }
-}
-
-// ─── Hero Welcome Section ───────────────────────────────
 
 .hero {
   position: relative;
@@ -73,18 +31,26 @@
   justify-content: space-between;
   gap: $spacing-lg;
   padding: $spacing-2xl $spacing-xl;
+  border: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
   border-radius: $radius-lg;
-  --glass-blur: 12px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--bg-primary) 92%, transparent),
-    color-mix(in srgb, var(--bg-secondary) 80%, transparent)
-  );
-  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
-  backdrop-filter: var(--glass-backdrop-filter);
-  -webkit-backdrop-filter: var(--glass-backdrop-filter);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-primary) 92%, transparent), color-mix(in srgb, var(--bg-secondary) 82%, transparent)),
+    radial-gradient(circle at 88% 16%, rgba(56, 189, 248, 0.12), transparent 34%),
+    radial-gradient(circle at 8% 92%, rgba(34, 197, 94, 0.08), transparent 32%);
+  box-shadow:
+    0 24px 54px rgb(0 0 0 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
   overflow: hidden;
-  animation: heroEnter 0.6s ease-out both;
+  animation: heroEnter 0.45s ease-out both;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.035), transparent);
+    transform: translateX(-100%);
+    animation: scanSweep 7s ease-in-out infinite;
+  }
 
   @media (max-width: $breakpoint-mobile) {
     flex-direction: column;
@@ -93,7 +59,6 @@
   }
 }
 
-// Large watermark text behind hero content
 .heroWatermark {
   position: absolute;
   top: 50%;
@@ -105,32 +70,24 @@
   letter-spacing: 0;
   text-transform: uppercase;
   color: var(--text-primary);
-  opacity: 0.04;
+  opacity: 0.035;
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
-  animation: watermarkEnter 0.8s ease-out 0.1s both;
 
   @media (max-width: $breakpoint-mobile) {
-    font-size: 58px;
     left: $spacing-lg;
+    font-size: 58px;
   }
 }
 
-@keyframes watermarkEnter {
-  from {
-    opacity: 0;
-    transform: translateY(-50%) translateX(-20px);
-  }
-  to {
-    opacity: 0.04;
-    transform: translateY(-50%) translateX(0);
-  }
+.heroContent,
+.heroMeta {
+  position: relative;
+  z-index: 1;
 }
 
 .heroContent {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: $spacing-xs;
@@ -138,21 +95,19 @@
 
 .heroGreeting {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
-  color: var(--primary-color);
-  animation: fadeSlideUp 0.5s ease-out 0.1s both;
+  color: #38bdf8;
 }
 
 .heroTitle {
   margin: 0;
+  color: var(--text-primary);
   font-size: 44px;
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: 0;
-  color: var(--text-primary);
-  animation: fadeSlideUp 0.5s ease-out 0.2s both;
 
   @media (max-width: $breakpoint-mobile) {
     font-size: 34px;
@@ -161,29 +116,22 @@
 
 .heroCaring {
   margin: $spacing-xs 0 0;
-  font-size: 15px;
   color: var(--text-secondary);
+  font-size: 15px;
   line-height: 1.5;
-  animation: fadeSlideUp 0.5s ease-out 0.3s both;
 }
 
-// ─── Hero Meta (right side) ─────────────────────────────
-
 .heroMeta {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: $spacing-sm;
   flex-shrink: 0;
-  animation: fadeSlideUp 0.5s ease-out 0.35s both;
 
   @media (max-width: $breakpoint-mobile) {
     align-items: flex-start;
     flex-direction: row;
     flex-wrap: wrap;
-    gap: $spacing-sm;
   }
 }
 
@@ -199,31 +147,33 @@
 }
 
 .time {
-  font-size: 22px;
-  font-weight: 700;
   color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
 
-.date {
-  font-size: 12px;
+.date,
+.buildDate {
   color: var(--text-secondary);
+  font-size: 12px;
 }
 
-// ─── Connection Pill ────────────────────────────────────
+.buildDate {
+  color: var(--text-tertiary);
+  text-align: right;
+}
 
 .connectionPill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  min-height: 30px;
   padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
   border-radius: $radius-full;
-  --glass-blur: 8px;
-  background: var(--glass-bg-secondary);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-backdrop-filter);
-  -webkit-backdrop-filter: var(--glass-backdrop-filter);
+  background: color-mix(in srgb, var(--bg-primary) 68%, transparent);
   font-size: 12px;
 }
 
@@ -232,16 +182,15 @@
   height: 8px;
   border-radius: 50%;
   background: $gray-400;
-  flex-shrink: 0;
 
   &.connected {
-    background: $success-color;
-    box-shadow: 0 0 6px rgba($success-color, 0.5);
+    background: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.72);
   }
 
   &.connecting {
     background: $warning-color;
-    animation: pulse 1s ease-in-out infinite;
+    animation: pulse 1.1s ease-in-out infinite;
   }
 
   &.disconnected {
@@ -250,278 +199,745 @@
 }
 
 .pillText {
-  font-weight: 600;
   color: var(--text-primary);
+  font-weight: 700;
 }
 
-.buildDate {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  text-align: right;
-
-  @media (max-width: $breakpoint-mobile) {
-    text-align: left;
-  }
-}
-
-// ─── Bento Stats Grid ───────────────────────────────────
-
-.statsSection {
+.statsSection,
+.monitorSection,
+.configSection {
   position: relative;
   z-index: 1;
 }
 
 .sectionHeading {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0;
-  color: var(--text-tertiary);
   margin: 0 0 $spacing-md;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
-.bentoGrid {
+.instrumentGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: auto auto;
+  grid-template-columns: minmax(340px, 1.3fr) repeat(2, minmax(240px, 1fr));
+  grid-auto-rows: minmax(210px, auto);
   gap: $spacing-md;
 
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, 1fr);
+  @media (max-width: 1040px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 500px) {
+  @media (max-width: $breakpoint-mobile) {
     grid-template-columns: 1fr;
   }
 }
 
-.bentoCard {
+.instrumentCard,
+.monitorPanel,
+.routingPanel,
+.controlPanel {
+  position: relative;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
+  border-radius: $radius-lg;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--bg-primary) 90%, transparent), color-mix(in srgb, var(--bg-secondary) 78%, transparent)),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.05), rgba(167, 139, 250, 0.035));
+  box-shadow:
+    0 20px 46px rgb(0 0 0 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.035);
+  overflow: hidden;
+  animation: cardEnter 0.36s ease-out both;
+}
+
+.instrumentCard {
   display: flex;
   flex-direction: column;
   gap: $spacing-md;
   padding: $spacing-lg;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--bg-primary) 86%, transparent),
-    color-mix(in srgb, var(--bg-secondary) 72%, transparent)
-  );
-  border: 1px solid color-mix(in srgb, var(--border-color) 66%, transparent);
-  border-radius: $radius-lg;
-  --glass-blur: 12px;
-  backdrop-filter: var(--glass-backdrop-filter);
-  -webkit-backdrop-filter: var(--glass-backdrop-filter);
-  box-shadow:
-    0 18px 42px rgb(0 0 0 / 0.12),
-    inset 0 1px 0 rgb(255 255 255 / 0.03);
+  color: inherit;
   text-decoration: none;
-  transition:
-    border-color $transition-fast,
-    box-shadow $transition-fast,
-    transform $transition-fast;
-  animation: cardEnter 0.4s ease-out both;
+  transition: border-color $transition-fast, transform $transition-fast, box-shadow $transition-fast;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--border-hover) 82%, transparent);
+    border-color: color-mix(in srgb, #38bdf8 58%, var(--border-color));
     box-shadow:
-      0 22px 48px rgb(0 0 0 / 0.16),
-      inset 0 1px 0 rgb(255 255 255 / 0.04);
+      0 24px 54px rgb(0 0 0 / 0.18),
+      0 0 0 1px rgba(56, 189, 248, 0.08),
+      inset 0 1px 0 rgb(255 255 255 / 0.045);
     transform: translateY(-2px);
   }
 }
 
-// First card spans 2 rows — the "hero stat"
-.bentoLarge {
-  grid-row: 1 / 3;
-  justify-content: center;
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary)),
-    color-mix(in srgb, var(--bg-primary) 84%, transparent)
-  );
-
-  .bentoValue {
-    font-size: 44px;
-  }
-
-  .bentoIcon {
-    width: 56px;
-    height: 56px;
-  }
-
-  @media (max-width: 900px) {
-    grid-row: auto;
-
-    .bentoValue {
-      font-size: 32px;
-    }
-
-    .bentoIcon {
-      width: 44px;
-      height: 44px;
-    }
-  }
+.providerCard {
+  grid-row: span 2;
 }
 
-.bentoIcon {
+.instrumentHeader {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: $radius-md;
-  background: color-mix(in srgb, var(--primary-color) 10%, var(--bg-secondary));
-  color: var(--primary-color);
-  transition: background $transition-fast;
-}
-
-.bentoCard:hover .bentoIcon {
-  background: color-mix(in srgb, var(--primary-color) 16%, var(--bg-secondary));
-}
-
-.bentoContent {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.bentoValue {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.bentoLabel {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.bentoSublabel {
-  font-size: 11px;
-  color: var(--text-secondary);
-  opacity: 0.7;
-  margin-top: 2px;
-}
-
-// ─── Config Pills Section ───────────────────────────────
-
-.configSection {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: $spacing-md;
-  animation: cardEnter 0.4s ease-out 0.5s both;
+  min-width: 0;
 }
 
-.configPillGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $spacing-sm;
-}
-
-.configPill {
-  display: inline-flex;
-  align-items: center;
-  gap: $spacing-sm;
-  padding: 6px 14px;
-  background: color-mix(in srgb, var(--bg-primary) 68%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
-  border-radius: $radius-full;
-  --glass-blur: 10px;
-  backdrop-filter: var(--glass-backdrop-filter);
-  -webkit-backdrop-filter: var(--glass-backdrop-filter);
-  font-size: 13px;
-  transition: border-color $transition-fast;
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--border-hover) 82%, transparent);
-  }
-}
-
-.configPillWide {
-  flex-basis: 100%;
-  border-radius: $radius-md;
-}
-
-.configPillLabel {
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.configPillValue {
-  font-weight: 600;
-  color: var(--text-primary);
-
-  &.on {
-    color: $success-color;
-  }
-
-  &.off {
-    color: var(--text-secondary);
-  }
-}
-
-.configPillMono {
-  font-size: 12px;
+.instrumentEyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: color-mix(in srgb, #38bdf8 72%, var(--text-tertiary));
   font-family: $font-mono;
-  color: var(--text-secondary);
-  word-break: break-all;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
-// Config badges (routing strategy)
+.instrumentTitle {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1.3;
+}
+
+.liveBadge,
+.metricChip,
 .configBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 8px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 76%, transparent);
   border-radius: $radius-full;
-  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-primary) 72%, transparent);
+  color: var(--text-secondary);
+  font-family: $font-mono;
   font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  max-width: 100%;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.liveDotActive {
+  background: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.76);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.providerMatrixBody {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: $spacing-lg;
+  align-items: center;
+  flex: 1;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.providerDonut {
+  position: relative;
+  width: 142px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow:
+    0 0 34px rgba(56, 189, 248, 0.11),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    background: var(--bg-primary);
+  }
+}
+
+.providerDonutCore {
+  position: absolute;
+  inset: 28px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
+
+  span {
+    color: var(--text-primary);
+    font-family: $font-mono;
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  small {
+    margin-top: 5px;
+    color: var(--text-tertiary);
+    font-family: $font-mono;
+    font-size: 10px;
+    font-weight: 800;
+  }
+}
+
+.providerLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.providerLegendRow {
+  display: grid;
+  grid-template-columns: minmax(82px, 1fr) 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.providerLegendName {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+}
+
+.providerLegendValue {
+  color: var(--text-primary);
+  font-family: $font-mono;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.providerLegendTrack {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
   overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+  }
+}
+
+.telemetryValueRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.telemetryValue {
+  color: var(--text-primary);
+  font-family: $font-mono;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.telemetryUnit {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.tokenSparkline,
+.assetSparkline {
+  width: 100%;
+  height: 64px;
+  margin-top: auto;
+}
+
+.sparklineGlow,
+.sparklineLine,
+.latencyLineGlow,
+.latencyLine {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.sparklineGlow,
+.latencyLineGlow {
+  stroke: rgba(56, 189, 248, 0.24);
+  stroke-width: 8;
+  filter: blur(6px);
+}
+
+.sparklineLine {
+  stroke: #38bdf8;
+  stroke-width: 2.2;
+}
+
+.latencyLine {
+  stroke: #a78bfa;
+  stroke-width: 2.2;
+}
+
+.metricStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    padding: 6px 7px;
+    border: 1px solid color-mix(in srgb, var(--border-color) 64%, transparent);
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+    color: var(--text-secondary);
+    font-family: $font-mono;
+    font-size: 10px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.dualChart {
+  position: relative;
+  height: 86px;
+  margin-top: auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+
+  svg,
+  .dualBars {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.dualBars {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: end;
+  gap: 4px;
+  padding: 8px 2px 0;
+}
+
+.dualBar {
+  display: block;
+  min-height: 6px;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.72), rgba(34, 197, 94, 0.16));
+}
+
+.assetMatrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.assetNode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 62%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+  color: inherit;
+  text-decoration: none;
+
+  svg {
+    color: #38bdf8;
+  }
+
+  span {
+    color: var(--text-primary);
+    font-family: $font-mono;
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  small {
+    width: 100%;
+    overflow: hidden;
+    color: var(--text-tertiary);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.monitorSection {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 1.05fr);
+  gap: $spacing-md;
+
+  @media (max-width: 980px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.monitorPanel {
+  padding: $spacing-lg;
+}
+
+.modelStackBar {
+  display: flex;
+  height: 14px;
+  margin: $spacing-md 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 68%, transparent);
+  overflow: hidden;
+}
+
+.modelTone1 {
+  background: #38bdf8;
+}
+
+.modelTone2 {
+  background: #22c55e;
+}
+
+.modelTone3 {
+  background: #a78bfa;
+}
+
+.modelTone4 {
+  background: #f59e0b;
+}
+
+.modelTone5 {
+  background: #ef4444;
+}
+
+.modelRows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.modelRow {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) 54px 74px;
+  gap: 8px;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.modelSwatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.modelName {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: $font-mono;
+  font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.modelPercent,
+.modelTokens {
+  color: var(--text-tertiary);
+  font-family: $font-mono;
+  text-align: right;
+}
+
+.requestStream {
+  margin-top: $spacing-md;
+  border: 1px solid color-mix(in srgb, var(--border-color) 64%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+  overflow: hidden;
+}
+
+.requestStreamHeader,
+.requestStreamRow {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 64px 64px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 10px;
+  font-family: $font-mono;
+  font-size: 11px;
+}
+
+.requestStreamHeader {
+  color: var(--text-tertiary);
+  font-weight: 900;
+  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+}
+
+.requestStreamRow {
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 44%, transparent);
+  color: var(--text-secondary);
+}
+
+.requestModel {
+  overflow: hidden;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusOk,
+.statusFail {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 44px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.statusOk {
+  border: 1px solid rgba(34, 197, 94, 0.42);
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.statusFail {
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.emptyTelemetry {
+  padding: $spacing-lg;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.configSection {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.configConsole {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: $spacing-md;
+
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.routingPanel,
+.controlPanel {
+  padding: $spacing-lg;
+}
+
 .configBadgeRoundRobin {
-  color: var(--primary-color);
-  border-color: rgba($primary-color, 0.24);
-  background: rgba($primary-color, 0.12);
+  border-color: rgba(56, 189, 248, 0.32);
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
 }
 
 .configBadgeFillFirst {
-  color: $success-color;
-  border-color: rgba($success-color, 0.3);
-  background: rgba($success-color, 0.12);
+  border-color: rgba(34, 197, 94, 0.34);
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
 }
 
 .configBadgeUnknown {
   color: var(--text-secondary);
-  background: var(--bg-primary);
 }
 
-// ─── View More Link ─────────────────────────────────────
+.routingFlow {
+  display: grid;
+  grid-template-columns: auto minmax(42px, 1fr) auto minmax(42px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: $spacing-lg 0;
+
+  @media (max-width: 620px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.routingNode,
+.routingNodePrimary,
+.routingProviderNodes span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 76%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+  color: var(--text-secondary);
+  font-family: $font-mono;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.routingNodePrimary {
+  min-width: 130px;
+  border-color: rgba(56, 189, 248, 0.34);
+  color: #38bdf8;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.08);
+}
+
+.routingLine {
+  height: 1px;
+  min-width: 42px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.52), transparent);
+
+  @media (max-width: 620px) {
+    width: 1px;
+    height: 22px;
+    min-width: 0;
+    margin-left: 18px;
+    background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.52), transparent);
+  }
+}
+
+.routingProviderNodes {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.routingProviderNodes span {
+  width: 34px;
+  padding: 0;
+}
+
+.routingWeightBar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+  overflow: hidden;
+
+  span {
+    min-width: 2px;
+  }
+}
+
+.proxyRoute {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: $spacing-md;
+  color: var(--text-tertiary);
+  font-size: 12px;
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-family: $font-mono;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.controlPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cyberSwitchRow,
+.retryModule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 62%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cyberSwitch {
+  position: relative;
+  width: 44px;
+  height: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.1);
+  flex-shrink: 0;
+
+  i {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    transition: transform $transition-fast, background $transition-fast, box-shadow $transition-fast;
+  }
+}
+
+.cyberSwitchOn {
+  border-color: rgba(34, 197, 94, 0.46);
+  background: rgba(34, 197, 94, 0.13);
+
+  i {
+    transform: translateX(22px);
+    background: #22c55e;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.72);
+  }
+}
+
+.retryModule strong {
+  color: var(--text-primary);
+  font-family: $font-mono;
+  font-size: 22px;
+  font-weight: 900;
+}
 
 .viewMoreLink {
   display: inline-flex;
   align-items: center;
+  width: fit-content;
+  color: #38bdf8;
   font-size: 13px;
-  color: var(--primary-color);
+  font-weight: 760;
   text-decoration: none;
-  margin-top: $spacing-xs;
-  transition: color $transition-fast;
 
   &:hover {
     text-decoration: underline;
-    color: var(--primary-hover);
   }
 }
-
-// ─── Animations ─────────────────────────────────────────
 
 @keyframes heroEnter {
   from {
@@ -534,25 +950,14 @@
   }
 }
 
-@keyframes fadeSlideUp {
+@keyframes cardEnter {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
@@ -562,6 +967,16 @@
     opacity: 1;
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.42;
+  }
+}
+
+@keyframes scanSweep {
+  0%,
+  72% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
   }
 }
