@@ -67,7 +67,10 @@ export interface TextOpsQueryResponse {
 const TEXT_OPS_TIMEOUT_MS = 120_000;
 
 export const textOpsApi = {
-  query: (payload: TextOpsQueryRequest) =>
-    apiClient.post<TextOpsQueryResponse>('/text-ops/query', payload, { timeout: TEXT_OPS_TIMEOUT_MS }),
+  query: (payload: TextOpsQueryRequest, options?: { signal?: AbortSignal }) =>
+    apiClient.post<TextOpsQueryResponse>('/text-ops/query', payload, {
+      timeout: TEXT_OPS_TIMEOUT_MS,
+      signal: options?.signal,
+    }),
 };
 

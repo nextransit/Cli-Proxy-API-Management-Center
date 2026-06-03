@@ -66,6 +66,33 @@ export function IconBot({ size = 20, ...props }: IconProps) {
   );
 }
 
+export function IconBolt({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...baseSvgProps} width={size} height={size} {...props}>
+      <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
+    </svg>
+  );
+}
+
+export function IconDatabaseStack({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...baseSvgProps} width={size} height={size} {...props}>
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+      <path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6" />
+    </svg>
+  );
+}
+
+export function IconChevronsRight({ size = 20, ...props }: IconProps) {
+  return (
+    <svg {...baseSvgProps} width={size} height={size} {...props}>
+      <path d="m13 17 5-5-5-5" />
+      <path d="m6 17 5-5-5-5" />
+    </svg>
+  );
+}
+
 export function IconModelCluster({ size = 20, ...props }: IconProps) {
   return (
     <svg {...baseSvgProps} width={size} height={size} {...props}>

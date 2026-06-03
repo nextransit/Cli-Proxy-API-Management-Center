@@ -82,20 +82,23 @@
   border: 0;
 
   .sidebar-toggle-floating {
+    // 贴在 sidebar 右侧分割线垂直居中 — 释放主内容区顶部的 44px + 22px 横向空间
     position: absolute;
-    top: var(--shell-gutter);
-    left: calc(var(--shell-gutter) + var(--sidebar-active-width) + 22px);
-    width: 44px;
-    height: 44px;
+    top: 50%;
+    left: calc(var(--shell-gutter) + var(--sidebar-active-width) - 8px);
+    transform: translateY(-50%);
+    width: 18px;
+    height: 56px;
     padding: 0;
-    border: 1px solid color-mix(in srgb, var(--border-color) 68%, transparent);
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
-    color: var(--text-secondary);
+    border: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+    border-left: 0;
+    border-radius: 0 8px 8px 0;
+    background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+    color: var(--text-tertiary);
     box-shadow:
-      0 16px 38px rgb(0 0 0 / 0.16),
-      inset 0 1px 0 rgb(255 255 255 / 0.04);
-    --glass-blur: 14px;
+      0 12px 28px rgb(0 0 0 / 0.18),
+      inset 1px 0 0 rgb(255 255 255 / 0.04);
+    --glass-blur: 12px;
     backdrop-filter: var(--glass-backdrop-filter);
     -webkit-backdrop-filter: var(--glass-backdrop-filter);
     cursor: pointer;
@@ -103,29 +106,38 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    z-index: $z-dropdown + 2;
+    opacity: 0.55;
     transition:
       background $transition-fast,
       border-color $transition-fast,
       color $transition-fast,
-      transform $transition-fast,
+      width $transition-fast,
+      opacity $transition-fast,
       left $transition-normal;
 
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+
     &:hover {
-      background: color-mix(in srgb, var(--bg-primary) 86%, transparent);
-      border-color: color-mix(in srgb, var(--border-hover) 80%, transparent);
-      color: var(--text-primary);
-      transform: translateY(-1px);
+      opacity: 1;
+      width: 24px;
+      background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+      border-color: color-mix(in srgb, var(--primary-color) 40%, transparent);
+      color: var(--primary-color);
     }
 
     &:active {
-      transform: translateY(0);
+      transform: translateY(-50%);
     }
 
     &:focus-visible {
       outline: none;
       box-shadow:
-        0 0 0 2px color-mix(in srgb, var(--primary-color) 24%, transparent),
-        0 16px 38px rgb(0 0 0 / 0.16);
+        0 0 0 2px color-mix(in srgb, var(--primary-color) 30%, transparent),
+        0 12px 28px rgb(0 0 0 / 0.18);
     }
   }
 
