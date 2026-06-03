@@ -1418,6 +1418,8 @@ export interface ChartDataset {
   pointHoverBorderWidth?: number;
   borderWidth?: number;
   hoverBorderWidth?: number;
+  hoverBorderColor?: string;
+  hoverBackgroundColor?: string;
   fill: boolean;
   tension: number;
   yAxisID?: string;
