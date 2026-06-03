@@ -188,9 +188,8 @@ export function getHourChartMinWidth(labelCount: number, isMobile: boolean): str
 }
 
 import type { EChartsOption } from 'echarts';
-import type { ChartData } from '../usage';
+import type { ChartData, ChartDataset } from '../usage';
 import type { ThemeColors } from '../echarts/themeBridge';
-import type { ChartDataset } from '../usage';
 
 export interface BuildEChartsTrendOptionArgs {
   isNarrowScreen: boolean;
