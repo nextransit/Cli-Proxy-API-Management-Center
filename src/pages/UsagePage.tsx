@@ -1501,6 +1501,8 @@ export function UsagePage() {
           chartPeriod={chartPeriod}
           hourWindowHours={hourWindowHours}
           modelPrices={visibleModelPrices}
+          timeRange={timeRange}
+          onChartPeriodChange={handleChartGranularityChange}
         />
       )}
 

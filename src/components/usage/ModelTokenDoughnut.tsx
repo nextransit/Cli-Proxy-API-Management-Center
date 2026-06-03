@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChartData, ChartOptions, ScriptableContext } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
@@ -11,7 +11,10 @@ import {
   calculateCost,
   type ModelStatsSummary,
   type ModelPrice,
+  type UsageTimeRange,
 } from '@/utils/usage';
+import { TelemetryChart } from '@/components/charts/TelemetryChart';
+import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface ModelTokenDoughnutProps {
@@ -23,6 +26,8 @@ export interface ModelTokenDoughnutProps {
   chartPeriod: 'hour' | 'day';
   hourWindowHours?: number;
   modelPrices: Record<string, ModelPrice>;
+  timeRange: UsageTimeRange;
+  onChartPeriodChange?: (next: 'hour' | 'day') => void;
 }
 
 interface GradientColor {
@@ -71,6 +76,8 @@ interface TokenUsageTrendChartProps {
   modelPrices: Record<string, ModelPrice>;
   hasPrices: boolean;
   isDark: boolean;
+  timeRange: UsageTimeRange;
+  onChartPeriodChange?: (next: 'hour' | 'day') => void;
 }
 
 function TokenUsageTrendChart({
@@ -80,11 +87,10 @@ function TokenUsageTrendChart({
   modelPrices,
   hasPrices,
   isDark,
+  timeRange,
+  onChartPeriodChange,
 }: TokenUsageTrendChartProps) {
   const { t } = useTranslation();
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<echarts.ECharts | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const details = useMemo(() => collectUsageDetails(scopedUsage), [scopedUsage]);
 
@@ -179,51 +185,15 @@ function TokenUsageTrendChart({
     };
   }, [details, chartPeriod, hourWindowHours, modelPrices]);
 
-  useEffect(() => {
-    if (!chartRef.current) return;
-
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.dispose();
-    }
-
-    const chart = echarts.init(chartRef.current, isDark ? 'dark' : 'light');
-    chartInstanceRef.current = chart;
-    resizeObserverRef.current?.disconnect();
-    resizeObserverRef.current = new ResizeObserver(() => chart.resize());
-    resizeObserverRef.current.observe(chartRef.current);
-
-    return () => {
-      resizeObserverRef.current?.disconnect();
-      resizeObserverRef.current = null;
-      chart.dispose();
-      if (chartInstanceRef.current === chart) {
-        chartInstanceRef.current = null;
-      }
-    };
-  }, [isDark]);
-
-  useEffect(() => {
-    const chart = chartInstanceRef.current;
-    if (!chart) return;
-
+  const option = useMemo<echarts.EChartsOption>(() => {
     const inputLabel = t('usage_stats.input_tokens') || 'Input';
     const outputLabel = t('usage_stats.output_tokens') || 'Output';
     const cacheCreationLabel = t('usage_stats.cache_creation') || 'Cache Creation';
     const cacheHitLabel = t('usage_stats.cache_hit') || 'Cache Hit';
     const cacheHitRateLabel = t('usage_stats.cache_hit_rate') || 'Cache Hit Rate';
 
-    const option: echarts.EChartsOption = {
+    return {
       backgroundColor: 'transparent',
-      title: {
-        text: t('usage_stats.token_usage_trend') || 'Token Usage Trend',
-        textStyle: {
-          fontSize: 13,
-          fontWeight: 'bold',
-          color: isDark ? '#f8fafc' : '#111827',
-        },
-        top: 0,
-        left: 0,
-      },
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross' },
@@ -385,8 +355,6 @@ function TokenUsageTrendChart({
         },
       ],
     };
-
-    chart.setOption(option, { notMerge: false, lazyUpdate: true });
   }, [
     labels,
     inputData,
@@ -400,7 +368,21 @@ function TokenUsageTrendChart({
     hasPrices,
   ]);
 
-  return <div ref={chartRef} style={{ width: '100%', height: 260 }} />;
+  return (
+    <TelemetryChart
+      title={t('usage_stats.token_usage_trend') || 'Token Usage Trend'}
+      option={option}
+      height={260}
+      extraControls={
+        <GranularityCapsule
+          cardId="usage_doughnut"
+          value={chartPeriod}
+          onChange={(next) => onChartPeriodChange?.(next)}
+          timeRange={timeRange}
+        />
+      }
+    />
+  );
 }
 
 export function ModelTokenDoughnut({
@@ -412,6 +394,8 @@ export function ModelTokenDoughnut({
   chartPeriod,
   hourWindowHours,
   modelPrices,
+  timeRange,
+  onChartPeriodChange,
 }: ModelTokenDoughnutProps) {
   const { t } = useTranslation();
 
@@ -616,6 +600,8 @@ export function ModelTokenDoughnut({
             modelPrices={modelPrices}
             hasPrices={hasPrices}
             isDark={isDark}
+            timeRange={timeRange}
+            onChartPeriodChange={onChartPeriodChange}
           />
         </div>
       </div>
