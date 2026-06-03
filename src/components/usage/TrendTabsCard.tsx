@@ -7,7 +7,7 @@ import styles from '@/pages/UsagePage.module.scss';
 export interface TrendTab {
   key: string;
   label: string;
-  chartProps: Omit<UsageChartProps, 'title' | 'showPeriodControls'>;
+  chartProps: Omit<UsageChartProps, 'title'>;
 }
 
 export interface TrendTabsCardProps {
@@ -68,7 +68,6 @@ export function TrendTabsCard({
             <UsageChart
               {...tab.chartProps}
               title={tab.label}
-              showPeriodControls={false}
             />
           </div>
         ))}

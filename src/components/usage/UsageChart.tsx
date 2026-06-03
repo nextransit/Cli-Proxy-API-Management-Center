@@ -1,50 +1,44 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useThemeStore } from '@/stores';
-import type { ChartOptions } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import type { ChartData } from '@/utils/usage';
-import { getHourChartMinWidth } from '@/utils/usage/chartConfig';
+import { TelemetryChart } from '@/components/charts/TelemetryChart';
+import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
+import { useGranularity } from '@/hooks/useGranularity';
+import { getThemeColors } from '@/utils/echarts/themeBridge';
+import { buildEChartsTrendOption } from '@/utils/usage/chartConfig';
+import type { ChartData, UsageTimeRange } from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface UsageChartProps {
   isDark?: boolean;
   title: string;
-  period: 'hour' | 'day';
-  onPeriodChange: (period: 'hour' | 'day') => void;
   chartData: ChartData;
-  chartOptions: ChartOptions<'line'>;
   loading: boolean;
   isMobile: boolean;
+  isNarrowScreen: boolean;
   emptyText: string;
-  showPeriodControls?: boolean;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
   summary?: React.ReactNode;
   extra?: React.ReactNode;
+  timeRange: UsageTimeRange;
 }
 
 export function UsageChart({
   title,
-  period,
-  onPeriodChange,
   chartData,
-  chartOptions,
   loading,
-  isMobile,
+  isMobile: _isMobile,
+  isNarrowScreen,
   emptyText,
-  showPeriodControls = true,
-  isDark: isDarkProp,
+  // isDark is accepted for API surface parity; TelemetryChart handles its own theme.
+  isDark: _isDark,
   collapsible = false,
   defaultCollapsed = false,
   summary,
   extra,
+  timeRange,
 }: UsageChartProps) {
-  const { t } = useTranslation();
-  const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
-  const isDark = isDarkProp ?? resolvedTheme === 'dark';
+  const { granularity, setGranularity } = useGranularity('usage_trend');
   const [expanded, setExpanded] = useState(!defaultCollapsed);
 
   const handleHeaderClick = () => {
@@ -53,41 +47,47 @@ export function UsageChart({
     }
   };
 
+  const option = useMemo(() => {
+    if (chartData.labels.length === 0) return null;
+    const theme = getThemeColors();
+    return buildEChartsTrendOption(chartData, theme, { isNarrowScreen });
+  }, [chartData, isNarrowScreen]);
+
+  if (collapsible) {
+    return (
+      <Card
+        title={title}
+        collapsible
+        defaultCollapsed={defaultCollapsed}
+        headerExpanded={expanded}
+        onHeaderClick={handleHeaderClick}
+        summary={summary}
+        extra={extra}
+      >
+        {renderBody()}
+      </Card>
+    );
+  }
+
   return (
-    <Card
+    <TelemetryChart
       title={title}
-      collapsible={collapsible}
-      defaultCollapsed={defaultCollapsed}
-      headerExpanded={expanded}
-      onHeaderClick={handleHeaderClick}
-      summary={summary}
-      extra={
-        !collapsible || expanded ? (
-          <div className={styles.chartCardActions}>
-            {extra}
-            {showPeriodControls && (
-              <div className={styles.periodButtons}>
-              <Button
-                variant={period === 'hour' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => onPeriodChange('hour')}
-              >
-                {t('usage_stats.by_hour')}
-              </Button>
-              <Button
-                variant={period === 'day' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => onPeriodChange('day')}
-              >
-                {t('usage_stats.by_day')}
-              </Button>
-              </div>
-            )}
-          </div>
-        ) : undefined
+      option={option ?? { series: [] }}
+      loading={loading}
+      extraControls={
+        <GranularityCapsule
+          cardId="usage_trend"
+          value={granularity}
+          onChange={setGranularity}
+          timeRange={timeRange}
+        />
       }
-    >
-      {loading ? (
+    />
+  );
+
+  function renderBody() {
+    if (loading) {
+      return (
         <div className={styles.chartSkeletonPlaceholder}>
           <div className={styles.chartSkeletonBars}>
             {[40, 65, 45, 80, 55, 70, 50, 85, 60, 75, 45, 90].map((h, i) => (
@@ -95,38 +95,15 @@ export function UsageChart({
             ))}
           </div>
         </div>
-      ) : chartData.labels.length > 0 ? (
-        <div className={`${styles.chartWrapper} ${isDark ? "" : "chart-light"}`}>
-          <div className={styles.chartLegend} aria-label="Chart legend">
-            {chartData.datasets.map((dataset, index) => (
-              <div
-                key={`${dataset.label}-${index}`}
-                className={styles.legendItem}
-                title={dataset.label}
-              >
-                <span className={styles.legendDot} style={{ backgroundColor: dataset.borderColor }} />
-                <span className={styles.legendLabel}>{dataset.label}</span>
-              </div>
-            ))}
-          </div>
-          <div className={styles.chartArea}>
-            <div className={styles.chartScroller}>
-              <div
-                className={styles.chartCanvas}
-                style={
-                  period === 'hour'
-                    ? { minWidth: getHourChartMinWidth(chartData.labels.length, isMobile) }
-                    : undefined
-                }
-              >
-                <Line data={chartData} options={chartOptions} />
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className={styles.hint}>{emptyText}</div>
-      )}
-    </Card>
-  );
+      );
+    }
+    if (chartData.labels.length === 0) {
+      return <div className={styles.hint}>{emptyText}</div>;
+    }
+    return (
+      <div className={styles.hint}>
+        Collapsible UsageChart branch with data: {chartData.labels.length} labels
+      </div>
+    );
+  }
 }

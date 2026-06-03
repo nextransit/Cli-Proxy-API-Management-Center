@@ -44,7 +44,6 @@ import {
   filterUsageDetails,
   formatDayLabel,
   formatHourLabel,
-  formatUsd,
   type UsageTimeRange,
 } from '@/utils/usage';
 import { maskApiKey } from '@/utils/format';
@@ -423,6 +422,7 @@ interface HeavyUsageScope {
 export function UsagePage() {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const isNarrowScreen = useMediaQuery('(max-width: 640px)');
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
   const isDark = resolvedTheme === 'dark';
   const config = useConfigStore((state) => state.config);
@@ -1169,28 +1169,6 @@ export function UsagePage() {
       },
     } as ChartOptions<'line'>;
   }, [chartPeriod, effectiveDetailModelFilter, isDark, isMobile, tokensChartData.labels]);
-  const costChartOptions = useMemo(() => {
-    const baseOptions = buildChartOptions({
-      period: chartPeriod,
-      labels: costChartData.labels,
-      isDark,
-      isMobile,
-    });
-
-    return {
-      ...baseOptions,
-      scales: {
-        ...baseOptions.scales,
-        y: {
-          ...((baseOptions.scales?.y as object) || {}),
-          ticks: {
-            ...(((baseOptions.scales?.y as { ticks?: object } | undefined)?.ticks as object) || {}),
-            callback: (value: string | number) => formatUsd(Number(value)),
-          },
-        },
-      },
-    } as ChartOptions<'line'>;
-  }, [chartPeriod, costChartData.labels, isDark, isMobile]);
   const topCredentialRows = useMemo(
     () => credentialRows.filter((row) => row.requests > 0).slice(0, 3),
     [credentialRows]
@@ -1428,45 +1406,42 @@ export function UsagePage() {
               key: 'requests',
               label: t('usage_stats.requests_trend'),
               chartProps: {
-                period: chartPeriod,
-                onPeriodChange: handleChartGranularityChange,
                 chartData: requestsChartData,
-                chartOptions: requestsChartOptions,
                 loading: isInitialLoading,
                 isMobile,
+                isNarrowScreen,
                 isDark,
                 emptyText: t('usage_stats.no_data'),
+                timeRange,
               },
             },
             {
               key: 'tokens',
               label: t('usage_stats.tokens_trend'),
               chartProps: {
-                period: chartPeriod,
-                onPeriodChange: handleChartGranularityChange,
                 chartData: tokensChartData,
-                chartOptions: tokensChartOptions,
                 loading: isInitialLoading,
                 isMobile,
+                isNarrowScreen,
                 isDark,
                 emptyText: t('usage_stats.no_data'),
                 extra: tokenTrendFocusExtra,
+                timeRange,
               },
             },
             {
               key: 'cost',
               label: t('usage_stats.cost_trend'),
               chartProps: {
-                period: chartPeriod,
-                onPeriodChange: handleChartGranularityChange,
                 chartData: costChartData,
-                chartOptions: costChartOptions,
                 loading: isInitialLoading,
                 isMobile,
+                isNarrowScreen,
                 isDark,
                 emptyText: hasPrices
                   ? t('usage_stats.cost_no_data')
                   : t('usage_stats.cost_need_price'),
+                timeRange,
               },
             },
           ]}
