@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next';
-import { UsageChart, ChartLineSelector } from '@/components/usage';
+import { UsageChart, ChartLineSelector, CostTrendChart } from '@/components/usage';
 import type { UsageChartProps } from '@/components/usage/UsageChart';
 import type { ChartLineSelectorProps } from '@/components/usage/ChartLineSelector';
+import type { CostTrendChartProps } from '@/components/usage/CostTrendChart';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface TrendTab {
   key: string;
   label: string;
-  chartProps: Omit<UsageChartProps, 'title'>;
+  chartProps: Omit<UsageChartProps, 'title' | 'showPeriodControls'>;
+  costChartProps?: Omit<CostTrendChartProps, 'title'>;
 }
 
 export interface TrendTabsCardProps {
@@ -65,10 +67,11 @@ export function TrendTabsCard({
             }
             aria-hidden={activeTab !== tab.key}
           >
-            <UsageChart
-              {...tab.chartProps}
-              title={tab.label}
-            />
+            {tab.costChartProps ? (
+              <CostTrendChart {...tab.costChartProps} />
+            ) : (
+              <UsageChart {...tab.chartProps} title={tab.label} />
+            )}
           </div>
         ))}
       </div>

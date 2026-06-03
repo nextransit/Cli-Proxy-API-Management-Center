@@ -1091,10 +1091,6 @@ export function UsagePage() {
       renderHeavyUsageSections,
     ]
   );
-  const costChartData = useMemo(
-    () => (renderHeavyUsageSections ? buildTrendChartData('cost', chartPeriod) : EMPTY_CHART_DATA),
-    [buildTrendChartData, chartPeriod, renderHeavyUsageSections]
-  );
   const requestsChartOptions = useMemo(
     () =>
       buildChartOptions({
@@ -1433,7 +1429,7 @@ export function UsagePage() {
               key: 'cost',
               label: t('usage_stats.cost_trend'),
               chartProps: {
-                chartData: costChartData,
+                chartData: { labels: [], datasets: [] },
                 loading: isInitialLoading,
                 isMobile,
                 isNarrowScreen,
@@ -1442,6 +1438,18 @@ export function UsagePage() {
                   ? t('usage_stats.cost_no_data')
                   : t('usage_stats.cost_need_price'),
                 timeRange,
+              },
+              costChartProps: {
+                usage,
+                loading: isRefreshing,
+                isDark,
+                isMobile,
+                isNarrowScreen,
+                modelPrices: visibleModelPrices,
+                hourWindowHours,
+                timeRange,
+                period: chartPeriod,
+                onPeriodChange: handleChartGranularityChange,
               },
             },
           ]}

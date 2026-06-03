@@ -1,16 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ScriptableContext } from 'chart.js';
-import { Line } from 'react-chartjs-2';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { TelemetryChart } from '@/components/charts/TelemetryChart';
+import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
+import { getThemeColors } from '@/utils/echarts/themeBridge';
+import { buildEChartsTrendOption } from '@/utils/usage/chartConfig';
 import {
   buildHourlyCostSeries,
   buildDailyCostSeries,
   formatUsd,
-  type ModelPrice
+  type ModelPrice,
+  type ChartData,
+  type UsageTimeRange,
 } from '@/utils/usage';
-import { buildChartOptions, getHourChartMinWidth } from '@/utils/usage/chartConfig';
 import type { UsagePayload } from './hooks/useUsageData';
 import styles from '@/pages/UsagePage.module.scss';
 
@@ -19,146 +21,113 @@ export interface CostTrendChartProps {
   loading: boolean;
   isDark: boolean;
   isMobile: boolean;
+  isNarrowScreen: boolean;
   modelPrices: Record<string, ModelPrice>;
   hourWindowHours?: number;
+  timeRange: UsageTimeRange;
+  period: 'hour' | 'day';
+  onPeriodChange: (next: 'hour' | 'day') => void;
   collapsible?: boolean;
   defaultCollapsed?: boolean;
   summary?: React.ReactNode;
 }
 
 const COST_COLOR = '#06b6d4';
-const COST_BG = 'rgba(6, 182, 212, 0.16)';
-
-function buildGradient(ctx: ScriptableContext<'line'>) {
-  const chart = ctx.chart;
-  const area = chart.chartArea;
-  if (!area) return COST_BG;
-  const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, 'rgba(6, 182, 212, 0.32)');
-  gradient.addColorStop(0.6, 'rgba(6, 182, 212, 0.12)');
-  gradient.addColorStop(1, 'rgba(6, 182, 212, 0.02)');
-  return gradient;
-}
 
 export function CostTrendChart({
   usage,
   loading,
-  isDark,
-  isMobile,
+  isDark: _isDark,
+  isMobile: _isMobile,
+  isNarrowScreen,
   modelPrices,
   hourWindowHours,
+  timeRange,
+  period,
+  onPeriodChange,
   collapsible = false,
   defaultCollapsed = false,
   summary,
 }: CostTrendChartProps) {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<'hour' | 'day'>('hour');
-  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const hasPrices = Object.keys(modelPrices).length > 0;
 
-  const { chartData, chartOptions, hasData } = useMemo(() => {
-    if (!hasPrices || !usage) {
-      return { chartData: { labels: [], datasets: [] }, chartOptions: {}, hasData: false };
-    }
-
+  const chartData: ChartData | null = useMemo(() => {
+    if (!hasPrices || !usage) return null;
     const series =
       period === 'hour'
         ? buildHourlyCostSeries(usage, modelPrices, hourWindowHours)
         : buildDailyCostSeries(usage, modelPrices);
-
-    const data = {
+    return {
       labels: series.labels,
       datasets: [
         {
           label: t('usage_stats.total_cost'),
           data: series.data,
           borderColor: COST_COLOR,
-          backgroundColor: buildGradient,
-          pointBackgroundColor: COST_COLOR,
-          pointBorderColor: COST_COLOR,
+          backgroundColor: 'rgba(6, 182, 212, 0.16)',
           fill: true,
-          tension: 0.4
-        }
-      ]
+          tension: 0.4,
+        },
+      ],
     };
+  }, [hasPrices, hourWindowHours, modelPrices, period, t, usage]);
 
-    const baseOptions = buildChartOptions({ period, labels: series.labels, isDark, isMobile });
-    const options = {
-      ...baseOptions,
-      scales: {
-        ...baseOptions.scales,
-        y: {
-          ...baseOptions.scales?.y,
-          ticks: {
-            ...(baseOptions.scales?.y && 'ticks' in baseOptions.scales.y ? baseOptions.scales.y.ticks : {}),
-            callback: (value: string | number) => formatUsd(Number(value))
-          }
-        }
-      }
+  const option = useMemo(() => {
+    if (!chartData) return null;
+    const theme = getThemeColors();
+    const base = buildEChartsTrendOption(chartData, theme, { isNarrowScreen });
+    const yAxis = base.yAxis as { axisLabel?: Record<string, unknown> } | undefined;
+    return {
+      ...base,
+      yAxis: {
+        ...(yAxis as object),
+        axisLabel: {
+          ...(yAxis?.axisLabel ?? {}),
+          formatter: (v: number | string) => formatUsd(Number(v)),
+        },
+      },
     };
+  }, [chartData, isNarrowScreen]);
 
-    return { chartData: data, chartOptions: options, hasData: series.hasData };
-  }, [usage, period, isDark, isMobile, modelPrices, hasPrices, hourWindowHours, t]);
+  const capsule = (
+    <GranularityCapsule
+      cardId="usage_cost"
+      value={period}
+      onChange={onPeriodChange}
+      timeRange={timeRange}
+    />
+  );
 
-  const handleHeaderClick = () => {
-    if (collapsible) {
-      setExpanded(!expanded);
-    }
-  };
+  if (collapsible) {
+    return (
+      <Card
+        title={t('usage_stats.cost_trend')}
+        collapsible
+        defaultCollapsed={defaultCollapsed}
+        headerExpanded={!defaultCollapsed}
+        onHeaderClick={() => {}}
+        summary={summary}
+        extra={capsule}
+      >
+        {renderBody()}
+      </Card>
+    );
+  }
 
   return (
-    <Card
+    <TelemetryChart
       title={t('usage_stats.cost_trend')}
-      collapsible={collapsible}
-      defaultCollapsed={defaultCollapsed}
-      headerExpanded={expanded}
-      onHeaderClick={handleHeaderClick}
-      summary={summary}
-      extra={
-        !collapsible || expanded ? (
-          <div className={styles.periodButtons}>
-            <Button
-              variant={period === 'hour' ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setPeriod('hour')}
-            >
-              {t('usage_stats.by_hour')}
-            </Button>
-            <Button
-              variant={period === 'day' ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setPeriod('day')}
-            >
-              {t('usage_stats.by_day')}
-            </Button>
-          </div>
-        ) : undefined
-      }
-    >
-      {loading ? (
-        <div className={styles.hint}>{t('common.loading')}</div>
-      ) : !hasPrices ? (
-        <div className={styles.hint}>{t('usage_stats.cost_need_price')}</div>
-      ) : !hasData ? (
-        <div className={styles.hint}>{t('usage_stats.cost_no_data')}</div>
-      ) : (
-        <div className={styles.chartWrapper}>
-          <div className={styles.chartArea}>
-            <div className={styles.chartScroller}>
-              <div
-                className={styles.chartCanvas}
-                style={
-                  period === 'hour'
-                    ? { minWidth: getHourChartMinWidth(chartData.labels.length, isMobile) }
-                    : undefined
-                }
-              >
-                <Line data={chartData} options={chartOptions} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </Card>
+      option={option ?? { series: [] }}
+      loading={loading}
+      extraControls={capsule}
+    />
   );
+
+  function renderBody() {
+    if (loading) return <div className={styles.hint}>{t('common.loading')}</div>;
+    if (!hasPrices) return <div className={styles.hint}>{t('usage_stats.cost_need_price')}</div>;
+    if (!chartData) return <div className={styles.hint}>{t('usage_stats.cost_no_data')}</div>;
+    return null;
+  }
 }
