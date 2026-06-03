@@ -818,6 +818,54 @@ export function extractTotalTokens(detail: unknown): number {
 }
 
 /**
+ * Coerce a token count field to a non-negative finite number.
+ */
+export function toTokenCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(value, 0) : 0;
+}
+
+/**
+ * Maximum of cached_tokens / cache_tokens for a detail entry.
+ */
+export function getCacheHitTokens(detail: UsageDetail): number {
+  const tokens = detail.tokens;
+  return Math.max(toTokenCount(tokens.cached_tokens), toTokenCount(tokens.cache_tokens));
+}
+
+/**
+ * Cold (non-cached) input tokens for a detail entry.
+ */
+export function getColdInputTokens(detail: UsageDetail): number {
+  const inputTokens = toTokenCount(detail.tokens.input_tokens);
+  return Math.max(inputTokens - getCacheHitTokens(detail), 0);
+}
+
+/**
+ * Cache hit rate as a percentage (0-100, one decimal).
+ */
+export function getCacheHitRate(inputTokens: number, cacheHitTokens: number): number {
+  const denominator = inputTokens + cacheHitTokens;
+  return denominator > 0 ? Number(((cacheHitTokens / denominator) * 100).toFixed(1)) : 0;
+}
+
+/**
+ * Extract a single token category value from a detail entry.
+ */
+export function getTokenBreakdownValue(
+  kind: 'input' | 'cache' | 'output',
+  detail: UsageDetail
+): number {
+  const tokens = detail.tokens;
+  if (kind === 'cache') {
+    return getCacheHitTokens(detail);
+  }
+  if (kind === 'output') {
+    return toTokenCount(tokens.output_tokens);
+  }
+  return getColdInputTokens(detail);
+}
+
+/**
  * Calculate latency statistics.
  */
 export function calculateLatencyStats(usageData: unknown): LatencyStats {

@@ -19,6 +19,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Select } from '@/components/ui/Select';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
+import { useGranularity } from '@/hooks/useGranularity';
 import { apiKeysApi, providersApi, type APIKeyEntry } from '@/services/api';
 import { useThemeStore, useConfigStore } from '@/stores';
 import type { OpenAIProviderConfig } from '@/types';
@@ -36,19 +37,14 @@ import {
 } from '@/components/usage';
 import {
   calculateCost,
-  type ChartData,
   getModelStats,
   filterUsageByTimeRange,
   collectUsageDetails,
   extractTotalTokens,
   filterUsageDetails,
-  formatDayLabel,
-  formatHourLabel,
   type UsageTimeRange,
 } from '@/utils/usage';
 import { maskApiKey } from '@/utils/format';
-import type { ChartOptions, ScriptableContext, TooltipItem } from 'chart.js';
-import { buildChartOptions } from '@/utils/usage/chartConfig';
 import styles from './UsagePage.module.scss';
 
 // Register Chart.js components
@@ -90,13 +86,6 @@ const CHART_COMPARE_MODE_STORAGE_KEY = 'cli-proxy-usage-chart-compare-mode-v1';
 const CREDENTIAL_FILTER_STORAGE_KEY = 'cli-proxy-usage-client-api-key-filter-v1';
 const ALL_FILTER = 'all';
 const REQUEST_EVENTS_ALL_FILTER = '__all__';
-const EMPTY_CHART_DATA: ChartData = { labels: [], datasets: [] };
-const TOKEN_FOCUS_CHART_COLORS = {
-  input: '#00E5FF',
-  cache: '#7C4DFF',
-  output: '#22c55e',
-  rate: '#94a3b8',
-};
 
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -259,39 +248,6 @@ const formatCredentialShortName = (value: string): string => {
   return maskApiKey(trimmed) || trimmed;
 };
 
-const withAlpha = (hex: string, alpha: number): string => {
-  const normalized = hex.replace('#', '');
-  const r = Number.parseInt(normalized.slice(0, 2), 16);
-  const g = Number.parseInt(normalized.slice(2, 4), 16);
-  const b = Number.parseInt(normalized.slice(4, 6), 16);
-  if (![r, g, b].every((channel) => Number.isFinite(channel))) {
-    return hex;
-  }
-  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(alpha, 1))})`;
-};
-
-const CHART_COLORS = ['#00E5FF', '#7C4DFF'];
-const TAIL_LINE_COLOR = 'rgba(255, 255, 255, 0.22)';
-
-const buildTelemetryAreaGradient = (
-  context: ScriptableContext<'line'>,
-  color: string,
-  topAlpha = 0.14
-): string | CanvasGradient => {
-  const area = context.chart.chartArea;
-  if (!area) return withAlpha(color, topAlpha);
-
-  const gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, withAlpha(color, topAlpha));
-  gradient.addColorStop(0.42, withAlpha(color, topAlpha * 0.42));
-  gradient.addColorStop(1, withAlpha(color, 0));
-  return gradient;
-};
-
-type TrendMetric = 'requests' | 'tokens' | 'cost';
-type TrendPeriod = 'hour' | 'day';
-type TrendGranularity = TrendPeriod;
-
 interface ClientApiKeyInfo {
   key: string;
   label: string;
@@ -340,74 +296,6 @@ const mergeClientApiKeyEntries = (
   return result;
 };
 
-const getTrendValue = (
-  metric: TrendMetric,
-  detail: ReturnType<typeof collectUsageDetails>[number],
-  modelPrices: Parameters<typeof calculateCost>[1]
-) => {
-  if (metric === 'tokens') {
-    return extractTotalTokens(detail);
-  }
-  if (metric === 'cost') {
-    return calculateCost(detail, modelPrices);
-  }
-  return 1;
-};
-
-const toTokenCount = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) ? Math.max(value, 0) : 0;
-
-const getCacheHitTokens = (detail: ReturnType<typeof collectUsageDetails>[number]): number => {
-  const tokens = detail.tokens;
-  return Math.max(toTokenCount(tokens.cached_tokens), toTokenCount(tokens.cache_tokens));
-};
-
-const getColdInputTokens = (detail: ReturnType<typeof collectUsageDetails>[number]): number => {
-  const inputTokens = toTokenCount(detail.tokens.input_tokens);
-  return Math.max(inputTokens - getCacheHitTokens(detail), 0);
-};
-
-const getCacheHitRate = (inputTokens: number, cacheHitTokens: number): number => {
-  const denominator = inputTokens + cacheHitTokens;
-  return denominator > 0 ? Number(((cacheHitTokens / denominator) * 100).toFixed(1)) : 0;
-};
-
-const formatChartValue = (value: number): string => {
-  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
-  if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
-  return value.toLocaleString();
-};
-
-const getTokenBreakdownValue = (
-  kind: 'input' | 'cache' | 'output',
-  detail: ReturnType<typeof collectUsageDetails>[number]
-): number => {
-  const tokens = detail.tokens;
-  if (kind === 'cache') {
-    return getCacheHitTokens(detail);
-  }
-  if (kind === 'output') {
-    return toTokenCount(tokens.output_tokens);
-  }
-  return getColdInputTokens(detail);
-};
-
-const buildHourlyLabels = (hourWindowHours: number | undefined): string[] => {
-  const hourMs = 60 * 60 * 1000;
-  const resolvedHourWindow =
-    Number.isFinite(hourWindowHours) && hourWindowHours && hourWindowHours > 0
-      ? Math.min(Math.max(Math.floor(hourWindowHours), 1), 24 * 31)
-      : 24;
-  const currentHour = new Date();
-  currentHour.setMinutes(0, 0, 0);
-  const earliest = new Date(currentHour);
-  earliest.setHours(earliest.getHours() - (resolvedHourWindow - 1));
-  const earliestTime = earliest.getTime();
-  return Array.from({ length: resolvedHourWindow }, (_, index) =>
-    formatHourLabel(new Date(earliestTime + index * hourMs))
-  );
-};
-
 interface UsageViewScope {
   usage: ReturnType<typeof useUsageData>['usage'];
   timeRange: UsageTimeRange;
@@ -438,9 +326,14 @@ export function UsagePage() {
   const [credentialFilter, setCredentialFilter] = useState<string>(loadCredentialFilter);
   const [modelPanelTab, setModelPanelTab] = useState<'stats' | 'credentials' | 'prices'>('stats');
   const [clientApiKeyEntries, setClientApiKeyEntries] = useState<APIKeyEntry[]>([]);
-  const [chartGranularity, setChartGranularity] = useState<TrendGranularity>('hour');
   const [activeTrendTab, setActiveTrendTab] = useState<string>('requests');
   const [detailModelFilter, setDetailModelFilter] = useState<string>(REQUEST_EVENTS_ALL_FILTER);
+
+  // Per-card granularity state. Each chart card owns its own HR/DAY toggle.
+  const requestsGranularity = useGranularity('usage_trend_requests');
+  const tokensGranularity = useGranularity('usage_trend_tokens');
+  const costGranularity = useGranularity('usage_cost');
+  const doughnutGranularity = useGranularity('usage_doughnut');
 
   // Data hook
   const {
@@ -827,344 +720,6 @@ export function UsagePage() {
     return modelNames.includes(detailModelFilter) ? detailModelFilter : REQUEST_EVENTS_ALL_FILTER;
   }, [detailModelFilter, modelNames]);
 
-  const buildTrendChartData = useCallback(
-    (metric: TrendMetric, period: TrendPeriod): ChartData => {
-      if (metric === 'cost' && Object.keys(visibleModelPrices).length === 0) {
-        return { labels: [], datasets: [] };
-      }
-
-      const details = scopedDetails;
-      const labels =
-        period === 'hour'
-          ? buildHourlyLabels(hourWindowHours)
-          : Array.from(
-              new Set(
-                details
-                  .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
-                  .filter(Boolean)
-              )
-            ).sort();
-      const dataByKey = new Map<string, number[]>();
-      const labelIndex = new Map(labels.map((label, index) => [label, index]));
-      const lineLabels = new Map<string, string>();
-
-      details.forEach((detail) => {
-        const timestamp = detail.__timestampMs || 0;
-        if (!Number.isFinite(timestamp) || timestamp <= 0) return;
-
-        const label =
-          period === 'hour'
-            ? (() => {
-                const date = new Date(timestamp);
-                date.setMinutes(0, 0, 0);
-                return formatHourLabel(date);
-              })()
-            : formatDayLabel(new Date(timestamp));
-        const index = labelIndex.get(label);
-        if (index === undefined) return;
-
-        const credentialKey = String(detail.__apiKey ?? '').trim() || 'unknown';
-        const keyInfo = clientApiKeyInfoMap.get(credentialKey);
-        const key =
-          chartCompareMode === 'credential' ? credentialKey : detail.__modelName || 'Unknown';
-        const displayLabel =
-          chartCompareMode === 'credential'
-            ? keyInfo?.label || formatCredentialShortName(key)
-            : key;
-
-        if (!dataByKey.has(key)) {
-          dataByKey.set(key, new Array(labels.length).fill(0));
-          lineLabels.set(key, displayLabel);
-        }
-        dataByKey.get(key)![index] += getTrendValue(metric, detail, visibleModelPrices);
-      });
-
-      const selectedLines =
-        resolvedChartLines.length > 0 ? resolvedChartLines : DEFAULT_CHART_LINES;
-      const rawSeries = selectedLines.map((line) => {
-        const isAll = line === ALL_FILTER;
-        const data = isAll
-          ? labels.map((_, labelIndexValue) =>
-              Array.from(dataByKey.values()).reduce(
-                (sum, values) => sum + (values[labelIndexValue] || 0),
-                0
-              )
-            )
-          : dataByKey.get(line) || new Array(labels.length).fill(0);
-        const total = data.reduce((sum, value) => sum + value, 0);
-
-        return {
-          line,
-          total,
-          label: isAll
-            ? chartCompareMode === 'credential'
-              ? t('usage_stats.chart_line_all_credentials')
-              : t('usage_stats.chart_line_all')
-            : lineLabels.get(line) || formatCredentialShortName(line),
-          data,
-        };
-      });
-      const rankedLines = [...rawSeries].sort((a, b) => b.total - a.total);
-      const rankByLine = new Map(rankedLines.map((series, index) => [series.line, index]));
-      const datasets = rawSeries.map((series) => {
-        const rank = rankByLine.get(series.line) ?? 0;
-        const isPrimary = rank === 0;
-        const isSecondary = rank === 1;
-        const color = isPrimary
-          ? CHART_COLORS[0]
-          : isSecondary
-            ? CHART_COLORS[1]
-            : TAIL_LINE_COLOR;
-
-        return {
-          label: series.label,
-          data: series.data,
-          borderColor: color,
-          backgroundColor: isPrimary
-            ? (context: ScriptableContext<'line'>) => buildTelemetryAreaGradient(context, color, 0.16)
-            : 'rgba(255, 255, 255, 0)',
-          pointBackgroundColor: color,
-          pointBorderColor: color,
-          borderWidth: isPrimary ? 2.4 : isSecondary ? 1.8 : 1.15,
-          pointRadius: 0,
-          pointHoverRadius: isPrimary ? 5 : 3,
-          pointHitRadius: 10,
-          pointBorderWidth: 0,
-          pointHoverBorderWidth: 2,
-          fill: isPrimary,
-          tension: 0.42,
-          order: rank,
-        };
-      });
-
-      return { labels, datasets };
-    },
-    [
-      chartCompareMode,
-      clientApiKeyInfoMap,
-      hourWindowHours,
-      resolvedChartLines,
-      scopedDetails,
-      t,
-      visibleModelPrices,
-    ]
-  );
-  const buildFocusedTokenChartData = useCallback(
-    (modelName: string, period: TrendPeriod): ChartData => {
-      const details = scopedDetails.filter((detail) => detail.__modelName === modelName);
-      const labels =
-        period === 'hour'
-          ? buildHourlyLabels(hourWindowHours)
-          : Array.from(
-              new Set(
-                details
-                  .map((detail) => formatDayLabel(new Date(detail.__timestampMs || 0)))
-                  .filter(Boolean)
-              )
-            ).sort();
-      const labelIndex = new Map(labels.map((label, index) => [label, index]));
-      const inputData = new Array(labels.length).fill(0);
-      const outputData = new Array(labels.length).fill(0);
-      const cacheData = new Array(labels.length).fill(0);
-
-      details.forEach((detail) => {
-        const timestamp = detail.__timestampMs || 0;
-        if (!Number.isFinite(timestamp) || timestamp <= 0) return;
-
-        const label =
-          period === 'hour'
-            ? (() => {
-                const date = new Date(timestamp);
-                date.setMinutes(0, 0, 0);
-                return formatHourLabel(date);
-              })()
-            : formatDayLabel(new Date(timestamp));
-        const index = labelIndex.get(label);
-        if (index === undefined) return;
-
-        inputData[index] += getTokenBreakdownValue('input', detail);
-        outputData[index] += getTokenBreakdownValue('output', detail);
-        cacheData[index] += getTokenBreakdownValue('cache', detail);
-      });
-
-      const cacheHitRateData = labels.map((_, index) =>
-        getCacheHitRate(inputData[index], cacheData[index])
-      );
-
-      return {
-        labels,
-        datasets: [
-          {
-            label: t('usage_stats.input_tokens'),
-            data: inputData,
-            borderColor: TOKEN_FOCUS_CHART_COLORS.input,
-            backgroundColor: (context: ScriptableContext<'line'>) =>
-              buildTelemetryAreaGradient(context, TOKEN_FOCUS_CHART_COLORS.input, 0.15),
-            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.input,
-            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.input,
-            borderWidth: 2.4,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            pointHitRadius: 10,
-            fill: true,
-            tension: 0.42,
-          },
-          {
-            label: t('usage_stats.output_tokens'),
-            data: outputData,
-            borderColor: TOKEN_FOCUS_CHART_COLORS.output,
-            backgroundColor: 'rgba(255, 255, 255, 0)',
-            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.output,
-            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.output,
-            borderWidth: 1.9,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            pointHitRadius: 10,
-            fill: false,
-            tension: 0.42,
-          },
-          {
-            label: t('usage_stats.cache_hit'),
-            data: cacheData,
-            borderColor: TOKEN_FOCUS_CHART_COLORS.cache,
-            backgroundColor: 'rgba(255, 255, 255, 0)',
-            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.cache,
-            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.cache,
-            borderWidth: 1.8,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            pointHitRadius: 10,
-            fill: false,
-            tension: 0.42,
-          },
-          {
-            label: t('usage_stats.cache_hit_rate'),
-            data: cacheHitRateData,
-            borderColor: TOKEN_FOCUS_CHART_COLORS.rate,
-            backgroundColor: 'rgba(255, 255, 255, 0)',
-            pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.rate,
-            pointBorderColor: TOKEN_FOCUS_CHART_COLORS.rate,
-            borderWidth: 1.4,
-            pointRadius: 0,
-            pointHoverRadius: 3,
-            pointHitRadius: 10,
-            fill: false,
-            tension: 0.42,
-            yAxisID: 'yRate',
-            borderDash: [5, 4],
-          },
-        ],
-      };
-    },
-    [hourWindowHours, scopedDetails, t]
-  );
-
-  const effectiveChartGranularity = timeRange === 'today' ? 'hour' : chartGranularity;
-  const chartPeriod: TrendPeriod = effectiveChartGranularity === 'hour' ? 'hour' : 'day';
-  const handleChartGranularityChange = useCallback(
-    (next: TrendGranularity) => {
-      if (timeRange === 'today' && next === 'day') {
-        return;
-      }
-      setChartGranularity(next);
-    },
-    [timeRange]
-  );
-
-  const requestsChartData = useMemo(
-    () =>
-      renderHeavyUsageSections ? buildTrendChartData('requests', chartPeriod) : EMPTY_CHART_DATA,
-    [buildTrendChartData, chartPeriod, renderHeavyUsageSections]
-  );
-  const tokensChartData = useMemo(
-    () =>
-      renderHeavyUsageSections
-        ? effectiveDetailModelFilter !== REQUEST_EVENTS_ALL_FILTER
-          ? buildFocusedTokenChartData(effectiveDetailModelFilter, chartPeriod)
-          : buildTrendChartData('tokens', chartPeriod)
-        : EMPTY_CHART_DATA,
-    [
-      buildFocusedTokenChartData,
-      buildTrendChartData,
-      chartPeriod,
-      effectiveDetailModelFilter,
-      renderHeavyUsageSections,
-    ]
-  );
-  const requestsChartOptions = useMemo(
-    () =>
-      buildChartOptions({
-        period: chartPeriod,
-        labels: requestsChartData.labels,
-        isDark,
-        isMobile,
-      }),
-    [chartPeriod, isDark, isMobile, requestsChartData.labels]
-  );
-  const tokensChartOptions = useMemo(() => {
-    const baseOptions = buildChartOptions({
-      period: chartPeriod,
-      labels: tokensChartData.labels,
-      isDark,
-      isMobile,
-    });
-
-    if (effectiveDetailModelFilter === REQUEST_EVENTS_ALL_FILTER) {
-      return baseOptions;
-    }
-
-    const yScale = baseOptions.scales?.y as Record<string, unknown> | undefined;
-    const tooltip = baseOptions.plugins?.tooltip as Record<string, unknown> | undefined;
-    const tooltipCallbacks = tooltip?.callbacks as Record<string, unknown> | undefined;
-    const tickColor = isDark ? 'rgba(255, 255, 255, 0.72)' : 'rgba(17, 24, 39, 0.72)';
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(17, 24, 39, 0.06)';
-
-    return {
-      ...baseOptions,
-      scales: {
-        ...baseOptions.scales,
-        y: {
-          ...yScale,
-          position: 'left',
-        },
-        yRate: {
-          type: 'linear',
-          position: 'right',
-          min: 0,
-          max: 100,
-          grid: {
-            display: false,
-            color: gridColor,
-          },
-          border: { display: false },
-          ticks: {
-            display: true,
-            color: tickColor,
-            callback: (value: string | number) => `${Number(value).toFixed(0)}%`,
-          },
-        },
-      },
-      plugins: {
-        ...baseOptions.plugins,
-        tooltip: {
-          ...tooltip,
-          callbacks: {
-            ...tooltipCallbacks,
-            label: (context: TooltipItem<'line'>) => {
-              const label = context.dataset.label || '';
-              const value = Number(context.raw);
-              if (!Number.isFinite(value)) return label;
-              const dataset = context.dataset as { yAxisID?: string };
-              if (dataset.yAxisID === 'yRate') {
-                return `  ${label}: ${value.toFixed(1)}%`;
-              }
-              return `  ${label}: ${formatChartValue(value)}`;
-            },
-          },
-        },
-      },
-    } as ChartOptions<'line'>;
-  }, [chartPeriod, effectiveDetailModelFilter, isDark, isMobile, tokensChartData.labels]);
   const topCredentialRows = useMemo(
     () => credentialRows.filter((row) => row.requests > 0).slice(0, 3),
     [credentialRows]
@@ -1225,40 +780,6 @@ export function UsagePage() {
               ariaLabel={t('usage_stats.range_filter')}
               fullWidth={false}
             />
-          </div>
-          <div className={styles.timeRangeGroup}>
-            <span className={styles.timeRangeLabel}>{t('usage_stats.chart_granularity')}</span>
-            <div
-              className={styles.globalGranularityGroup}
-              role="group"
-              aria-label={t('usage_stats.chart_granularity')}
-            >
-              <button
-                type="button"
-                className={
-                  effectiveChartGranularity === 'hour'
-                    ? styles.globalGranularityButtonActive
-                    : styles.globalGranularityButton
-                }
-                aria-pressed={effectiveChartGranularity === 'hour'}
-                onClick={() => handleChartGranularityChange('hour')}
-              >
-                {t('usage_stats.by_hour')}
-              </button>
-              <button
-                type="button"
-                className={
-                  effectiveChartGranularity === 'day'
-                    ? styles.globalGranularityButtonActive
-                    : styles.globalGranularityButton
-                }
-                aria-pressed={effectiveChartGranularity === 'day'}
-                onClick={() => handleChartGranularityChange('day')}
-                disabled={timeRange === 'today'}
-              >
-                {t('usage_stats.by_day')}
-              </button>
-            </div>
           </div>
           <div className={styles.timeRangeGroup}>
             <span className={styles.timeRangeLabel}>{t('usage_stats.credential_filter')}</span>
@@ -1389,10 +910,6 @@ export function UsagePage() {
         usage={visibleScopedUsage}
         loading={isInitialLoading}
         modelPrices={visibleModelPrices}
-        requestsChartData={requestsChartData}
-        requestsChartOptions={requestsChartOptions}
-        tokensChartData={tokensChartData}
-        tokensChartOptions={tokensChartOptions}
       />
 
       {renderHeavyUsageSections ? (
@@ -1402,20 +919,37 @@ export function UsagePage() {
               key: 'requests',
               label: t('usage_stats.requests_trend'),
               chartProps: {
-                chartData: requestsChartData,
+                metric: 'requests',
+                scopedDetails,
+                chartCompareMode,
+                clientApiKeyInfoMap,
+                resolvedChartLines,
+                hourWindowHours,
                 loading: isInitialLoading,
                 isMobile,
                 isNarrowScreen,
                 isDark,
                 emptyText: t('usage_stats.no_data'),
                 timeRange,
+                period: requestsGranularity.granularity,
+                onPeriodChange: requestsGranularity.setGranularity,
+                cardId: 'usage_trend_requests',
               },
             },
             {
               key: 'tokens',
               label: t('usage_stats.tokens_trend'),
               chartProps: {
-                chartData: tokensChartData,
+                metric: 'tokens',
+                scopedDetails,
+                chartCompareMode,
+                clientApiKeyInfoMap,
+                resolvedChartLines,
+                hourWindowHours,
+                focusedModel:
+                  effectiveDetailModelFilter === REQUEST_EVENTS_ALL_FILTER
+                    ? null
+                    : effectiveDetailModelFilter,
                 loading: isInitialLoading,
                 isMobile,
                 isNarrowScreen,
@@ -1423,13 +957,21 @@ export function UsagePage() {
                 emptyText: t('usage_stats.no_data'),
                 extra: tokenTrendFocusExtra,
                 timeRange,
+                period: tokensGranularity.granularity,
+                onPeriodChange: tokensGranularity.setGranularity,
+                cardId: 'usage_trend_tokens',
               },
             },
             {
               key: 'cost',
               label: t('usage_stats.cost_trend'),
               chartProps: {
-                chartData: { labels: [], datasets: [] },
+                metric: 'requests',
+                scopedDetails: [],
+                chartCompareMode,
+                clientApiKeyInfoMap,
+                resolvedChartLines,
+                hourWindowHours,
                 loading: isInitialLoading,
                 isMobile,
                 isNarrowScreen,
@@ -1438,6 +980,9 @@ export function UsagePage() {
                   ? t('usage_stats.cost_no_data')
                   : t('usage_stats.cost_need_price'),
                 timeRange,
+                period: costGranularity.granularity,
+                onPeriodChange: costGranularity.setGranularity,
+                cardId: 'usage_cost',
               },
               costChartProps: {
                 usage,
@@ -1448,8 +993,8 @@ export function UsagePage() {
                 modelPrices: visibleModelPrices,
                 hourWindowHours,
                 timeRange,
-                period: chartPeriod,
-                onPeriodChange: handleChartGranularityChange,
+                period: costGranularity.granularity,
+                onPeriodChange: costGranularity.setGranularity,
               },
             },
           ]}
@@ -1481,11 +1026,11 @@ export function UsagePage() {
           loading={isInitialLoading}
           isDark={isDark}
           scopedUsage={visibleScopedUsage}
-          chartPeriod={chartPeriod}
+          chartPeriod={doughnutGranularity.granularity}
           hourWindowHours={hourWindowHours}
           modelPrices={visibleModelPrices}
           timeRange={timeRange}
-          onChartPeriodChange={handleChartGranularityChange}
+          onChartPeriodChange={doughnutGranularity.setGranularity}
         />
       )}
 
