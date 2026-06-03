@@ -3,7 +3,6 @@
  * Pure logic migrated from baseline modules/usage.js.
  */
 
-import type { ScriptableContext } from 'chart.js';
 import type { LatencyAccumulator, LatencyStats } from './usage/latency';
 import {
   addLatencySample,
@@ -1453,10 +1452,7 @@ export interface ChartDataset {
   label: string;
   data: number[];
   borderColor: string;
-  backgroundColor:
-    | string
-    | CanvasGradient
-    | ((context: ScriptableContext<'line'>) => string | CanvasGradient);
+  backgroundColor: string;
   pointBackgroundColor?: string;
   pointBorderColor?: string;
   pointRadius?: number;
@@ -1517,24 +1513,8 @@ const withAlpha = (hex: string, alpha: number) => {
   return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clamped})`;
 };
 
-const buildAreaGradient = (
-  context: ScriptableContext<'line'>,
-  baseHex: string,
-  fallback: string
-) => {
-  const chart = context.chart;
-  const ctx = chart.ctx;
-  const area = chart.chartArea;
-
-  if (!area) {
-    return fallback;
-  }
-
-  const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, withAlpha(baseHex, 0.28));
-  gradient.addColorStop(0.6, withAlpha(baseHex, 0.12));
-  gradient.addColorStop(1, withAlpha(baseHex, 0.02));
-  return gradient;
+const buildAreaGradient = (baseHex: string): string => {
+  return withAlpha(baseHex, 0.18);
 };
 
 /**
@@ -1582,7 +1562,7 @@ export function buildChartData(
       data,
       borderColor: style.borderColor,
       backgroundColor: shouldFill
-        ? (ctx) => buildAreaGradient(ctx, style.borderColor, style.backgroundColor)
+        ? buildAreaGradient(style.borderColor)
         : style.backgroundColor,
       pointBackgroundColor: style.borderColor,
       pointBorderColor: style.borderColor,

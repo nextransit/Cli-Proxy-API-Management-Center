@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ScriptableContext } from 'chart.js';
 import { Card } from '@/components/ui/Card';
 import { TelemetryChart } from '@/components/charts/TelemetryChart';
 import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
@@ -65,21 +64,6 @@ const withAlpha = (hex: string, alpha: number): string => {
     return hex;
   }
   return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(alpha, 1))})`;
-};
-
-const buildTelemetryAreaGradient = (
-  context: ScriptableContext<'line'>,
-  color: string,
-  topAlpha = 0.14
-): string | CanvasGradient => {
-  const area = context.chart.chartArea;
-  if (!area) return withAlpha(color, topAlpha);
-
-  const gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, withAlpha(color, topAlpha));
-  gradient.addColorStop(0.42, withAlpha(color, topAlpha * 0.42));
-  gradient.addColorStop(1, withAlpha(color, 0));
-  return gradient;
 };
 
 const formatCredentialShortName = (value: string): string => {
@@ -335,7 +319,7 @@ function buildTrendChartData(
       data: series.data,
       borderColor: color,
       backgroundColor: isPrimary
-        ? (context: ScriptableContext<'line'>) => buildTelemetryAreaGradient(context, color, 0.16)
+        ? withAlpha(color, 0.16)
         : 'rgba(255, 255, 255, 0)',
       pointBackgroundColor: color,
       pointBorderColor: color,
@@ -408,8 +392,7 @@ function buildFocusedTokenChartData(
         label: t('usage_stats.input_tokens'),
         data: inputData,
         borderColor: TOKEN_FOCUS_CHART_COLORS.input,
-        backgroundColor: (context: ScriptableContext<'line'>) =>
-          buildTelemetryAreaGradient(context, TOKEN_FOCUS_CHART_COLORS.input, 0.15),
+        backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.input, 0.15),
         pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.input,
         pointBorderColor: TOKEN_FOCUS_CHART_COLORS.input,
         borderWidth: 2.4,

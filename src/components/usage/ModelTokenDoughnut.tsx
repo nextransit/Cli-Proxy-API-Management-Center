@@ -1,7 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ChartData, ChartOptions, ScriptableContext } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
 import * as echarts from 'echarts';
 import {
   formatUsd,
@@ -13,9 +11,61 @@ import {
   type ModelPrice,
   type UsageTimeRange,
 } from '@/utils/usage';
+import { useThemeStore } from '@/stores';
+import { useEChartsResize } from '@/hooks/useEChartsResize';
+import { registerCliThemes } from '@/utils/echarts/registerThemes';
 import { TelemetryChart } from '@/components/charts/TelemetryChart';
 import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
 import styles from '@/pages/UsagePage.module.scss';
+
+registerCliThemes();
+
+interface DoughnutRingProps {
+  option: echarts.EChartsOption;
+  height: number;
+  className?: string;
+}
+
+function DoughnutRing({ option, height, className }: DoughnutRingProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const instanceRef = useRef<echarts.EChartsType | null>(null);
+  const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const instance = echarts.init(
+      container,
+      resolvedTheme === 'dark' ? 'cli-dark' : 'cli-light',
+      { renderer: 'canvas' }
+    );
+    instanceRef.current = instance;
+    return () => {
+      instance.dispose();
+      instanceRef.current = null;
+    };
+  }, [resolvedTheme]);
+
+  useEffect(() => {
+    const instance = instanceRef.current;
+    if (!instance) return;
+    instance.setOption(option, { notMerge: false, lazyUpdate: true });
+  }, [option]);
+
+  useEChartsResize(containerRef, () => {
+    instanceRef.current?.resize();
+  });
+
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ width: '100%', height }}
+      data-testid="doughnut-mount"
+    />
+  );
+}
+
 
 export interface ModelTokenDoughnutProps {
   modelStats: ModelStatsSummary[];
@@ -46,17 +96,6 @@ const DOUGHNUT_COLORS: GradientColor[] = [
 ];
 
 const MAX_SEGMENTS = 7;
-
-function toGradient(
-  ctx: CanvasRenderingContext2D,
-  area: { top: number; bottom: number },
-  color: GradientColor
-): CanvasGradient {
-  const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, color.light);
-  gradient.addColorStop(1, color.base);
-  return gradient;
-}
 
 function formatTokens(num: number): string {
   if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
@@ -399,7 +438,7 @@ export function ModelTokenDoughnut({
 }: ModelTokenDoughnutProps) {
   const { t } = useTranslation();
 
-  const { chartData, chartOptions, totalTokens, segments } = useMemo(() => {
+  const { doughnutOption, totalTokens, segments } = useMemo(() => {
     const sorted = [...modelStats].sort((a, b) => b.tokens - a.tokens);
     const top = sorted.slice(0, MAX_SEGMENTS - 1);
     const otherTokens = sorted.slice(MAX_SEGMENTS - 1).reduce((sum, s) => sum + s.tokens, 0);
@@ -429,78 +468,68 @@ export function ModelTokenDoughnut({
 
     const total = segments.reduce((sum, s) => sum + s.tokens, 0);
 
-    const data: ChartData<'doughnut', number[], string> = {
-      labels: segments.map((s) => s.label),
-      datasets: [
+    const ringBorder = isDark ? '#0f172a' : '#ffffff';
+    const textColor = isDark ? '#f8fafc' : '#111827';
+    const tooltipBg = isDark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.98)';
+    const tooltipBorder = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)';
+
+    const data = segments.map((s) => ({
+      name: s.label,
+      value: s.tokens,
+      itemStyle: { color: s.color.base },
+    }));
+
+    const option: echarts.EChartsOption = {
+      backgroundColor: 'transparent',
+      animationDuration: 800,
+      animationEasing: 'cubicOut',
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: tooltipBg,
+        borderColor: tooltipBorder,
+        borderWidth: 1,
+        padding: 12,
+        textStyle: { color: textColor, fontSize: 12 },
+        formatter: (params: unknown) => {
+          const item = params as { name?: string; data?: { name?: string } | number; value?: number; dataIndex?: number };
+          const idx = typeof item.dataIndex === 'number' ? item.dataIndex : 0;
+          const seg = segments[idx];
+          if (!seg) return '';
+          const pct = total > 0 ? ((seg.tokens / total) * 100).toFixed(1) : '0';
+          const lines = [`${seg.label}: ${formatTokens(seg.tokens)} (${pct}%)`];
+          if (hasPrices && seg.cost > 0) {
+            lines.push(`${t('usage_stats.cost_trend')}: ${formatUsd(seg.cost)}`);
+          }
+          return lines.join('<br/>');
+        },
+      },
+      series: [
         {
-          data: segments.map((s) => s.tokens),
-          backgroundColor: (ctx: ScriptableContext<'doughnut'>) => {
-            const { chart } = ctx;
-            const area = chart.chartArea;
-            if (!area) return segments[ctx.dataIndex]?.color.base ?? '#64748b';
-            return toGradient(
-              chart.ctx,
-              area,
-              segments[ctx.dataIndex]?.color ?? { base: '#64748b', light: '#94a3b8' }
-            );
+          type: 'pie',
+          radius: ['52%', '78%'],
+          center: ['50%', '50%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderColor: ringBorder,
+            borderWidth: 3,
+            borderRadius: 6,
           },
-          borderColor: isDark ? '#0f172a' : '#ffffff',
-          borderWidth: 3,
-          borderRadius: 6,
-          hoverBorderWidth: 4,
-          hoverBorderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)',
-          borderJoinStyle: 'round' as CanvasLineJoin,
-          spacing: 2,
+          label: { show: false },
+          labelLine: { show: false },
+          emphasis: {
+            scale: true,
+            scaleSize: 6,
+            itemStyle: {
+              borderWidth: 4,
+              borderColor: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)',
+            },
+          },
+          data,
         },
       ],
     };
 
-    const textColor = isDark ? '#f8fafc' : '#111827';
-    const subColor = isDark ? '#64748b' : '#6b7280';
-    const borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(17,24,39,0.1)';
-
-    const options: ChartOptions<'doughnut'> = {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '68%',
-      animation: {
-        animateScale: true,
-        animateRotate: true,
-        duration: 800,
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: isDark ? 'rgba(15,23,42,0.94)' : 'rgba(255,255,255,0.98)',
-          titleColor: textColor,
-          bodyColor: subColor,
-          borderColor,
-          borderWidth: 1,
-          padding: 12,
-          displayColors: true,
-          usePointStyle: true,
-          boxPadding: 4,
-          callbacks: {
-            label: (ctx) => {
-              const seg = segments[ctx.dataIndex];
-              if (!seg) return '';
-              const pct = total > 0 ? ((seg.tokens / total) * 100).toFixed(1) : '0';
-              const parts = [`  ${seg.label}: ${formatTokens(seg.tokens)} (${pct}%)`];
-              if (hasPrices && seg.cost > 0) {
-                parts.push(`  ${t('usage_stats.cost_trend')}: ${formatUsd(seg.cost)}`);
-              }
-              return parts;
-            },
-          },
-        },
-      },
-      hover: {
-        mode: 'nearest' as const,
-        intersect: true,
-      },
-    };
-
-    return { chartData: data, chartOptions: options, totalTokens: total, segments };
+    return { doughnutOption: option, totalTokens: total, segments };
   }, [modelStats, isDark, hasPrices, t]);
 
   if (loading) {
@@ -554,7 +583,7 @@ export function ModelTokenDoughnut({
             <span className={styles.tokenDistTotal}>{formatTokens(totalTokens)}</span>
             <span className={styles.tokenDistLabel}>{t('usage_stats.total_tokens')}</span>
           </div>
-          <Doughnut data={chartData} options={chartOptions} />
+          <DoughnutRing option={doughnutOption} height={220} />
         </div>
 
         <div className={styles.tokenDistGrid}>
