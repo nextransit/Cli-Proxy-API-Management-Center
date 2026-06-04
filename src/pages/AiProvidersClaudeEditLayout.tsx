@@ -44,6 +44,7 @@ export type ClaudeEditOutletContext = {
 
 const buildEmptyForm = (): ClaudeEditFormState => ({
   apiKeys: [''],
+  apiKeyWeights: [1],
   priority: undefined,
   prefix: '',
   baseUrl: '',
@@ -97,6 +98,7 @@ const normalizeCloakConfig = (cloak: ClaudeEditFormState['cloak']) => {
 
 const buildClaudeBaseline = (form: ClaudeEditFormState): ClaudeEditBaseline => ({
   apiKeys: form.apiKeys.map((k) => k.trim()),
+  apiKeyWeights: form.apiKeyWeights.map((w) => (Number.isFinite(w) ? Math.trunc(w) : 1)),
   priority:
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
@@ -110,6 +112,9 @@ const buildClaudeBaseline = (form: ClaudeEditFormState): ClaudeEditBaseline => (
 
 const buildFormFromClaudeBaseline = (baseline: ClaudeEditBaseline): ClaudeEditFormState => ({
   apiKeys: baseline.apiKeys.length ? baseline.apiKeys : [''],
+  apiKeyWeights: baseline.apiKeyWeights.length
+    ? baseline.apiKeyWeights.map((w) => (Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1))
+    : [1],
   priority: baseline.priority ?? undefined,
   prefix: baseline.prefix,
   baseUrl: baseline.baseUrl,
@@ -279,12 +284,25 @@ export function AiProvidersClaudeEditLayout() {
     if (initialData) {
       // Collect all API keys from configs with the same baseUrl
       const apiKeysFromSameBaseUrl = sameBaseUrlConfigs.map((c) => c.apiKey);
+      const apiKeyWeightsFromSameBaseUrl = sameBaseUrlConfigs.map((c) => {
+        const w = Number(c.weight);
+        return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+      });
       const seededForm: ClaudeEditFormState = {
         ...initialData,
         headers: headersToEntries(initialData.headers),
         modelEntries: modelsToEntries(initialData.models),
         excludedText: excludedModelsToText(initialData.excludedModels),
         apiKeys: apiKeysFromSameBaseUrl.length > 0 ? apiKeysFromSameBaseUrl : [initialData.apiKey],
+        apiKeyWeights:
+          apiKeysFromSameBaseUrl.length > 0
+            ? apiKeyWeightsFromSameBaseUrl
+            : [
+                (() => {
+                  const w = Number(initialData.weight);
+                  return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+                })(),
+              ],
       };
       const available = seededForm.modelEntries.map((entry) => entry.name.trim()).filter(Boolean);
       const baseline = buildClaudeBaseline(seededForm);
@@ -348,10 +366,18 @@ export function AiProvidersClaudeEditLayout() {
     if (baselineKeys.length !== formKeys.length) return true;
     return baselineKeys.some((k, i) => k !== formKeys[i]);
   }, [baseline, form.apiKeys]);
+  const isApiKeyWeightsDirty = useMemo(() => {
+    if (!baseline) return false;
+    const baselineWeights = baseline.apiKeyWeights;
+    const formWeights = form.apiKeyWeights.map((w) => (Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1));
+    if (baselineWeights.length !== formWeights.length) return true;
+    return baselineWeights.some((w, i) => w !== formWeights[i]);
+  }, [baseline, form.apiKeyWeights]);
   const isDirty =
     Boolean(draft?.initialized) &&
     baseline !== null &&
     (isApiKeysDirty ||
+      isApiKeyWeightsDirty ||
       baseline.priority !== normalizedPriority ||
       baseline.prefix !== String(form.prefix ?? '').trim() ||
       baseline.baseUrl !== String(form.baseUrl ?? '').trim() ||
@@ -478,9 +504,18 @@ export function AiProvidersClaudeEditLayout() {
       };
 
       // Create one config per API key
-      const newConfigs: ProviderKeyConfig[] = validApiKeys.map((apiKey) => ({
-        apiKey: apiKey.trim(),
+      const trimmedKeys = validApiKeys.map((apiKey) => apiKey.trim());
+      // Map each trimmed key back to its weight in the form (indices aligned with validApiKeys)
+      const weightForTrimmedKey = (trimmed: string): number => {
+        const sourceIndex = validApiKeys.findIndex((k) => k.trim() === trimmed);
+        if (sourceIndex < 0) return 1;
+        const w = Number(form.apiKeyWeights[sourceIndex]);
+        return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+      };
+      const newConfigs: ProviderKeyConfig[] = trimmedKeys.map((apiKey) => ({
+        apiKey,
         ...sharedConfig,
+        weight: weightForTrimmedKey(apiKey),
       }));
 
       let nextList: ProviderKeyConfig[];

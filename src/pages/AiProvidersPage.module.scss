@@ -1578,9 +1578,9 @@ $openai-toolbar-control-height: 36px;
 .claudeKeyMatrixHeader,
 .claudeKeyMatrixRow {
   display: grid;
-  grid-template-columns: 118px 46px minmax(280px, 1fr) minmax(180px, 240px) minmax(170px, auto);
+  grid-template-columns: 118px 46px minmax(260px, 1fr) auto minmax(180px, 240px) minmax(170px, auto);
   gap: $spacing-sm;
-  min-width: 860px;
+  min-width: 980px;
   align-items: center;
 }
 
@@ -1613,6 +1613,7 @@ $openai-toolbar-control-height: 36px;
 .claudeKeyMatrixColStatus,
 .claudeKeyMatrixColIndex,
 .claudeKeyMatrixColKey,
+.claudeKeyMatrixColWeight,
 .claudeKeyMatrixColRoute,
 .claudeKeyMatrixColAction {
   min-width: 0;
@@ -1633,6 +1634,10 @@ $openai-toolbar-control-height: 36px;
 
 .claudeKeyMatrixColKey {
   justify-content: stretch;
+}
+
+.claudeKeyMatrixColWeight {
+  justify-content: center;
 }
 
 .claudeKeyMatrixColRoute {

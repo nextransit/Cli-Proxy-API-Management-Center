@@ -731,26 +731,28 @@ export function DashboardPage() {
               <span>STATUS</span>
               <span>LAT</span>
             </div>
-            {latestRequests.length > 0 ? (
-              latestRequests.map((detail, index) => (
-                <div key={`${detail.timestamp}-${index}`} className={styles.requestStreamRow}>
-                  <span>
-                    {new Date(getDetailTimestampMs(detail)).toLocaleTimeString(i18n.language, {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })}
-                  </span>
-                  <span className={styles.requestModel}>{detail.__modelName || '-'}</span>
-                  <span className={detail.failed ? styles.statusFail : styles.statusOk}>
-                    {detail.failed ? 'ERR' : '200'}
-                  </span>
-                  <span>{detail.latency_ms ? formatDurationMs(detail.latency_ms) : '-'}</span>
-                </div>
-              ))
-            ) : (
-              <div className={styles.emptyTelemetry}>{t('dashboard.no_usage_data')}</div>
-            )}
+            <div className={styles.requestStreamBody}>
+              {latestRequests.length > 0 ? (
+                latestRequests.map((detail, index) => (
+                  <div key={`${detail.timestamp}-${index}`} className={styles.requestStreamRow}>
+                    <span>
+                      {new Date(getDetailTimestampMs(detail)).toLocaleTimeString(i18n.language, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                      })}
+                    </span>
+                    <span className={styles.requestModel}>{detail.__modelName || '-'}</span>
+                    <span className={detail.failed ? styles.statusFail : styles.statusOk}>
+                      {detail.failed ? 'ERR' : '200'}
+                    </span>
+                    <span>{detail.latency_ms ? formatDurationMs(detail.latency_ms) : '-'}</span>
+                  </div>
+                ))
+              ) : (
+                <div className={styles.emptyTelemetry}>{t('dashboard.no_usage_data')}</div>
+              )}
+            </div>
           </div>
         </div>
       </section>

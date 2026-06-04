@@ -13,6 +13,7 @@ import {
   IconCopy,
   IconEye,
   IconEyeOff,
+  IconMinus,
   IconPlus,
   IconRefreshCw,
   IconTrash2,
@@ -39,10 +40,12 @@ type CodexKeyTestStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface CodexEditFormState extends Omit<ProviderFormState, 'apiKey'> {
   apiKeys: string[];
+  apiKeyWeights: number[];
 }
 
 const buildEmptyForm = (): CodexEditFormState => ({
   apiKeys: [''],
+  apiKeyWeights: [1],
   priority: undefined,
   prefix: '',
   baseUrl: '',
@@ -83,6 +86,7 @@ const normalizeModelEntries = (entries: Array<{ name: string; alias: string }>) 
 
 type CodexFormBaseline = {
   apiKeys: string[];
+  apiKeyWeights: number[];
   priority: number | null;
   prefix: string;
   baseUrl: string;
@@ -95,6 +99,7 @@ type CodexFormBaseline = {
 
 const buildCodexBaseline = (form: CodexEditFormState): CodexFormBaseline => ({
   apiKeys: form.apiKeys.map((k) => k.trim()),
+  apiKeyWeights: form.apiKeyWeights.map((w) => (Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1)),
   priority:
     form.priority !== undefined && Number.isFinite(form.priority) ? Math.trunc(form.priority) : null,
   prefix: String(form.prefix ?? '').trim(),
@@ -108,6 +113,9 @@ const buildCodexBaseline = (form: CodexEditFormState): CodexFormBaseline => ({
 
 const buildFormFromCodexBaseline = (baseline: CodexFormBaseline): CodexEditFormState => ({
   apiKeys: baseline.apiKeys.length ? baseline.apiKeys : [''],
+  apiKeyWeights: baseline.apiKeyWeights.length
+    ? baseline.apiKeyWeights.map((w) => (Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1))
+    : [1],
   priority: baseline.priority ?? undefined,
   prefix: baseline.prefix,
   baseUrl: baseline.baseUrl,
@@ -152,6 +160,66 @@ function CodexKeyStatusBadge({
       {status === 'loading' && <span className={styles.statusSpinner} aria-hidden="true" />}
       {label}
     </span>
+  );
+}
+
+function WeightStepper({
+  value,
+  onChange,
+  min = 1,
+  disabled = false,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  disabled?: boolean;
+}) {
+  const handleDecrement = () => {
+    if (value > min) {
+      onChange(value - 1);
+    }
+  };
+
+  const handleIncrement = () => {
+    onChange(value + 1);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.target.value, 10);
+    if (!isNaN(parsed) && parsed >= min) {
+      onChange(parsed);
+    }
+  };
+
+  return (
+    <div className={styles.weightStepper}>
+      <button
+        type="button"
+        className={styles.weightStepperBtn}
+        onClick={handleDecrement}
+        disabled={disabled || value <= min}
+        aria-label="Decrement"
+      >
+        <IconMinus size={12} />
+      </button>
+      <input
+        type="number"
+        className={styles.weightStepperValue}
+        value={value}
+        onChange={handleInputChange}
+        disabled={disabled}
+        min={min}
+      />
+      <button
+        type="button"
+        className={styles.weightStepperBtn}
+        onClick={handleIncrement}
+        disabled={disabled}
+        aria-label="Increment"
+      >
+        <IconPlus size={12} />
+      </button>
+    </div>
   );
 }
 
@@ -262,15 +330,22 @@ export function AiProvidersCodexEditPage() {
     if (loading) return;
 
     if (initialData) {
+      const apiKeysFromSameBaseUrl = sameBaseUrlConfigs.length
+        ? sameBaseUrlConfigs.map((config) => config.apiKey)
+        : [initialData.apiKey];
+      const apiKeyWeightsFromSameBaseUrl = apiKeysFromSameBaseUrl.map((_, i) => {
+        const source = sameBaseUrlConfigs.length ? sameBaseUrlConfigs[i] : initialData;
+        const w = Number(source?.weight);
+        return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+      });
       const nextForm: CodexEditFormState = {
         ...initialData,
         websockets: Boolean(initialData.websockets),
         headers: headersToEntries(initialData.headers),
         modelEntries: modelsToEntries(initialData.models),
         excludedText: excludedModelsToText(initialData.excludedModels),
-        apiKeys: sameBaseUrlConfigs.length
-          ? sameBaseUrlConfigs.map((config) => config.apiKey)
-          : [initialData.apiKey],
+        apiKeys: apiKeysFromSameBaseUrl,
+        apiKeyWeights: apiKeyWeightsFromSameBaseUrl,
       };
       setForm(nextForm);
       setBaseline(buildCodexBaseline(nextForm));
@@ -316,8 +391,20 @@ export function AiProvidersCodexEditPage() {
     },
     [baseline.apiKeys, form.apiKeys]
   );
+  const isApiKeyWeightsDirty = useMemo(
+    () => {
+      const baselineWeights = baseline.apiKeyWeights;
+      const formWeights = form.apiKeyWeights.map((w) =>
+        Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1
+      );
+      if (baselineWeights.length !== formWeights.length) return true;
+      return baselineWeights.some((w, i) => w !== formWeights[i]);
+    },
+    [baseline.apiKeyWeights, form.apiKeyWeights]
+  );
   const isDirty =
     isApiKeysDirty ||
+    isApiKeyWeightsDirty ||
     baseline.priority !== normalizedPriority ||
     baseline.prefix !== String(form.prefix ?? '').trim() ||
     baseline.baseUrl !== String(form.baseUrl ?? '').trim() ||
@@ -383,15 +470,36 @@ export function AiProvidersCodexEditPage() {
     [form.apiKeys]
   );
 
+  const updateApiKeyWeightAt = useCallback(
+    (index: number, value: number) => {
+      setForm((prev) => {
+        const nextWeights = [...(prev.apiKeyWeights ?? [])];
+        while (nextWeights.length <= index) nextWeights.push(1);
+        nextWeights[index] = value;
+        return { ...prev, apiKeyWeights: nextWeights };
+      });
+    },
+    [setForm]
+  );
+
   const addApiKeyRow = useCallback(() => {
-    setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }));
+    setForm((prev) => ({
+      ...prev,
+      apiKeys: [...prev.apiKeys, ''],
+      apiKeyWeights: [...(prev.apiKeyWeights ?? []), 1],
+    }));
     setShowKeys(true);
-  }, []);
+  }, [setForm]);
 
   const removeApiKeyRow = useCallback(
     (index: number) => {
       const newKeys = form.apiKeys.filter((_, i) => i !== index);
-      setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
+      const newWeights = (form.apiKeyWeights ?? []).filter((_, i) => i !== index);
+      setForm((prev) => ({
+        ...prev,
+        apiKeys: newKeys.length ? newKeys : [''],
+        apiKeyWeights: newKeys.length ? (newWeights.length ? newWeights : [1]) : [1],
+      }));
       setKeyTestStatuses((prev) => {
         const next: Record<number, { status: CodexKeyTestStatus; message?: string }> = {};
         Object.entries(prev).forEach(([key, status]) => {
@@ -402,7 +510,7 @@ export function AiProvidersCodexEditPage() {
         return next;
       });
     },
-    [form.apiKeys]
+    [form.apiKeys, form.apiKeyWeights, setForm]
   );
 
   const testCodexKey = useCallback(
@@ -655,9 +763,17 @@ export function AiProvidersCodexEditPage() {
       };
 
       // Create one config per API key
-      const newConfigs: ProviderKeyConfig[] = validApiKeys.map((apiKey) => ({
-        apiKey: apiKey.trim(),
+      const trimmedKeys = validApiKeys.map((apiKey) => apiKey.trim());
+      const weightForTrimmedKey = (trimmed: string): number => {
+        const sourceIndex = validApiKeys.findIndex((k) => k.trim() === trimmed);
+        if (sourceIndex < 0) return 1;
+        const w = Number(form.apiKeyWeights[sourceIndex]);
+        return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+      };
+      const newConfigs: ProviderKeyConfig[] = trimmedKeys.map((apiKey) => ({
+        apiKey,
         ...sharedConfig,
+        weight: weightForTrimmedKey(apiKey),
       }));
 
       let nextList: ProviderKeyConfig[];
@@ -850,6 +966,9 @@ export function AiProvidersCodexEditPage() {
                       <div className={styles.claudeKeyMatrixColStatus}>{t('common.status')}</div>
                       <div className={styles.claudeKeyMatrixColIndex}>#</div>
                       <div className={styles.claudeKeyMatrixColKey}>{t('common.api_key')}</div>
+                      <div className={styles.claudeKeyMatrixColWeight}>
+                        {t('ai_providers.openai_key_weight', { defaultValue: '权重' })}
+                      </div>
                       <div className={styles.claudeKeyMatrixColRoute}>{t('common.base_url')}</div>
                       <div className={styles.claudeKeyMatrixColAction}>{t('common.action')}</div>
                     </div>
@@ -857,6 +976,10 @@ export function AiProvidersCodexEditPage() {
                       const trimmedKey = apiKey.trim();
                       const rowStatus = keyTestStatuses[index]?.status ?? 'idle';
                       const rowMessage = keyTestStatuses[index]?.message;
+                      const rowWeight = (() => {
+                        const w = Number(form.apiKeyWeights?.[index] ?? 1);
+                        return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+                      })();
                       return (
                         <div key={index} className={styles.claudeKeyMatrixRow}>
                           <div className={styles.claudeKeyMatrixColStatus}>
@@ -890,6 +1013,14 @@ export function AiProvidersCodexEditPage() {
                                 <IconCopy size={14} />
                               </button>
                             </div>
+                          </div>
+                          <div className={styles.claudeKeyMatrixColWeight}>
+                            <WeightStepper
+                              value={rowWeight}
+                              onChange={(val) => updateApiKeyWeightAt(index, val)}
+                              min={1}
+                              disabled={saving || disableControls}
+                            />
                           </div>
                           <div className={styles.claudeKeyMatrixColRoute}>
                             <span className={styles.claudeKeyRouteText}>

@@ -12,6 +12,7 @@ import {
   IconCopy,
   IconEye,
   IconEyeOff,
+  IconMinus,
   IconPlus,
   IconRefreshCw,
   IconTrash2,
@@ -84,6 +85,66 @@ function ClaudeKeyStatusBadge({
       {status === 'loading' && <span className={styles.statusSpinner} aria-hidden="true" />}
       {label}
     </span>
+  );
+}
+
+function WeightStepper({
+  value,
+  onChange,
+  min = 1,
+  disabled = false,
+}: {
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  disabled?: boolean;
+}) {
+  const handleDecrement = () => {
+    if (value > min) {
+      onChange(value - 1);
+    }
+  };
+
+  const handleIncrement = () => {
+    onChange(value + 1);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseInt(e.target.value, 10);
+    if (!isNaN(parsed) && parsed >= min) {
+      onChange(parsed);
+    }
+  };
+
+  return (
+    <div className={styles.weightStepper}>
+      <button
+        type="button"
+        className={styles.weightStepperBtn}
+        onClick={handleDecrement}
+        disabled={disabled || value <= min}
+        aria-label="Decrement"
+      >
+        <IconMinus size={12} />
+      </button>
+      <input
+        type="number"
+        className={styles.weightStepperValue}
+        value={value}
+        onChange={handleInputChange}
+        disabled={disabled}
+        min={min}
+      />
+      <button
+        type="button"
+        className={styles.weightStepperBtn}
+        onClick={handleIncrement}
+        disabled={disabled}
+        aria-label="Increment"
+      >
+        <IconPlus size={12} />
+      </button>
+    </div>
   );
 }
 
@@ -245,15 +306,36 @@ export function AiProvidersClaudeEditPage() {
     [form.apiKeys, setForm]
   );
 
+  const updateApiKeyWeightAt = useCallback(
+    (index: number, value: number) => {
+      setForm((prev) => {
+        const nextWeights = [...(prev.apiKeyWeights ?? [])];
+        while (nextWeights.length <= index) nextWeights.push(1);
+        nextWeights[index] = value;
+        return { ...prev, apiKeyWeights: nextWeights };
+      });
+    },
+    [setForm]
+  );
+
   const addApiKeyRow = useCallback(() => {
-    setForm((prev) => ({ ...prev, apiKeys: [...prev.apiKeys, ''] }));
+    setForm((prev) => ({
+      ...prev,
+      apiKeys: [...prev.apiKeys, ''],
+      apiKeyWeights: [...(prev.apiKeyWeights ?? []), 1],
+    }));
     setShowKeys(true);
   }, [setForm]);
 
   const removeApiKeyRow = useCallback(
     (index: number) => {
       const newKeys = form.apiKeys.filter((_, i) => i !== index);
-      setForm((prev) => ({ ...prev, apiKeys: newKeys.length ? newKeys : [''] }));
+      const newWeights = (form.apiKeyWeights ?? []).filter((_, i) => i !== index);
+      setForm((prev) => ({
+        ...prev,
+        apiKeys: newKeys.length ? newKeys : [''],
+        apiKeyWeights: newKeys.length ? (newWeights.length ? newWeights : [1]) : [1],
+      }));
       setKeyTestStatuses((prev) => {
         const next: Record<number, { status: ClaudeKeyTestStatus; message?: string }> = {};
         Object.entries(prev).forEach(([key, status]) => {
@@ -264,7 +346,7 @@ export function AiProvidersClaudeEditPage() {
         return next;
       });
     },
-    [form.apiKeys, setForm]
+    [form.apiKeys, form.apiKeyWeights, setForm]
   );
 
   const runClaudeConnectivityTest = useCallback(async (input?: { apiKey?: string; keyIndex?: number }) => {
@@ -518,6 +600,9 @@ export function AiProvidersClaudeEditPage() {
                       <div className={styles.claudeKeyMatrixColStatus}>{t('common.status')}</div>
                       <div className={styles.claudeKeyMatrixColIndex}>#</div>
                       <div className={styles.claudeKeyMatrixColKey}>{t('common.api_key')}</div>
+                      <div className={styles.claudeKeyMatrixColWeight}>
+                        {t('ai_providers.openai_key_weight', { defaultValue: '权重' })}
+                      </div>
                       <div className={styles.claudeKeyMatrixColRoute}>{t('common.base_url')}</div>
                       <div className={styles.claudeKeyMatrixColAction}>{t('common.action')}</div>
                     </div>
@@ -525,6 +610,10 @@ export function AiProvidersClaudeEditPage() {
                       const trimmedKey = apiKey.trim();
                       const rowStatus = keyTestStatuses[index]?.status ?? 'idle';
                       const rowMessage = keyTestStatuses[index]?.message;
+                      const rowWeight = (() => {
+                        const w = Number(form.apiKeyWeights?.[index] ?? 1);
+                        return Number.isFinite(w) && w > 0 ? Math.trunc(w) : 1;
+                      })();
                       return (
                         <div key={index} className={styles.claudeKeyMatrixRow}>
                           <div className={styles.claudeKeyMatrixColStatus}>
@@ -558,6 +647,14 @@ export function AiProvidersClaudeEditPage() {
                                 <IconCopy size={14} />
                               </button>
                             </div>
+                          </div>
+                          <div className={styles.claudeKeyMatrixColWeight}>
+                            <WeightStepper
+                              value={rowWeight}
+                              onChange={(val) => updateApiKeyWeightAt(index, val)}
+                              min={1}
+                              disabled={saving || disableControls || isTesting}
+                            />
                           </div>
                           <div className={styles.claudeKeyMatrixColRoute}>
                             <span className={styles.claudeKeyRouteText}>

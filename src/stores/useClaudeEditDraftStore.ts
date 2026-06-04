@@ -24,11 +24,13 @@ export type ClaudeCloakBaseline = {
 // Extended form state that supports multiple API keys
 export type ClaudeEditFormState = Omit<ProviderFormState, 'apiKey'> & {
   apiKeys: string[];
+  apiKeyWeights: number[];
   cloak?: CloakConfig;
 };
 
 export type ClaudeEditBaseline = {
   apiKeys: string[];
+  apiKeyWeights: number[];
   priority: number | null;
   prefix: string;
   baseUrl: string;
@@ -77,6 +79,7 @@ const resolveAction = <T,>(action: SetStateAction<T>, prev: T): T =>
 
 const buildEmptyForm = (): ClaudeEditFormState => ({
   apiKeys: [''],
+  apiKeyWeights: [1],
   prefix: '',
   baseUrl: '',
   proxyUrl: '',

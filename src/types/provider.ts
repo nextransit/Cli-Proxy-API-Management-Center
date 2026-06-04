@@ -48,6 +48,7 @@ export interface ProviderKeyConfig {
   excludedModels?: string[];
   cloak?: CloakConfig;
   authIndex?: string;
+  weight?: number;
 }
 
 export interface OpenAIProviderConfig {

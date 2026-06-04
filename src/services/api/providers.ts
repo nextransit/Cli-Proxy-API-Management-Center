@@ -76,6 +76,12 @@ const serializeProviderKey = (config: ProviderKeyConfig) => {
   if (config.baseUrl) payload['base-url'] = config.baseUrl;
   if (config.websockets !== undefined) payload.websockets = config.websockets;
   if (config.proxyUrl) payload['proxy-url'] = config.proxyUrl;
+  // Only send weight if it's a valid positive integer (default is 1, so omit it).
+  const parsedWeight = Number(config.weight);
+  if (Number.isFinite(parsedWeight)) {
+    const normalizedWeight = Math.trunc(parsedWeight);
+    if (normalizedWeight > 0) payload.weight = normalizedWeight;
+  }
   const headers = serializeHeaders(config.headers);
   if (headers) payload.headers = headers;
   const models = serializeModelAliases(config.models);
@@ -116,6 +122,11 @@ const serializeVertexKey = (config: ProviderKeyConfig) => {
   if (config.prefix?.trim()) payload.prefix = config.prefix.trim();
   if (config.baseUrl) payload['base-url'] = config.baseUrl;
   if (config.proxyUrl) payload['proxy-url'] = config.proxyUrl;
+  const parsedWeight = Number(config.weight);
+  if (Number.isFinite(parsedWeight)) {
+    const normalizedWeight = Math.trunc(parsedWeight);
+    if (normalizedWeight > 0) payload.weight = normalizedWeight;
+  }
   const headers = serializeHeaders(config.headers);
   if (headers) payload.headers = headers;
   const models = serializeVertexModelAliases(config.models);
