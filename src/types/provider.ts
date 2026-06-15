@@ -34,6 +34,7 @@ export interface GeminiKeyConfig {
   headers?: Record<string, string>;
   excludedModels?: string[];
   authIndex?: string;
+  weight?: number;
 }
 
 export interface ProviderKeyConfig {

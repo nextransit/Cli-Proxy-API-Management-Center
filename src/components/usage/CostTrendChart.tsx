@@ -34,6 +34,27 @@ export interface CostTrendChartProps {
 
 const COST_COLOR = '#06b6d4';
 
+type TooltipParam = {
+  axisValue?: string | number;
+  marker?: string;
+  seriesName?: string;
+  value?: number | string | Array<number | string>;
+};
+
+const escapeHtml = (value: string | number | undefined): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const getTooltipValue = (value: TooltipParam['value']): number => {
+  const raw = Array.isArray(value) ? value[value.length - 1] : value;
+  const num = Number(raw);
+  return Number.isFinite(num) ? num : 0;
+};
+
 export function CostTrendChart({
   usage,
   loading,
@@ -78,8 +99,24 @@ export function CostTrendChart({
     const theme = getThemeColors();
     const base = buildEChartsTrendOption(chartData, theme, { isNarrowScreen });
     const yAxis = base.yAxis as { axisLabel?: Record<string, unknown> } | undefined;
+    const tooltip = base.tooltip as Record<string, unknown> | undefined;
     return {
       ...base,
+      tooltip: {
+        ...(tooltip ?? {}),
+        formatter: (params: unknown) => {
+          const items = Array.isArray(params) ? params : [params];
+          const first = items[0] as TooltipParam | undefined;
+          const lines = [`<strong>${escapeHtml(first?.axisValue)}</strong>`];
+          items.forEach((item) => {
+            const param = item as TooltipParam;
+            const marker = param.marker ?? '';
+            const seriesName = escapeHtml(param.seriesName ?? t('usage_stats.total_cost'));
+            lines.push(`${marker}${seriesName}: ${formatUsd(getTooltipValue(param.value))}`);
+          });
+          return lines.join('<br/>');
+        },
+      },
       yAxis: {
         ...(yAxis as object),
         axisLabel: {

@@ -8,6 +8,7 @@ import {
   collectUsageDetails,
   extractTotalTokens,
   formatCompactNumber,
+  formatUsd,
   type ModelPrice,
 } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
@@ -195,14 +196,7 @@ export function CredentialStatsCard({
                         {row.total > 0 ? `${row.successRate.toFixed(1)}%` : '-'}
                       </span>
                     </td>
-                    {hasPrices && (
-                      <td className={styles.costHighlight}>
-                        ${row.cost.toLocaleString(undefined, {
-                          minimumFractionDigits: 4,
-                          maximumFractionDigits: 4,
-                        })}
-                      </td>
-                    )}
+                    {hasPrices && <td className={styles.costHighlight}>{formatUsd(row.cost)}</td>}
                     <td>
                       <span
                         className={

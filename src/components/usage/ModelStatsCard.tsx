@@ -5,6 +5,7 @@ import {
   LATENCY_SOURCE_FIELD,
   formatCompactNumber,
   formatDurationMs,
+  formatUsd,
   type ModelStatsSummary,
 } from '@/utils/usage';
 import styles from '@/pages/UsagePage.module.scss';
@@ -28,17 +29,6 @@ type SortDir = 'asc' | 'desc';
 
 interface ModelStatWithRate extends ModelStat {
   successRate: number;
-}
-
-function formatUsd4(value: number): string {
-  const num = Number(value);
-  if (!Number.isFinite(num)) {
-    return '$0.0000';
-  }
-  return `$${num.toLocaleString(undefined, {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 4,
-  })}`;
 }
 
 export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCardProps) {
@@ -196,7 +186,11 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                           {stat.successRate.toFixed(1)}%
                         </span>
                       </td>
-                      {hasPrices && <td>{stat.cost > 0 ? <span className={styles.costHighlight}>{formatUsd4(stat.cost)}</span> : '$0.0000'}</td>}
+                      {hasPrices && (
+                        <td>
+                          <span className={styles.costHighlight}>{formatUsd(stat.cost)}</span>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

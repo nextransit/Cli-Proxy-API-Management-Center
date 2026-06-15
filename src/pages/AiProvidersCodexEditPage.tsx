@@ -21,7 +21,7 @@ import {
 import { useEdgeSwipeBack } from '@/hooks/useEdgeSwipeBack';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { SecondaryScreenShell } from '@/components/common/SecondaryScreenShell';
-import { modelsApi, providersApi } from '@/services/api';
+import { authFilesApi, modelsApi, providersApi } from '@/services/api';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import type { ProviderKeyConfig } from '@/types';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -83,6 +83,23 @@ const normalizeModelEntries = (entries: Array<{ name: string; alias: string }>) 
     acc.push({ name, alias });
     return acc;
   }, []);
+
+const findCodexAuthIndex = (
+  configs: ProviderKeyConfig[],
+  apiKey: string,
+  baseUrl: string
+): string => {
+  const trimmedKey = apiKey.trim();
+  const baseUrlKey = getCodexBaseUrlGroupKey(baseUrl);
+  if (!trimmedKey || !baseUrlKey) return '';
+  const match = configs.find(
+    (config) =>
+      config.apiKey.trim() === trimmedKey &&
+      getCodexBaseUrlGroupKey(config.baseUrl) === baseUrlKey &&
+      config.authIndex
+  );
+  return match?.authIndex ?? '';
+};
 
 type CodexFormBaseline = {
   apiKeys: string[];
@@ -542,6 +559,23 @@ export function AiProvidersCodexEditPage() {
           hasCustomAuthorization ? undefined : apiKey,
           headerObject
         );
+        const authIndex = findCodexAuthIndex(configs, apiKey, baseUrl);
+        if (authIndex) {
+          const modelsToResume = Array.from(
+            new Set(
+              normalizedModels
+                .flatMap((model) => [model.name, model.alias])
+                .map((model) => String(model ?? '').trim())
+                .filter(Boolean)
+            )
+          );
+          try {
+            await authFilesApi.resume(authIndex, modelsToResume.length ? modelsToResume : undefined);
+          } catch {
+            // Some running servers may not yet accept auth_index here. The upstream
+            // connectivity test should still reflect the direct /v1/models result.
+          }
+        }
         const message = t('ai_providers.openai_test_status_success');
         setKeyTestStatuses((prev) => ({ ...prev, [keyIndex]: { status: 'success', message } }));
         showNotification(message, 'success');
@@ -551,7 +585,7 @@ export function AiProvidersCodexEditPage() {
         showNotification(message, 'error');
       }
     },
-    [form.baseUrl, form.headers, showNotification, t]
+    [configs, form.baseUrl, form.headers, normalizedModels, showNotification, t]
   );
 
   const discoveredModelsFiltered = useMemo(() => {

@@ -96,11 +96,11 @@ function toSafeNumber(value: unknown): number {
 function formatCny(value: number): string {
   const num = Number(value);
   if (!Number.isFinite(num)) {
-    return '¥0.00';
+    return '¥0.000';
   }
   return `¥${num.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
   })}`;
 }
 

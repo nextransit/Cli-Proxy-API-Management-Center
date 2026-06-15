@@ -201,6 +201,13 @@ const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => 
   );
   if (authIndex) config.authIndex = authIndex;
 
+  // weight: round-trip the selection-probability knob set in the form. Without
+  // this the page would reopen with weight=1 even after the user saved weight=2
+  // and the GET response carried it correctly. See normalizePositiveInteger
+  // for the parsing rules (positive integers only; 0 / invalid are dropped).
+  const weight = normalizePositiveInteger(record?.weight ?? record?.['weight']);
+  if (weight !== undefined) config.weight = weight;
+
   const cloakRaw = record?.cloak;
   if (isRecord(cloakRaw)) {
     const cloak: CloakConfig = {};
@@ -262,6 +269,8 @@ const normalizeGeminiKeyConfig = (item: unknown): GeminiKeyConfig | null => {
     record?.['auth-index'] ?? record?.authIndex ?? record?.['auth_index']
   );
   if (authIndex) config.authIndex = authIndex;
+  const weight = normalizePositiveInteger(record?.weight ?? record?.['weight']);
+  if (weight !== undefined) config.weight = weight;
   return config;
 };
 
