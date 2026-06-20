@@ -11,6 +11,8 @@ const LOG_IPV4_REGEX = /\b(?:\d{1,3}\.){3}\d{1,3}\b/;
 const LOG_IPV6_REGEX = /\b(?:[a-f0-9]{0,4}:){2,7}[a-f0-9]{0,4}\b/i;
 const LOG_REQUEST_ID_REGEX = /^([a-f0-9]{8}|--------)$/i;
 const LOG_TIME_OF_DAY_REGEX = /^\d{1,2}:\d{2}:\d{2}(?:\.\d{1,3})?$/;
+const LOG_REQUEST_LOG_FILE_REGEX = /\brequest_log=([A-Za-z0-9._-]+\.log)\b/;
+const LOG_REQUEST_LOG_ID_REGEX = /\brequest_log_id=([A-Za-z0-9._-]+)\b/;
 const GIN_TIMESTAMP_SEGMENT_REGEX =
   /^\[GIN\]\s+(\d{4})\/(\d{2})\/(\d{2})\s*-\s*(\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?)\s*$/;
 
@@ -137,6 +139,7 @@ export const parseLogLine = (raw: string): ParsedLogLine => {
   let ip: string | undefined;
   let method: HttpMethod | undefined;
   let path: string | undefined;
+  let requestLogFile: string | undefined;
   let message = remaining;
 
   if (remaining.includes('|')) {
@@ -218,7 +221,30 @@ export const parseLogLine = (raw: string): ParsedLogLine => {
       const parsed = extractHttpMethodAndPath(segments[methodIndex]);
       method = parsed.method;
       path = parsed.path;
+      statusCode ??= detectHttpStatusCode(segments[methodIndex]);
       consumed.add(methodIndex);
+    }
+
+    const requestLogIndex = segments.findIndex((segment) =>
+      LOG_REQUEST_LOG_FILE_REGEX.test(segment)
+    );
+    if (requestLogIndex >= 0) {
+      const match = segments[requestLogIndex].match(LOG_REQUEST_LOG_FILE_REGEX);
+      if (match) {
+        requestLogFile = match[1];
+        consumed.add(requestLogIndex);
+      }
+    }
+
+    const requestLogIdIndex = segments.findIndex((segment) =>
+      LOG_REQUEST_LOG_ID_REGEX.test(segment)
+    );
+    if (requestLogIdIndex >= 0) {
+      const match = segments[requestLogIdIndex].match(LOG_REQUEST_LOG_ID_REGEX);
+      if (match) {
+        requestId ??= match[1];
+        consumed.add(requestLogIdIndex);
+      }
     }
 
     // source (e.g. [gin_logger.go:94])
@@ -243,6 +269,12 @@ export const parseLogLine = (raw: string): ParsedLogLine => {
     const parsed = extractHttpMethodAndPath(remaining);
     method = parsed.method;
     path = parsed.path;
+
+    const requestLogMatch = remaining.match(LOG_REQUEST_LOG_FILE_REGEX);
+    if (requestLogMatch) requestLogFile = requestLogMatch[1];
+
+    const requestLogIdMatch = remaining.match(LOG_REQUEST_LOG_ID_REGEX);
+    if (requestLogIdMatch) requestId ??= requestLogIdMatch[1];
   }
 
   if (!level) level = inferLogLevel(raw);
@@ -269,7 +301,7 @@ export const parseLogLine = (raw: string): ParsedLogLine => {
     ip,
     method,
     path,
+    requestLogFile,
     message,
   };
 };
-

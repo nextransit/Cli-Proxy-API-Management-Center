@@ -613,8 +613,9 @@
 }
 
 .requestIdBadge {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
   font-size: 11px;
   color: #0891b2;
   background: rgba(8, 145, 178, 0.1);
@@ -705,6 +706,7 @@
   @include button-reset;
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   padding: 2px 8px;
   border-radius: $radius-full;
   border: 1px solid rgba($primary-color, 0.3);
@@ -721,6 +723,11 @@
   &:hover {
     background: rgba($primary-color, 0.16);
     border-color: rgba($primary-color, 0.45);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 }
 

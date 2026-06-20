@@ -53,6 +53,12 @@ const INITIAL_DISPLAY_LINES = 100;
 const MAX_BUFFER_LINES = 10000;
 const LONG_PRESS_MS = 650;
 const LONG_PRESS_MOVE_THRESHOLD = 10;
+const TIME_RANGE_OPTIONS = [
+  { value: '15m', minutes: 15 },
+  { value: '1h', minutes: 60 },
+  { value: 'all', minutes: null },
+] as const;
+type TimeRangeFilter = (typeof TIME_RANGE_OPTIONS)[number]['value'];
 
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
@@ -62,6 +68,13 @@ const getErrorMessage = (err: unknown): string => {
 
   const message = (err as { message?: unknown }).message;
   return typeof message === 'string' ? message : '';
+};
+
+const parseLogTimestampMs = (timestamp?: string): number | undefined => {
+  if (!timestamp) return undefined;
+  const normalized = timestamp.includes('T') ? timestamp : timestamp.replace(' ', 'T');
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
 };
 
 type TabType = 'logs' | 'errors';
@@ -88,6 +101,10 @@ export function LogsPage() {
     true
   );
   const [showRawLogs, setShowRawLogs] = useLocalStorage('logsPage.showRawLogs', false);
+  const [timeRangeFilter, setTimeRangeFilter] = useLocalStorage<TimeRangeFilter>(
+    'logsPage.timeRangeFilter',
+    'all'
+  );
   const [structuredFiltersExpanded, setStructuredFiltersExpanded] = useLocalStorage(
     'logsPage.structuredFiltersExpanded',
     false
@@ -102,7 +119,7 @@ export function LogsPage() {
     traceScopeKey,
     connectionStatus,
     config,
-    requestLogDownloading
+    requestLogDownloading,
   });
 
   const logScrollerRef = useRef<ReturnType<typeof useLogScroller> | null>(null);
@@ -323,10 +340,24 @@ export function LogsPage() {
     filters.methodFilters.length +
     filters.levelFilters.length +
     filters.statusFilters.length +
-    filters.pathFilters.length;
+    filters.pathFilters.length +
+    (timeRangeFilter === 'all' ? 0 : 1);
+  const hasStructuredFilters = filters.hasStructuredFilters || timeRangeFilter !== 'all';
+  const selectedTimeRange = TIME_RANGE_OPTIONS.find((item) => item.value === timeRangeFilter);
+  const timeRangeCutoffMs =
+    selectedTimeRange && selectedTimeRange.minutes !== null
+      ? Date.now() - selectedTimeRange.minutes * 60 * 1000
+      : null;
 
   const { filteredParsedLines, filteredLines, removedCount } = useMemo(() => {
     const filteredParsed = parsedSearchLines.filter((line) => {
+      if (timeRangeCutoffMs !== null) {
+        const timestampMs = parseLogTimestampMs(line.timestamp);
+        if (timestampMs === undefined || timestampMs < timeRangeCutoffMs) {
+          return false;
+        }
+      }
+
       if (
         filters.methodFilterSet.size > 0 &&
         (!line.method || !filters.methodFilterSet.has(line.method))
@@ -360,7 +391,7 @@ export function LogsPage() {
     return {
       filteredParsedLines: filteredParsed,
       filteredLines: filteredParsed.map((line) => line.raw),
-      removedCount: Math.max(baseLines.length - filteredParsed.length, 0)
+      removedCount: Math.max(baseLines.length - filteredParsed.length, 0),
     };
   }, [
     baseLines,
@@ -368,7 +399,8 @@ export function LogsPage() {
     filters.methodFilterSet,
     filters.pathFilterSet,
     filters.statusFilterSet,
-    parsedSearchLines
+    parsedSearchLines,
+    timeRangeCutoffMs,
   ]);
 
   const parsedVisibleLines = useMemo(
@@ -384,8 +416,8 @@ export function LogsPage() {
     loading,
     isSearching,
     filteredLineCount: filteredLines.length,
-    hasStructuredFilters: filters.hasStructuredFilters,
-    showRawLogs
+    hasStructuredFilters,
+    showRawLogs,
   });
 
   logScrollerRef.current = scroller;
@@ -451,7 +483,7 @@ export function LogsPage() {
       const response = await logsApi.downloadRequestLogById(id);
       downloadBlob({
         filename: `request-${id}.log`,
-        blob: new Blob([response.data], { type: 'text/plain' })
+        blob: new Blob([response.data], { type: 'text/plain' }),
       });
       showNotification(t('logs.request_log_download_success'), 'success');
       setRequestLogId(null);
@@ -586,6 +618,26 @@ export function LogsPage() {
               {structuredFiltersExpanded && (
                 <div id={structuredFiltersPanelId} className={styles.structuredFilters}>
                   <div className={styles.filterChipGroup}>
+                    <span className={styles.filterChipLabel}>{t('logs.filter_time_range')}</span>
+                    <div className={styles.filterChipList}>
+                      {TIME_RANGE_OPTIONS.map((option) => {
+                        const active = timeRangeFilter === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`${styles.filterChip} ${active ? styles.filterChipActive : ''}`}
+                            onClick={() => setTimeRangeFilter(option.value)}
+                            aria-pressed={active}
+                          >
+                            {t(`logs.filter_time_${option.value}`)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className={styles.filterChipGroup}>
                     <span className={styles.filterChipLabel}>{t('logs.filter_level')}</span>
                     <div className={styles.filterChipList}>
                       {LOG_LEVEL_FILTERS.map((level) => {
@@ -679,8 +731,11 @@ export function LogsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={filters.clearStructuredFilters}
-                    disabled={!filters.hasStructuredFilters}
+                    onClick={() => {
+                      filters.clearStructuredFilters();
+                      setTimeRangeFilter('all');
+                    }}
+                    disabled={!hasStructuredFilters}
                   >
                     {t('logs.clear_filters')}
                   </Button>
@@ -802,6 +857,13 @@ export function LogsPage() {
                   <div className={styles.logList}>
                     {parsedVisibleLines.map((line, index) => {
                       const canTraceRequest = isTraceableRequestPath(line.path);
+                      const canDownloadRequestLogById =
+                        Boolean(line.requestId) &&
+                        !line.requestLogFile &&
+                        (line.message.includes('response_incomplete') ||
+                          line.message.includes('request_failed') ||
+                          line.level === 'error' ||
+                          line.level === 'fatal');
                       const rowClassNames = [styles.logRow];
                       if (line.level === 'warn') rowClassNames.push(styles.rowWarn);
                       if (line.level === 'error' || line.level === 'fatal')
@@ -907,6 +969,46 @@ export function LogsPage() {
                                 {t('logs.trace_button')}
                               </button>
                             )}
+
+                            {line.requestLogFile && (
+                              <button
+                                type="button"
+                                className={styles.traceButton}
+                                disabled={disableControls}
+                                onPointerDown={(event) => {
+                                  event.stopPropagation();
+                                }}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  cancelLongPress();
+                                  void downloadErrorLog(line.requestLogFile ?? '');
+                                }}
+                                title={line.requestLogFile}
+                              >
+                                <IconDownload size={12} />
+                                {t('logs.trace_download_request_log')}
+                              </button>
+                            )}
+
+                            {canDownloadRequestLogById && line.requestId && (
+                              <button
+                                type="button"
+                                className={styles.traceButton}
+                                disabled={disableControls || requestLogDownloading}
+                                onPointerDown={(event) => {
+                                  event.stopPropagation();
+                                }}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  cancelLongPress();
+                                  void downloadRequestLog(line.requestId ?? '');
+                                }}
+                                title={line.requestId}
+                              >
+                                <IconDownload size={12} />
+                                {t('logs.trace_download_request_log')}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -944,7 +1046,9 @@ export function LogsPage() {
 
               {requestLogEnabled && (
                 <div>
-                  <div className="status-badge warning">{t('logs.error_logs_request_log_enabled')}</div>
+                  <div className="status-badge warning">
+                    {t('logs.error_logs_request_log_enabled')}
+                  </div>
                 </div>
               )}
 
@@ -1100,7 +1204,7 @@ export function LogsPage() {
                         {candidate.timeDeltaMs !== null && (
                           <span className={styles.traceDelta}>
                             {t('logs.trace_delta_seconds', {
-                              seconds: (candidate.timeDeltaMs / 1000).toFixed(2)
+                              seconds: (candidate.timeDeltaMs / 1000).toFixed(2),
                             })}
                           </span>
                         )}
@@ -1108,11 +1212,15 @@ export function LogsPage() {
                       <div className={styles.traceCandidateGrid}>
                         <div className={styles.traceInfoItem}>
                           <span className={styles.traceInfoLabel}>{t('logs.trace_endpoint')}</span>
-                          <span className={styles.traceInfoValue}>{candidate.detail.__endpoint}</span>
+                          <span className={styles.traceInfoValue}>
+                            {candidate.detail.__endpoint}
+                          </span>
                         </div>
                         <div className={styles.traceInfoItem}>
                           <span className={styles.traceInfoLabel}>{t('logs.trace_model')}</span>
-                          <span className={styles.traceInfoValue}>{candidate.detail.__modelName || '-'}</span>
+                          <span className={styles.traceInfoValue}>
+                            {candidate.detail.__modelName || '-'}
+                          </span>
                         </div>
                         <div className={styles.traceInfoItem}>
                           <span className={styles.traceInfoLabel}>{t('logs.trace_source')}</span>
@@ -1127,7 +1235,9 @@ export function LogsPage() {
                           </span>
                         </div>
                         <div className={styles.traceInfoItem}>
-                          <span className={styles.traceInfoLabel}>{t('logs.trace_auth_index')}</span>
+                          <span className={styles.traceInfoLabel}>
+                            {t('logs.trace_auth_index')}
+                          </span>
                           <span className={styles.traceInfoValue}>
                             {candidate.detail.auth_index ?? '-'}
                           </span>
@@ -1160,7 +1270,11 @@ export function LogsPage() {
         title={t('logs.request_log_download_title')}
         footer={
           <>
-            <Button variant="secondary" onClick={closeRequestLogModal} disabled={requestLogDownloading}>
+            <Button
+              variant="secondary"
+              onClick={closeRequestLogModal}
+              disabled={requestLogDownloading}
+            >
               {t('common.cancel')}
             </Button>
             <Button
