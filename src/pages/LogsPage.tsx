@@ -23,7 +23,7 @@ import {
 import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
-import { logsApi } from '@/services/api/logs';
+import { logsApi, type RequestLogDetail } from '@/services/api/logs';
 import { copyToClipboard } from '@/utils/clipboard';
 import { downloadBlob } from '@/utils/download';
 import { MANAGEMENT_API_PREFIX } from '@/utils/constants';
@@ -114,6 +114,9 @@ export function LogsPage() {
   const [errorLogsError, setErrorLogsError] = useState('');
   const [requestLogId, setRequestLogId] = useState<string | null>(null);
   const [requestLogDownloading, setRequestLogDownloading] = useState(false);
+  const [traceRequestLog, setTraceRequestLog] = useState<RequestLogDetail | null>(null);
+  const [traceRequestLogLoading, setTraceRequestLogLoading] = useState(false);
+  const [traceRequestLogError, setTraceRequestLogError] = useState('');
 
   const trace = useTraceResolver({
     traceScopeKey,
@@ -497,6 +500,52 @@ export function LogsPage() {
       setRequestLogDownloading(false);
     }
   };
+
+  const copyTraceRequestLog = async () => {
+    if (!traceRequestLog?.content) return;
+    const ok = await copyToClipboard(traceRequestLog.content);
+    if (ok) {
+      showNotification(t('logs.copy_success', { defaultValue: 'Copied to clipboard' }), 'success');
+    } else {
+      showNotification(t('logs.copy_failed', { defaultValue: 'Copy failed' }), 'error');
+    }
+  };
+
+  const traceRequestLogId = trace.traceLogLine?.requestId || '';
+
+  useEffect(() => {
+    if (!traceRequestLogId || connectionStatus !== 'connected') {
+      setTraceRequestLog(null);
+      setTraceRequestLogError('');
+      setTraceRequestLogLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTraceRequestLog(null);
+    setTraceRequestLogError('');
+    setTraceRequestLogLoading(true);
+
+    logsApi
+      .fetchRequestLogById(traceRequestLogId)
+      .then((detail) => {
+        if (cancelled) return;
+        setTraceRequestLog(detail);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setTraceRequestLogError(getErrorMessage(err) || t('logs.trace_request_log_unavailable'));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTraceRequestLogLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionStatus, t, traceRequestLogId]);
 
   useEffect(() => {
     return () => {
@@ -1162,6 +1211,38 @@ export function LogsPage() {
                 <span className={styles.traceInfoValue}>{trace.traceLogLine.message || '-'}</span>
               </div>
             </div>
+
+            <div className={styles.traceRawHeader}>
+              <h3 className={styles.traceSectionTitle}>{t('logs.trace_request_log_title')}</h3>
+              <div className={styles.traceRawActions}>
+                {traceRequestLog?.name && (
+                  <span className={styles.traceRawName} title={traceRequestLog.name}>
+                    {traceRequestLog.name}
+                  </span>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void copyTraceRequestLog();
+                  }}
+                  disabled={!traceRequestLog?.content}
+                >
+                  {t('logs.trace_copy_request_log')}
+                </Button>
+              </div>
+            </div>
+            {traceRequestLogLoading ? (
+              <div className="hint">{t('logs.trace_request_log_loading')}</div>
+            ) : traceRequestLogError ? (
+              <div className={styles.traceNotice}>{traceRequestLogError}</div>
+            ) : traceRequestLog?.content ? (
+              <pre className={styles.traceRawLog} spellCheck={false}>
+                {traceRequestLog.content}
+              </pre>
+            ) : (
+              <div className="hint">{t('logs.trace_request_log_unavailable')}</div>
+            )}
 
             <div className={styles.traceCandidatesHeader}>
               <h3 className={styles.traceSectionTitle}>{t('logs.trace_candidates_title')}</h3>

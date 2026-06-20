@@ -25,6 +25,14 @@ export interface ErrorLogsResponse {
   files?: ErrorLogFile[];
 }
 
+export interface RequestLogDetail {
+  id: string;
+  name: string;
+  size?: number;
+  modified?: number;
+  content: string;
+}
+
 export const logsApi = {
   fetchLogs: (params: LogsQuery = {}): Promise<LogsResponse> =>
     apiClient.get('/logs', { params, timeout: LOGS_TIMEOUT_MS }),
@@ -43,6 +51,11 @@ export const logsApi = {
   downloadRequestLogById: (id: string) =>
     apiClient.getRaw(`/request-log-by-id/${encodeURIComponent(id)}`, {
       responseType: 'blob',
+      timeout: LOGS_TIMEOUT_MS
+    }),
+
+  fetchRequestLogById: (id: string): Promise<RequestLogDetail> =>
+    apiClient.get(`/request-log-detail-by-id/${encodeURIComponent(id)}`, {
       timeout: LOGS_TIMEOUT_MS
     }),
 };
