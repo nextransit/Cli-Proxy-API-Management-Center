@@ -1250,7 +1250,22 @@
     "lines": "lines",
     "removed": "Filtered",
     "upgrade_required_title": "Please Upgrade CLI Proxy API",
-    "upgrade_required_desc": "The current server version does not support the logs viewing feature. Please upgrade to the latest version of CLI Proxy API to use this feature."
+    "upgrade_required_desc": "The current server version does not support the logs viewing feature. Please upgrade to the latest version of CLI Proxy API to use this feature.",
+    "trace.title": "Request Trace",
+    "trace.trace_id": "Trace ID",
+    "trace.latency": "Latency",
+    "trace.ip": "IP",
+    "trace.timestamp": "Timestamp",
+    "trace.request_id": "Request ID",
+    "trace.timeline_title": "Call Timeline",
+    "trace.tab_request_headers": "Request Headers",
+    "trace.tab_request_body": "Request Body",
+    "trace.tab_response_headers": "Response Headers",
+    "trace.tab_response_body": "Response Body",
+    "trace.copy_raw": "Copy Raw",
+    "trace.download_log": "Download Log",
+    "trace.expand_all": "Expand All ({{total}} lines)",
+    "trace.no_data": "No data"
   },
   "config_management": {
     "title": "Config Panel",
