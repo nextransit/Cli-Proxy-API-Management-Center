@@ -164,6 +164,11 @@ const normalizeThinkingText = (value: unknown): string => {
   return value.trim();
 };
 
+const preferThinkingLevelLabel = (level: string): boolean => {
+  const normalized = level.toLowerCase();
+  return normalized === 'xhigh' || normalized === 'max';
+};
+
 const formatThinkingLabel = (thinking: UsageThinking | null): string => {
   if (!thinking) return '-';
 
@@ -174,7 +179,11 @@ const formatThinkingLabel = (thinking: UsageThinking | null): string => {
     typeof thinking.budget === 'number' && Number.isFinite(thinking.budget)
       ? thinking.budget
       : null;
-  const label = intensity || level || (budget !== null ? String(budget) : mode);
+  const label =
+    (preferThinkingLevelLabel(level) ? level : '') ||
+    intensity ||
+    level ||
+    (budget !== null ? String(budget) : mode);
   const budgetLabel = budget !== null ? budget.toLocaleString() : null;
 
   if (!label) return '-';
@@ -559,7 +568,7 @@ export function RequestEventsDetailsCard({
         row.authIndex,
         row.statusLabel || '-',
         ...(hasLatencyData ? [row.latencyMs ?? ''] : []),
-        row.thinking?.intensity ?? '',
+        row.thinkingLabel === '-' ? '' : row.thinkingLabel,
         row.thinking?.mode ?? '',
         row.thinking?.level ?? '',
         row.thinking?.budget ?? '',
