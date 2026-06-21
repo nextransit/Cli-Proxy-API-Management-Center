@@ -81,6 +81,7 @@ export interface UsageDetail {
   timestamp: string;
   source: string;
   auth_index: string | number | null;
+  request_id?: string;
   latency_ms?: number;
   tokens: {
     input_tokens: number;
@@ -794,6 +795,14 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
             detailRaw?.authIndex ??
             detailRaw?.AuthIndex ??
             null) as UsageDetail['auth_index'],
+          request_id: readTrimmedString(detailRaw, [
+            'request_id',
+            'requestId',
+            'request_log_id',
+            'requestLogId',
+            'trace_id',
+            'traceId',
+          ]),
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           thinking: normalizeUsageThinking(detailRaw.thinking),
@@ -882,6 +891,14 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
             detailRaw?.authIndex ??
             detailRaw?.AuthIndex ??
             null) as UsageDetail['auth_index'],
+          request_id: readTrimmedString(detailRaw, [
+            'request_id',
+            'requestId',
+            'request_log_id',
+            'requestLogId',
+            'trace_id',
+            'traceId',
+          ]),
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           thinking: normalizeUsageThinking(detailRaw.thinking),

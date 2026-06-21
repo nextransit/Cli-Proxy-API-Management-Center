@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
+import { RequestTraceDrawer } from '@/components/RequestTraceDrawer';
 import { Select } from '@/components/ui/Select';
 import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, ProviderKeyConfig, OpenAIProviderConfig } from '@/types';
@@ -19,7 +20,7 @@ import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
 import { parseTimestampMs } from '@/utils/timestamp';
 import {
-  collectUsageDetails,
+  collectUsageDetailsWithEndpoint,
   extractLatencyMs,
   extractTotalTokens,
   formatDurationMs,
@@ -30,6 +31,7 @@ import {
   type UsageThinking,
 } from '@/utils/usage';
 import { downloadBlob } from '@/utils/download';
+import type { ParsedLogLine } from '@/pages/hooks/logTypes';
 import styles from '@/pages/UsagePage.module.scss';
 
 const ALL_FILTER = '__all__';
@@ -121,6 +123,9 @@ type RequestEventRow = {
   sourceType: string;
   authIndex: string;
   failed: boolean;
+  requestId: string;
+  requestPath: string;
+  requestMethod: ParsedLogLine['method'];
   statusCode?: number | string;
   statusLabel: string;
   resultTone: RequestEventResultTone;
@@ -152,6 +157,39 @@ type ActiveToast = {
   kind: 'result' | 'model';
   row: RequestEventRow;
 };
+
+const normalizeTraceMethod = (value: unknown): ParsedLogLine['method'] => {
+  const method = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  if (
+    method === 'GET' ||
+    method === 'POST' ||
+    method === 'PUT' ||
+    method === 'PATCH' ||
+    method === 'DELETE' ||
+    method === 'OPTIONS' ||
+    method === 'HEAD'
+  ) {
+    return method;
+  }
+  return undefined;
+};
+
+const buildTraceLineFromRow = (row: RequestEventRow): ParsedLogLine => ({
+  raw: [
+    row.timestamp,
+    row.requestMethod ?? '',
+    row.requestPath,
+    row.statusLabel,
+    row.model,
+  ].filter(Boolean).join(' '),
+  timestamp: row.timestamp,
+  requestId: row.requestId || undefined,
+  statusCode: typeof row.statusCode === 'number' ? row.statusCode : undefined,
+  latency: formatDurationMs(row.latencyMs),
+  method: row.requestMethod,
+  path: row.requestPath,
+  message: `model=${row.model} source=${row.sourceRaw}`,
+});
 
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
@@ -229,6 +267,7 @@ export function RequestEventsDetailsCard({
   const [searchText, setSearchText] = useState('');
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [activeToast, setActiveToast] = useState<ActiveToast | null>(null);
+  const [traceDrawerLine, setTraceDrawerLine] = useState<ParsedLogLine | null>(null);
   const toastRef = useRef<HTMLDivElement | null>(null);
   const modelFilter = selectedModelFilter ?? localModelFilter;
   const handleModelFilterChange = useCallback(
@@ -319,7 +358,7 @@ export function RequestEventsDetailsCard({
   );
 
   const rows = useMemo<RequestEventRow[]>(() => {
-    const details = collectUsageDetails(usage);
+    const details = collectUsageDetailsWithEndpoint(usage);
 
     const baseRows = details.map((detail, index) => {
       const timestamp = detail.timestamp;
@@ -356,6 +395,14 @@ export function RequestEventsDetailsCard({
       const statusCode = detail.status_code;
       const statusLabel = formatStatusCode(statusCode);
       const resultTone = getResultTone(statusCode, detail.failed === true);
+      const requestId = String(detail.request_id ?? '').trim();
+      const requestMethod = normalizeTraceMethod(detail.request?.method || detail.__endpointMethod);
+      const requestPath =
+        detail.__endpointPath ||
+        detail.request?.display_name ||
+        detail.request?.upstream_url ||
+        detail.request?.upstream ||
+        '-';
 
       return {
         id: `${timestamp}-${model}-${sourceKey}-${authIndex}-${index}`,
@@ -369,6 +416,9 @@ export function RequestEventsDetailsCard({
         sourceType,
         authIndex,
         failed: detail.failed === true,
+        requestId,
+        requestPath,
+        requestMethod,
         statusCode,
         statusLabel,
         resultTone,
@@ -627,14 +677,23 @@ export function RequestEventsDetailsCard({
     setActiveToast({ kind, row });
   }, []);
 
+  const openTraceDrawer = useCallback((row: RequestEventRow) => {
+    setActiveToast(null);
+    setTraceDrawerLine(buildTraceLineFromRow(row));
+  }, []);
+
   const handleToastKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>, kind: ActiveToast['kind'], row: RequestEventRow) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
+        if (kind === 'result') {
+          openTraceDrawer(row);
+          return;
+        }
         openToast(kind, row);
       }
     },
-    [openToast]
+    [openToast, openTraceDrawer]
   );
 
   const getResultDisplay = (row: RequestEventRow) => row.statusLabel || '-';
@@ -871,8 +930,8 @@ export function RequestEventsDetailsCard({
                               ? styles.requestEventsResultUnknown
                             : styles.requestEventsResultSuccess
                         }`}
-                        onMouseEnter={() => openToast('result', row)}
-                        onFocus={() => openToast('result', row)}
+                        onMouseEnter={() => openTraceDrawer(row)}
+                        onFocus={() => openTraceDrawer(row)}
                         onKeyDown={(event) => handleToastKeyDown(event, 'result', row)}
                         title={t('usage_stats.request_events_toast_request_title')}
                       >
@@ -1047,6 +1106,11 @@ export function RequestEventsDetailsCard({
               </dl>
             </div>
           )}
+          <RequestTraceDrawer
+            logLine={traceDrawerLine}
+            open={Boolean(traceDrawerLine)}
+            onClose={() => setTraceDrawerLine(null)}
+          />
         </>
       )}
     </Card>

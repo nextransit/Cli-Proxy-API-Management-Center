@@ -9,6 +9,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .traceId {
@@ -17,6 +18,35 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
   color: var(--text-tertiary);
+}
+
+.drawerTitleActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+
+  button {
+    @include button-reset;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 }
 
 // ==============================
@@ -337,12 +367,43 @@
 .tabToolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 6px;
   padding: 6px 10px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+}
+
+.viewModeGroup {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+
+  button {
+    @include button-reset;
+    padding: 4px 9px;
+    color: var(--text-tertiary);
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) {
+    color: var(--text-primary);
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+}
+
+.viewModeActive {
+  background: color-mix(in srgb, var(--primary-color) 14%, transparent) !important;
+  color: var(--primary-color) !important;
 }
 
 .tabContent {
@@ -372,6 +433,33 @@
   white-space: pre-wrap;
   word-break: break-word;
   tab-size: 2;
+}
+
+.logSectionBlock {
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.logSectionTitle {
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.previewBlock {
+  padding: 12px 14px;
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .hint {
@@ -553,6 +641,29 @@
   &:hover {
     background: color-mix(in srgb, var(--bg-tertiary) 30%, transparent);
   }
+}
+
+.headerRowPriority {
+  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+
+  .headerKey {
+    color: var(--primary-color);
+  }
+}
+
+.headerExpandButton {
+  @include button-reset;
+  padding: 7px 14px;
+  color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.headerExpandButton:hover {
+  background: color-mix(in srgb, var(--primary-color) 9%, transparent);
 }
 
 .headerKey {
