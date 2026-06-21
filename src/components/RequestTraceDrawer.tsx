@@ -43,6 +43,38 @@ const isJsonContent = (raw: string | undefined): boolean => {
   return trimmed.startsWith('{') || trimmed.startsWith('[');
 };
 
+/** Lightweight JSON syntax highlighting */
+const highlightJson = (text: string): string => {
+  return text.replace(
+    /("(?:[^"\\]|\\.)*")\s*:/g,
+    '<span class="json-key">$1</span>:'
+  ).replace(
+    /:\s*("(?:[^"\\]|\\.)*")/g,
+    ': <span class="json-string">$1</span>'
+  ).replace(
+    /:\s*(true|false)/g,
+    ': <span class="json-bool">$1</span>'
+  ).replace(
+    /:\s*(null)/g,
+    ': <span class="json-null">$1</span>'
+  ).replace(
+    /:\s*(-?\d+(?:\.\d+)?)/g,
+    ': <span class="json-number">$1</span>'
+  );
+};
+
+/** Parse key: value text into table rows */
+const parseHeaderLines = (text: string): { key: string; value: string }[] => {
+  if (!text) return [];
+  return text.split('\n')
+    .map(line => {
+      const sep = line.indexOf(':');
+      if (sep <= 0) return null;
+      return { key: line.slice(0, sep).trim(), value: line.slice(sep + 1).trim() };
+    })
+    .filter((row): row is { key: string; value: string } => row !== null && row.key.length > 0);
+};
+
 const truncateLines = (text: string, maxLines: number): { truncated: string; total: number } => {
   const lines = text.split('\n');
   if (lines.length <= maxLines) return { truncated: text, total: lines.length };
@@ -113,6 +145,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
   const [requestLog, setRequestLog] = useState<RequestLogDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('requestBody');
   const [expandedSections, setExpandedSections] = useState<Set<TabKey>>(new Set());
+  const [showRaw, setShowRaw] = useState(false);
 
   const trace = useTraceResolver({
     traceScopeKey,
@@ -396,6 +429,11 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
           </div>
 
           <div className={styles.tabToolbar}>
+            {activeTab !== 'requestHeaders' && activeTab !== 'responseHeaders' && (
+              <Button variant="secondary" size="sm" onClick={() => setShowRaw((v) => !v)}>
+                {showRaw ? 'Pretty' : 'Raw'}
+              </Button>
+            )}
             <Button variant="secondary" size="sm" onClick={handleCopyTab} disabled={!currentTabContent}>
               {t('trace.copy_raw')}
             </Button>
@@ -415,16 +453,38 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
             ) : requestLogError ? (
               <div className={styles.errorHint}>{requestLogError}</div>
             ) : currentTabContent ? (
-              <>
-                <pre className={styles.codeBlock} spellCheck={false}>
-                  <code>{tabContentInfo.text}</code>
-                </pre>
-                {tabContentInfo.isTruncated && (
-                  <button className={styles.expandBtn} onClick={() => toggleExpand(activeTab)}>
-                    {t('trace.expand_all', { total: tabContentInfo.totalLines })}
-                  </button>
-                )}
-              </>
+              (activeTab === 'requestHeaders' || activeTab === 'responseHeaders') && !showRaw ? (
+                <div className={styles.headerTable}>
+                  {parseHeaderLines(currentTabContent).map((row, i) => (
+                    <div key={i} className={styles.headerRow}>
+                      <span className={styles.headerKey}>{row.key}</span>
+                      <span className={styles.headerValue}>{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : !showRaw && isJsonContent(tabContentInfo.text) ? (
+                <>
+                  <pre className={`${styles.codeBlock} ${styles.codeHighlight}`} spellCheck={false}>
+                    <code dangerouslySetInnerHTML={{ __html: highlightJson(tabContentInfo.text) }} />
+                  </pre>
+                  {tabContentInfo.isTruncated && (
+                    <button className={styles.expandBtn} onClick={() => toggleExpand(activeTab)}>
+                      {t('trace.expand_all', { total: tabContentInfo.totalLines })}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <pre className={styles.codeBlock} spellCheck={false}>
+                    <code>{tabContentInfo.text}</code>
+                  </pre>
+                  {tabContentInfo.isTruncated && (
+                    <button className={styles.expandBtn} onClick={() => toggleExpand(activeTab)}>
+                      {t('trace.expand_all', { total: tabContentInfo.totalLines })}
+                    </button>
+                  )}
+                </>
+              )
             ) : (
               <div className={styles.hint}>{t('trace.no_data')}</div>
             )}
