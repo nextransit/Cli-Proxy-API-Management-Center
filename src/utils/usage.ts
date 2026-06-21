@@ -45,6 +45,24 @@ export interface UsageThinking {
   budget?: number;
 }
 
+export interface UsageRequestInfo {
+  type?: string;
+  spec_source?: string;
+  method?: string;
+  display_name?: string;
+  adapter?: string;
+  upstream?: string;
+  upstream_url?: string;
+}
+
+export interface UsageModelInfo {
+  platform_model?: string;
+  upstream_model?: string;
+  actual_source?: string;
+  client_service_tier?: string;
+  effective_service_tier?: string;
+}
+
 export interface RateStats {
   rpm: number;
   tpm: number;
@@ -73,6 +91,9 @@ export interface UsageDetail {
     total_tokens: number;
   };
   thinking?: UsageThinking | null;
+  request?: UsageRequestInfo | null;
+  model_info?: UsageModelInfo | null;
+  status_code?: number | string;
   failed: boolean;
   __apiKey?: string;
   __modelName?: string;
@@ -156,6 +177,82 @@ const normalizeUsageThinking = (value: unknown): UsageThinking | null => {
     ...(level ? { level } : {}),
     ...(budget !== undefined ? { budget } : {}),
   };
+};
+
+const readTrimmedString = (record: Record<string, unknown>, keys: string[]): string => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return '';
+};
+
+const normalizeUsageRequestInfo = (value: unknown): UsageRequestInfo | null => {
+  if (!isRecord(value)) return null;
+
+  const request = {
+    type: readTrimmedString(value, ['type', 'request_type', 'requestType']),
+    spec_source: readTrimmedString(value, ['spec_source', 'specSource']),
+    method: readTrimmedString(value, ['method']).toUpperCase(),
+    display_name: readTrimmedString(value, ['display_name', 'displayName']),
+    adapter: readTrimmedString(value, ['adapter']),
+    upstream: readTrimmedString(value, ['upstream']),
+    upstream_url: readTrimmedString(value, ['upstream_url', 'upstreamURL', 'upstreamUrl']),
+  };
+
+  if (
+    !request.type &&
+    !request.spec_source &&
+    !request.method &&
+    !request.display_name &&
+    !request.adapter &&
+    !request.upstream &&
+    !request.upstream_url
+  ) {
+    return null;
+  }
+  return request;
+};
+
+const normalizeUsageModelInfo = (value: unknown): UsageModelInfo | null => {
+  if (!isRecord(value)) return null;
+
+  const modelInfo = {
+    platform_model: readTrimmedString(value, ['platform_model', 'platformModel']),
+    upstream_model: readTrimmedString(value, ['upstream_model', 'upstreamModel']),
+    actual_source: readTrimmedString(value, ['actual_source', 'actualSource']),
+    client_service_tier: readTrimmedString(value, ['client_service_tier', 'clientServiceTier']),
+    effective_service_tier: readTrimmedString(value, [
+      'effective_service_tier',
+      'effectiveServiceTier',
+    ]),
+  };
+
+  if (
+    !modelInfo.platform_model &&
+    !modelInfo.upstream_model &&
+    !modelInfo.actual_source &&
+    !modelInfo.client_service_tier &&
+    !modelInfo.effective_service_tier
+  ) {
+    return null;
+  }
+  return modelInfo;
+};
+
+const normalizeUsageStatusCode = (value: unknown): number | string | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && String(parsed) === trimmed ? parsed : trimmed;
+  }
+  return undefined;
 };
 
 interface UsageSummary {
@@ -700,6 +797,16 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           thinking: normalizeUsageThinking(detailRaw.thinking),
+          request: normalizeUsageRequestInfo(detailRaw.request ?? detailRaw.request_info),
+          model_info: normalizeUsageModelInfo(detailRaw.model_info ?? detailRaw.modelInfo),
+          status_code: normalizeUsageStatusCode(
+            detailRaw.status_code ??
+              detailRaw.statusCode ??
+              detailRaw.http_status ??
+              detailRaw.httpStatus ??
+              detailRaw.response_status ??
+              detailRaw.responseStatus
+          ),
           failed: detailRaw.failed === true,
           __apiKey: apiKey,
           __modelName: modelName,
@@ -778,6 +885,16 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
           latency_ms: latencyMs ?? undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           thinking: normalizeUsageThinking(detailRaw.thinking),
+          request: normalizeUsageRequestInfo(detailRaw.request ?? detailRaw.request_info),
+          model_info: normalizeUsageModelInfo(detailRaw.model_info ?? detailRaw.modelInfo),
+          status_code: normalizeUsageStatusCode(
+            detailRaw.status_code ??
+              detailRaw.statusCode ??
+              detailRaw.http_status ??
+              detailRaw.httpStatus ??
+              detailRaw.response_status ??
+              detailRaw.responseStatus
+          ),
           failed: detailRaw.failed === true,
           __modelName: modelName,
           __endpoint: endpoint,

@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -18,6 +25,8 @@ import {
   formatDurationMs,
   LATENCY_SOURCE_FIELD,
   normalizeAuthIndex,
+  type UsageModelInfo,
+  type UsageRequestInfo,
   type UsageThinking,
 } from '@/utils/usage';
 import { downloadBlob } from '@/utils/download';
@@ -61,6 +70,45 @@ const getThinkingClassName = (thinkingLabel: string): string => {
   return '';
 };
 
+type RequestEventResultTone = 'success' | 'warning' | 'failed' | 'unknown';
+
+const getResultTone = (
+  statusCode: number | string | undefined,
+  failed: boolean
+): RequestEventResultTone => {
+  if (typeof statusCode === 'number') {
+    if (statusCode >= 500) return 'failed';
+    if (statusCode >= 400) return 'warning';
+    if (statusCode >= 200 && statusCode < 400) return 'success';
+  }
+  if (typeof statusCode === 'string' && statusCode.trim()) {
+    return failed ? 'failed' : 'unknown';
+  }
+  return 'unknown';
+};
+
+const formatStatusCode = (statusCode: number | string | undefined): string => {
+  if (typeof statusCode === 'number') return String(statusCode);
+  if (typeof statusCode === 'string') return statusCode.trim();
+  return '';
+};
+
+const displayValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '-';
+  const text = String(value).trim();
+  return text || '-';
+};
+
+const hasAnyTokens = (row: RequestEventRow): boolean =>
+  row.inputTokens > 0 ||
+  row.outputTokens > 0 ||
+  row.reasoningTokens > 0 ||
+  row.cachedTokens > 0 ||
+  row.totalTokens > 0;
+
+const isMissingSuccessfulTokenUsage = (row: RequestEventRow): boolean =>
+  row.resultTone === 'success' && !hasAnyTokens(row);
+
 type RequestEventRow = {
   id: string;
   timestamp: string;
@@ -73,6 +121,11 @@ type RequestEventRow = {
   sourceType: string;
   authIndex: string;
   failed: boolean;
+  statusCode?: number | string;
+  statusLabel: string;
+  resultTone: RequestEventResultTone;
+  requestInfo: UsageRequestInfo | null;
+  modelInfo: UsageModelInfo | null;
   latencyMs: number | null;
   thinking: UsageThinking | null;
   thinkingLabel: string;
@@ -94,6 +147,11 @@ export interface RequestEventsDetailsCardProps {
   selectedModelFilter?: string;
   onSelectedModelFilterChange?: (value: string) => void;
 }
+
+type ActiveToast = {
+  kind: 'result' | 'model';
+  row: RequestEventRow;
+};
 
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
@@ -161,6 +219,8 @@ export function RequestEventsDetailsCard({
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [searchText, setSearchText] = useState('');
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
+  const [activeToast, setActiveToast] = useState<ActiveToast | null>(null);
+  const toastRef = useRef<HTMLDivElement | null>(null);
   const modelFilter = selectedModelFilter ?? localModelFilter;
   const handleModelFilterChange = useCallback(
     (value: string) => {
@@ -196,6 +256,46 @@ export function RequestEventsDetailsCard({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeToast) return;
+    const isToastTarget = (target: EventTarget | null) => {
+      if (!(target instanceof Node)) return false;
+      if (toastRef.current?.contains(target)) return true;
+      return (
+        target instanceof Element &&
+        target.closest('[data-request-events-toast-trigger="true"]') !== null
+      );
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (isToastTarget(target)) return;
+      setActiveToast(null);
+    };
+    const handlePointerOver = (event: PointerEvent) => {
+      if (isToastTarget(event.target)) return;
+      setActiveToast(null);
+    };
+    const handleFocusIn = (event: FocusEvent) => {
+      if (isToastTarget(event.target)) return;
+      setActiveToast(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveToast(null);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('pointerover', handlePointerOver);
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('pointerover', handlePointerOver);
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeToast]);
 
   const sourceInfoMap = useMemo(
     () =>
@@ -244,6 +344,9 @@ export function RequestEventsDetailsCard({
       const latencyMs = extractLatencyMs(detail);
       const thinking = detail.thinking ?? null;
       const thinkingLabel = formatThinkingLabel(thinking);
+      const statusCode = detail.status_code;
+      const statusLabel = formatStatusCode(statusCode);
+      const resultTone = getResultTone(statusCode, detail.failed === true);
 
       return {
         id: `${timestamp}-${model}-${sourceKey}-${authIndex}-${index}`,
@@ -257,6 +360,11 @@ export function RequestEventsDetailsCard({
         sourceType,
         authIndex,
         failed: detail.failed === true,
+        statusCode,
+        statusLabel,
+        resultTone,
+        requestInfo: detail.request ?? null,
+        modelInfo: detail.model_info ?? null,
         latencyMs,
         thinking,
         thinkingLabel,
@@ -383,6 +491,13 @@ export function RequestEventsDetailsCard({
             row.sourceType,
             row.authIndex,
             row.thinkingLabel,
+            row.statusLabel,
+            row.requestInfo?.display_name,
+            row.requestInfo?.upstream,
+            row.requestInfo?.upstream_url,
+            row.modelInfo?.platform_model,
+            row.modelInfo?.upstream_model,
+            row.modelInfo?.actual_source,
           ]
             .join(' ')
             .toLowerCase()
@@ -442,7 +557,7 @@ export function RequestEventsDetailsCard({
         row.source,
         row.sourceRaw,
         row.authIndex,
-        row.failed ? 'failed' : 'success',
+        row.statusLabel || '-',
         ...(hasLatencyData ? [row.latencyMs ?? ''] : []),
         row.thinking?.intensity ?? '',
         row.thinking?.mode ?? '',
@@ -475,7 +590,11 @@ export function RequestEventsDetailsCard({
       source: row.source,
       source_raw: row.sourceRaw,
       auth_index: row.authIndex,
+      result: row.statusLabel || '-',
+      ...(row.statusCode !== undefined ? { status_code: row.statusCode } : {}),
       failed: row.failed,
+      ...(row.requestInfo ? { request: row.requestInfo } : {}),
+      ...(row.modelInfo ? { model_info: row.modelInfo } : {}),
       ...(hasLatencyData && row.latencyMs !== null ? { latency_ms: row.latencyMs } : {}),
       ...(row.thinking ? { thinking: row.thinking } : {}),
       tokens: {
@@ -494,6 +613,53 @@ export function RequestEventsDetailsCard({
       blob: new Blob([content], { type: 'application/json;charset=utf-8' }),
     });
   };
+
+  const openToast = useCallback((kind: ActiveToast['kind'], row: RequestEventRow) => {
+    setActiveToast({ kind, row });
+  }, []);
+
+  const handleToastKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLElement>, kind: ActiveToast['kind'], row: RequestEventRow) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        openToast(kind, row);
+      }
+    },
+    [openToast]
+  );
+
+  const getResultDisplay = (row: RequestEventRow) => row.statusLabel || '-';
+
+  const toastDetails = useMemo(() => {
+    if (!activeToast) return [];
+    const { row } = activeToast;
+    if (activeToast.kind === 'result') {
+      const request = row.requestInfo ?? {};
+      const fallbackSource = row.sourceRaw !== '-' ? row.sourceRaw : row.source;
+      return [
+        [t('usage_stats.request_events_toast_request_type'), request.type || 'http'],
+        [t('usage_stats.request_events_toast_spec_source'), request.spec_source || row.sourceType || row.sourceRaw],
+        [t('usage_stats.request_events_toast_method'), request.method || 'POST'],
+        [t('usage_stats.request_events_toast_display_name'), request.display_name],
+        [t('usage_stats.request_events_toast_adapter'), request.adapter || row.sourceType || row.sourceRaw],
+        [t('usage_stats.request_events_toast_upstream'), request.upstream || fallbackSource],
+        [t('usage_stats.request_events_toast_upstream_url'), request.upstream_url],
+      ];
+    }
+
+    const modelInfo = row.modelInfo ?? {};
+    return [
+      [t('usage_stats.request_events_toast_platform_model'), modelInfo.platform_model || row.model],
+      [t('usage_stats.request_events_toast_upstream_model'), modelInfo.upstream_model || row.model],
+      [t('usage_stats.request_events_toast_actual_source'), modelInfo.actual_source || row.sourceRaw],
+      [t('usage_stats.request_events_toast_thinking'), row.thinkingLabel],
+      [t('usage_stats.request_events_toast_client_service_tier'), modelInfo.client_service_tier],
+      [
+        t('usage_stats.request_events_toast_effective_service_tier'),
+        modelInfo.effective_service_tier,
+      ],
+    ];
+  }, [activeToast, t]);
 
   return (
     <Card
@@ -659,7 +825,20 @@ export function RequestEventsDetailsCard({
                     <td title={row.timestamp} className={styles.requestEventsTimestamp}>
                       {row.timestampLabel}
                     </td>
-                    <td className={styles.modelCell}>{row.model}</td>
+                    <td className={styles.modelCell}>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        data-request-events-toast-trigger="true"
+                        className={styles.requestEventsModelButton}
+                        onMouseEnter={() => openToast('model', row)}
+                        onFocus={() => openToast('model', row)}
+                        onKeyDown={(event) => handleToastKeyDown(event, 'model', row)}
+                        title={t('usage_stats.request_events_toast_model_title')}
+                      >
+                        {row.model}
+                      </span>
+                    </td>
                     <td className={styles.requestEventsSourceCell} title={row.source}>
                       <span>{row.source}</span>
                       {row.sourceType && (
@@ -671,39 +850,57 @@ export function RequestEventsDetailsCard({
                     </td>
                     <td>
                       <span
-                        className={
-                          row.failed
+                        role="button"
+                        tabIndex={0}
+                        data-request-events-toast-trigger="true"
+                        className={`${styles.requestEventsResultButton} ${
+                          row.resultTone === 'failed'
                             ? styles.requestEventsResultFailed
+                            : row.resultTone === 'warning'
+                              ? styles.requestEventsResultWarning
+                            : row.resultTone === 'unknown'
+                              ? styles.requestEventsResultUnknown
                             : styles.requestEventsResultSuccess
-                        }
+                        }`}
+                        onMouseEnter={() => openToast('result', row)}
+                        onFocus={() => openToast('result', row)}
+                        onKeyDown={(event) => handleToastKeyDown(event, 'result', row)}
+                        title={t('usage_stats.request_events_toast_request_title')}
                       >
                         <span className={styles.resultGlyph} aria-hidden="true">
-                          {row.failed ? '!' : ''}
+                          {row.resultTone === 'failed' ? '!' : ''}
                         </span>
                         <span className={styles.resultText}>
-                          {row.failed ? t('stats.failure') : t('stats.success')}
+                          {getResultDisplay(row)}
                         </span>
                       </span>
                     </td>
                     {hasLatencyData && (
                       <td className={`${styles.durationCell} ${getLatencyClassName(row.latencyMs, row.failed)}`}>{formatDurationMs(row.latencyMs)}</td>
                     )}
-                    <td
-                      className={styles.tokenSummaryCell}
-                      title={[
-                        `${t('usage_stats.input_tokens')}: ${row.inputTokens.toLocaleString()}`,
-                        `${t('usage_stats.output_tokens')}: ${row.outputTokens.toLocaleString()}`,
-                        `${t('usage_stats.reasoning_tokens')}: ${row.reasoningTokens.toLocaleString()}`,
-                        `${t('usage_stats.cached_tokens')}: ${row.cachedTokens.toLocaleString()}`,
-                      ].join('\n')}
-                    >
-                      <span className={styles.tokenSummaryTotal}>
-                        {row.totalTokens.toLocaleString()}
-                      </span>
-                      <span className={styles.tokenSummaryParts}>
-                        {row.inputTokens.toLocaleString()} / {row.outputTokens.toLocaleString()} / {row.reasoningTokens.toLocaleString()} / {row.cachedTokens.toLocaleString()}
-                      </span>
-                    </td>
+                    {(() => {
+                      const tokenMissing = isMissingSuccessfulTokenUsage(row);
+                      return (
+                        <td
+                          className={styles.tokenSummaryCell}
+                          title={[
+                            `${t('usage_stats.input_tokens')}: ${tokenMissing ? '-' : row.inputTokens.toLocaleString()}`,
+                            `${t('usage_stats.output_tokens')}: ${tokenMissing ? '-' : row.outputTokens.toLocaleString()}`,
+                            `${t('usage_stats.reasoning_tokens')}: ${tokenMissing ? '-' : row.reasoningTokens.toLocaleString()}`,
+                            `${t('usage_stats.cached_tokens')}: ${tokenMissing ? '-' : row.cachedTokens.toLocaleString()}`,
+                          ].join('\n')}
+                        >
+                          <span className={styles.tokenSummaryTotal}>
+                            {tokenMissing ? '-' : row.totalTokens.toLocaleString()}
+                          </span>
+                          <span className={styles.tokenSummaryParts}>
+                            {tokenMissing
+                              ? '- / - / - / -'
+                              : `${row.inputTokens.toLocaleString()} / ${row.outputTokens.toLocaleString()} / ${row.reasoningTokens.toLocaleString()} / ${row.cachedTokens.toLocaleString()}`}
+                          </span>
+                        </td>
+                      );
+                    })()}
                     <td>
                       <span
                         className={
@@ -737,6 +934,110 @@ export function RequestEventsDetailsCard({
               </tbody>
             </table>
           </div>
+          {activeToast && (
+            <div
+              ref={toastRef}
+              className={`${styles.requestEventsToast} ${
+                activeToast.kind === 'model'
+                  ? styles.requestEventsToastModel
+                  : activeToast.row.resultTone === 'failed'
+                    ? styles.requestEventsToastFailed
+                    : activeToast.row.resultTone === 'warning'
+                      ? styles.requestEventsToastWarning
+                    : activeToast.row.resultTone === 'unknown'
+                      ? styles.requestEventsToastUnknown
+                    : styles.requestEventsToastSuccess
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              <div className={styles.requestEventsToastMeta}>
+                <div className={styles.requestEventsToastHeader}>
+                  <div className={styles.requestEventsToastTitleGroup}>
+                    <span className={styles.requestEventsToastKicker}>
+                      {activeToast.kind === 'result'
+                        ? t('usage_stats.request_events_toast_request_title')
+                        : t('usage_stats.request_events_toast_model_title')}
+                    </span>
+                    <strong>
+                      {activeToast.kind === 'result'
+                        ? displayValue(activeToast.row.requestInfo?.display_name)
+                        : activeToast.row.model}
+                    </strong>
+                  </div>
+                  <span
+                    className={`${styles.requestEventsToastStatus} ${
+                      activeToast.kind === 'model'
+                        ? styles.requestEventsToastStatusModel
+                        : activeToast.row.resultTone === 'failed'
+                          ? styles.requestEventsToastStatusFailed
+                          : activeToast.row.resultTone === 'warning'
+                            ? styles.requestEventsToastStatusWarning
+                          : activeToast.row.resultTone === 'unknown'
+                            ? styles.requestEventsToastStatusUnknown
+                            : styles.requestEventsToastStatusSuccess
+                    }`}
+                  >
+                    {activeToast.kind === 'result'
+                      ? getResultDisplay(activeToast.row)
+                      : displayValue(activeToast.row.modelInfo?.effective_service_tier)}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.requestEventsToastClose}
+                    onClick={() => setActiveToast(null)}
+                    aria-label={t('common.close')}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className={styles.requestEventsToastMiniGrid}>
+                  <span>
+                    <b>{t('usage_stats.request_events_timestamp')}</b>
+                    <em>{activeToast.row.timestampLabel}</em>
+                  </span>
+                  <span>
+                    <b>{t('usage_stats.time')}</b>
+                    <em>{formatDurationMs(activeToast.row.latencyMs)}</em>
+                  </span>
+                  <span>
+                    <b>{t('usage_stats.request_events_auth_index')}</b>
+                    <em>{activeToast.row.authIndex}</em>
+                  </span>
+                  <span>
+                    <b>{t('usage_stats.request_events_source')}</b>
+                    <em>{activeToast.row.source}</em>
+                  </span>
+                </div>
+              </div>
+              <div className={styles.requestEventsToastTopology}>
+                <div className={styles.requestEventsToastSectionTitle}>
+                  {activeToast.kind === 'result'
+                    ? t('usage_stats.request_events_toast_request_title')
+                    : t('usage_stats.request_events_toast_model_title')}
+                </div>
+                <div className={styles.requestEventsToastFlow}>
+                  <span>{activeToast.kind === 'result' ? 'Gateway' : t('usage_stats.request_events_toast_platform_model')}</span>
+                  <i aria-hidden="true" />
+                  <span>{activeToast.kind === 'result' ? displayValue(activeToast.row.requestInfo?.adapter) : t('usage_stats.request_events_toast_upstream_model')}</span>
+                  <i aria-hidden="true" />
+                  <span className={activeToast.row.resultTone === 'failed' ? styles.requestEventsToastFlowFailed : ''}>
+                    {activeToast.kind === 'result'
+                      ? displayValue(activeToast.row.requestInfo?.upstream)
+                      : displayValue(activeToast.row.modelInfo?.actual_source)}
+                  </span>
+                </div>
+              </div>
+              <dl className={styles.requestEventsToastDetails}>
+                {toastDetails.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{displayValue(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
         </>
       )}
     </Card>
