@@ -797,6 +797,7 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
             null) as UsageDetail['auth_index'],
           request_id: readTrimmedString(detailRaw, [
             'request_id',
+            'requestID',
             'requestId',
             'request_log_id',
             'requestLogId',
@@ -893,6 +894,7 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
             null) as UsageDetail['auth_index'],
           request_id: readTrimmedString(detailRaw, [
             'request_id',
+            'requestID',
             'requestId',
             'request_log_id',
             'requestLogId',
