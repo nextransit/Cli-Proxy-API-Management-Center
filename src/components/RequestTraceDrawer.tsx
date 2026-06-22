@@ -31,10 +31,10 @@ type LogSections = Record<TabKey, LogSectionBlock[]>;
 type HeaderRow = { key: string; value: string; priority: boolean };
 
 const TABS: { key: TabKey; labelKey: string }[] = [
-  { key: 'requestHeaders', labelKey: 'trace.tab_request_headers' },
-  { key: 'requestBody', labelKey: 'trace.tab_request_body' },
-  { key: 'responseHeaders', labelKey: 'trace.tab_response_headers' },
-  { key: 'responseBody', labelKey: 'trace.tab_response_body' },
+  { key: 'requestHeaders', labelKey: 'logs.trace.tab_request_headers' },
+  { key: 'requestBody', labelKey: 'logs.trace.tab_request_body' },
+  { key: 'responseHeaders', labelKey: 'logs.trace.tab_response_headers' },
+  { key: 'responseBody', labelKey: 'logs.trace.tab_response_body' },
 ];
 
 const SECTION_TO_TAB: Record<string, TabKey> = {
@@ -49,6 +49,7 @@ const SECTION_TO_TAB: Record<string, TabKey> = {
   'API WEBSOCKET TIMELINE': 'requestBody',
   'API RESPONSE': 'responseBody',
   'API ERROR RESPONSE': 'responseBody',
+  RESPONSE: 'responseBody',
 };
 
 const createEmptyLogSections = (): LogSections => ({
@@ -344,6 +345,230 @@ const parseLogSections = (
   return sections;
 };
 
+
+// ==============================
+// AI Diagnostic Insights (extracted from raw request log text)
+// ==============================
+export type AIInsightSeverity = "ok" | "warn" | "danger";
+export type AIInsight = {
+  id: string;
+  severity: AIInsightSeverity;
+  labelKey: string; // i18n key prefix under logs.trace.insight
+  value: string;    // already-formatted value text (e.g. "12,034")
+  hintKey?: string; // optional contextual hint key
+};
+
+const TOKEN_FIELD_PATTERNS: Array<[string, RegExp]> = [
+  ["prompt_tokens", /"prompt_tokens"\s*:\s*(-?\d+)/g],
+  ["completion_tokens", /"completion_tokens"\s*:\s*(-?\d+)/g],
+  ["cached_tokens", /"cached_tokens"\s*:\s*(-?\d+)/g],
+  ["reasoning_tokens", /"reasoning_tokens"\s*:\s*(-?\d+)/g],
+  ["input_tokens", /"input_tokens"\s*:\s*(-?\d+)/g],
+  ["output_tokens", /"output_tokens"\s*:\s*(-?\d+)/g],
+];
+
+const LAST_FINISH_REASON_REGEX = /"finish_reason"\s*:\s*"([a-z_]+)"/g;
+const LAST_STOP_REASON_REGEX = /"stop_reason"\s*:\s*"([a-z_]+)"/g;
+const REQUEST_BODY_STREAM_REGEX = /"stream"\s*:\s*(true|false)/g;
+const REQUEST_BODY_MAX_TOKENS_REGEX = /"max_tokens"\s*:\s*(-?\d+)/g;
+const REQUEST_BODY_MAX_COMPLETION_TOKENS_REGEX = /"max_completion_tokens"\s*:\s*(-?\d+)/g;
+const RESPONSE_TTFT_HINT_REGEX = /Timestamp:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)/g;
+
+const LARGE_PROMPT_THRESHOLD = 8000;
+const TRUNCATED_FINISH_REASONS = new Set(["length", "max_tokens"]);
+
+const numberFormatter = new Intl.NumberFormat("en-US");
+
+const pickLastFinishReason = (content: string): string | undefined => {
+  let last: string | undefined;
+  content.replace(LAST_FINISH_REASON_REGEX, (_m, reason: string) => {
+    last = reason;
+    return _m;
+  });
+  if (last) return last;
+  // Anthropic SSE uses stop_reason; treat it the same as finish_reason for
+  // the diagnostic card so we can flag truncation across providers.
+  content.replace(LAST_STOP_REASON_REGEX, (_m, reason: string) => {
+    last = reason;
+    return _m;
+  });
+  return last;
+};
+
+const findFirstBoolean = (content: string, re: RegExp): boolean | undefined => {
+  const m = content.match(re);
+  if (!m) return undefined;
+  return m[1] === "true";
+};
+
+const findFirstInt = (content: string, re: RegExp): number | undefined => {
+  const m = content.match(re);
+  if (!m) return undefined;
+  const n = Number.parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+const findLastTimestamp = (content: string): number | undefined => {
+  // Prefer API RESPONSE/REQUEST section timestamps. We pick the latest
+  // "Timestamp: ..." line because streaming responses are flushed after the
+  // first chunk arrives; for non-streaming this is the response timestamp.
+  let last: number | undefined;
+  content.replace(RESPONSE_TTFT_HINT_REGEX, (_m, raw: string) => {
+    const t = Date.parse(raw);
+    if (Number.isFinite(t)) last = t;
+    return _m;
+  });
+  return last;
+};
+
+export function extractAIInsights(content: string | undefined, logLineTimestamp?: string): AIInsight[] {
+  if (!content) return [];
+  const insights: AIInsight[] = [];
+
+  // Token usage — keep the largest signal we see for prompt/output so we
+  // catch both OpenAI and Anthropic response shapes.
+  let prompt: number | undefined;
+  let completion: number | undefined;
+  let cached: number | undefined;
+  let cacheRead: number | undefined;
+  let reasoning: number | undefined;
+  let inputOnly: number | undefined;
+  let outputOnly: number | undefined;
+  for (const [field, re] of TOKEN_FIELD_PATTERNS) {
+    re.lastIndex = 0;
+    const m = re.exec(content);
+    if (!m) continue;
+    const n = Number.parseInt(m[1], 10);
+    if (!Number.isFinite(n)) continue;
+    if (field === "prompt_tokens") prompt = n;
+    else if (field === "completion_tokens") completion = n;
+    else if (field === "cached_tokens") cached = n;
+    else if (field === "cache_read_input_tokens") cacheRead = n;
+    else if (field === "cache_creation_input_tokens") cacheRead = (cacheRead ?? 0) + n;
+    else if (field === "reasoning_tokens") reasoning = n;
+    else if (field === "input_tokens" && prompt === undefined) inputOnly = n;
+    else if (field === "output_tokens" && completion === undefined) outputOnly = n;
+  }
+  const effectivePrompt = prompt ?? inputOnly;
+  const effectiveCompletion = completion ?? outputOnly;
+
+  if (typeof effectivePrompt === "number") {
+    const severity: AIInsightSeverity = effectivePrompt >= LARGE_PROMPT_THRESHOLD ? "danger" : effectivePrompt >= LARGE_PROMPT_THRESHOLD / 2 ? "warn" : "ok";
+    insights.push({
+      id: "prompt-tokens",
+      severity,
+      labelKey: severity === "ok" ? "prompt_ok" : severity === "warn" ? "prompt_warn" : "prompt_danger",
+      value: numberFormatter.format(effectivePrompt),
+      hintKey: severity === "danger" ? "prompt_danger_hint" : severity === "warn" ? "prompt_warn_hint" : undefined,
+    });
+  }
+
+  if (typeof effectiveCompletion === "number") {
+    insights.push({
+      id: "completion-tokens",
+      severity: "ok",
+      labelKey: "completion_ok",
+      value: numberFormatter.format(effectiveCompletion),
+    });
+  }
+
+  if (typeof reasoning === "number" && reasoning > 0) {
+    insights.push({
+      id: "reasoning-tokens",
+      severity: reasoning >= LARGE_PROMPT_THRESHOLD ? "warn" : "ok",
+      labelKey: "reasoning_ok",
+      value: numberFormatter.format(reasoning),
+    });
+  }
+
+  const effectiveCached = cached ?? cacheRead;
+  if (typeof effectiveCached === "number" && effectiveCached > 0) {
+    const ratio = typeof effectivePrompt === "number" && effectivePrompt > 0 ? effectiveCached / effectivePrompt : 0;
+    insights.push({
+      id: "cached-tokens",
+      severity: ratio >= 0.8 ? "ok" : ratio >= 0.4 ? "warn" : "ok",
+      labelKey: "cached_ok",
+      value: numberFormatter.format(effectiveCached),
+    });
+  }
+
+  const finishReason = pickLastFinishReason(content);
+  if (finishReason) {
+    const truncated = TRUNCATED_FINISH_REASONS.has(finishReason);
+    insights.push({
+      id: "finish-reason",
+      severity: truncated ? "warn" : "ok",
+      labelKey: truncated ? "finish_truncated" : "finish_normal",
+      value: finishReason,
+      hintKey: truncated ? "finish_truncated_hint" : undefined,
+    });
+  }
+
+  const stream = findFirstBoolean(content, REQUEST_BODY_STREAM_REGEX);
+  if (stream === true) {
+    const requestTs = logLineTimestamp ? Date.parse(logLineTimestamp) : Number.NaN;
+    const responseTs = findLastTimestamp(content);
+    if (Number.isFinite(requestTs) && typeof responseTs === "number") {
+      const ttftMs = Math.max(0, responseTs - requestTs);
+      if (ttftMs < 60_000) {
+        insights.push({
+          id: "ttft",
+          severity: ttftMs >= 3000 ? "warn" : ttftMs >= 1000 ? "ok" : "ok",
+          labelKey: ttftMs >= 3000 ? "ttft_slow" : "ttft_ok",
+          value: ttftMs >= 1000 ? (ttftMs / 1000).toFixed(2) + "s" : ttftMs + "ms",
+          hintKey: ttftMs >= 3000 ? "ttft_slow_hint" : undefined,
+        });
+      }
+    }
+  }
+
+  const maxTokens = findFirstInt(content, REQUEST_BODY_MAX_COMPLETION_TOKENS_REGEX) ?? findFirstInt(content, REQUEST_BODY_MAX_TOKENS_REGEX);
+  if (typeof maxTokens === "number" && finishReason && TRUNCATED_FINISH_REASONS.has(finishReason)) {
+    insights.push({
+      id: "max-tokens",
+      severity: "warn",
+      labelKey: "max_tokens_truncated",
+      value: numberFormatter.format(maxTokens),
+      hintKey: "max_tokens_truncated_hint",
+    });
+  }
+
+  return insights;
+}
+
+export function summarizeInsights(insights: AIInsight[]): { danger: number; warn: number; ok: number } {
+  return insights.reduce(
+    (acc, item) => {
+      if (item.severity === "danger") acc.danger += 1;
+      else if (item.severity === "warn") acc.warn += 1;
+      else acc.ok += 1;
+      return acc;
+    },
+    { danger: 0, warn: 0, ok: 0 }
+  );
+}
+
+const buildFallbackSections = (line: ParsedLogLine | null): LogSections => {
+  const sections = createEmptyLogSections();
+  if (!line) return sections;
+
+  const requestInfo = [
+    line.method ? `Method: ${line.method}` : '',
+    line.path ? `Path: ${line.path}` : '',
+    typeof line.statusCode === 'number' ? `Status: ${line.statusCode}` : '',
+    line.latency ? `Latency: ${line.latency}` : '',
+    line.ip ? `IP: ${line.ip}` : '',
+    line.timestamp ? `Timestamp: ${line.timestamp}` : '',
+    line.requestId ? `Request ID: ${line.requestId}` : '',
+    line.source ? `Source: ${line.source}` : '',
+  ].filter(Boolean);
+
+  appendSection(sections, 'requestHeaders', requestInfo.join('\n'), 'LOG INFO');
+  appendSection(sections, 'requestBody', line.raw || line.message, 'RAW LOG LINE');
+
+  return sections;
+};
+
 /** Build a timeline scale from span durations. */
 const buildTimeScale = (totalMs: number): string[] => {
   const steps = 4;
@@ -430,7 +655,21 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
     };
   }, [connectionStatus, open, requestLogId, t]);
 
-  const sections = useMemo(() => parseLogSections(requestLog?.content), [requestLog?.content]);
+
+  const aiInsights = useMemo(
+    () => extractAIInsights(requestLog?.content, logLine?.timestamp),
+    [requestLog?.content, logLine?.timestamp]
+  );
+  const aiSummary = useMemo(() => summarizeInsights(aiInsights), [aiInsights]);
+  const hasAnyInsight = aiInsights.length > 0;
+
+  const sections = useMemo(() => {
+    const parsedSections = parseLogSections(requestLog?.content);
+    if (TABS.some((tab) => currentTabHasContent(parsedSections, tab.key))) {
+      return parsedSections;
+    }
+    return buildFallbackSections(logLine);
+  }, [logLine, requestLog?.content]);
 
   useEffect(() => {
     if (!open || currentTabHasContent(sections, activeTab)) return;
@@ -588,22 +827,50 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
       width={760}
       title={
         <div className={styles.drawerTitle}>
-          <span>{t('trace.title')}</span>
+          <span>{t('logs.trace.title')}</span>
           <span className={styles.traceId}>
-            {t('trace.trace_id')}: {traceId}
+            {t('logs.trace.trace_id')}: {traceId}
           </span>
           <div className={styles.drawerTitleActions}>
             <button type="button" onClick={handleCopyCurl} disabled={!hasAnyContent}>
-              Copy cURL
+              {t('logs.trace.copy_curl')}
             </button>
             <button type="button" onClick={handleCopyAll} disabled={!hasAnyContent}>
-              Copy All
+              {t('logs.trace.copy_all')}
             </button>
           </div>
         </div>
       }
     >
       <div className={styles.container}>
+
+        {/* ====== AI Diagnostic Card ====== */}
+        {hasAnyInsight && (
+          <div className={styles.aiCard} data-tone={aiSummary.danger > 0 ? "danger" : aiSummary.warn > 0 ? "warn" : "ok"}>
+            <div className={styles.aiHeader}>
+              <span className={styles.aiHeaderTitle}>{t("logs.trace.ai_diagnostics_title")}</span>
+              <span className={styles.aiHeaderMeta}>
+                {aiSummary.danger > 0 && <span className={styles.aiHeaderChip} data-tone="danger">{aiSummary.danger}</span>}
+                {aiSummary.warn > 0 && <span className={styles.aiHeaderChip} data-tone="warn">{aiSummary.warn}</span>}
+                {aiSummary.ok > 0 && <span className={styles.aiHeaderChip} data-tone="ok">{aiSummary.ok}</span>}
+              </span>
+            </div>
+            <ul className={styles.aiList}>
+              {aiInsights.map((insight) => (
+                <li key={insight.id} className={styles.aiItem} data-tone={insight.severity}>
+                  <span className={styles.aiSeverity}>
+                    {insight.severity === "danger" ? "🚨" : insight.severity === "warn" ? "⚠️" : "✅"}
+                  </span>
+                  <span className={styles.aiLabel}>{t("logs.trace.insight." + insight.labelKey, { value: insight.value })}</span>
+                  {insight.hintKey && (
+                    <span className={styles.aiHint}>{t("logs.trace.insight." + insight.hintKey)}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* ====== Meta Header ====== */}
         <div className={`${styles.metaCard} ${isError ? styles.metaError : styles.metaSuccess}`}>
           <div className={styles.metaTopRow}>
@@ -617,19 +884,19 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
           </div>
           <div className={styles.metaGrid}>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>{t('trace.latency')}</span>
+              <span className={styles.metaLabel}>{t('logs.trace.latency')}</span>
               <span className={styles.metaValue}>{trace.traceLogLine?.latency || logLine?.latency || '-'}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>{t('trace.ip')}</span>
+              <span className={styles.metaLabel}>{t('logs.trace.ip')}</span>
               <span className={styles.metaValue}>{logLine?.ip || '-'}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>{t('trace.timestamp')}</span>
+              <span className={styles.metaLabel}>{t('logs.trace.timestamp')}</span>
               <span className={styles.metaValue}>{logLine?.timestamp || '-'}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>{t('trace.request_id')}</span>
+              <span className={styles.metaLabel}>{t('logs.trace.request_id')}</span>
               <span className={`${styles.metaValue} ${styles.metaMono}`}>
                 {logLine?.requestId || '-'}
               </span>
@@ -653,7 +920,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
         {/* ====== Timeline Topology ====== */}
         <div className={styles.timelineSection}>
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionTitle}>{t('trace.timeline_title')}</span>
+            <span className={styles.sectionTitle}>{t('logs.trace.timeline_title')}</span>
           </div>
 
           {/* Time scale */}
@@ -714,16 +981,16 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
                   onClick={() => setViewMode(mode)}
                   disabled={!currentTabContent}
                 >
-                  {mode === 'pretty' ? 'Pretty' : mode === 'raw' ? 'Raw' : 'Preview'}
+                  {t(`logs.trace.view_${mode}`)}
                 </button>
               ))}
             </div>
             <Button variant="secondary" size="sm" onClick={handleCopyTab} disabled={!currentTabContent}>
-              {t('trace.copy_raw')}
+              {t('logs.trace.copy_raw')}
             </Button>
             {requestLogId && (
               <Button variant="secondary" size="sm" onClick={handleDownload}>
-                {t('trace.download_log')}
+                {t('logs.trace.download_log')}
               </Button>
             )}
           </div>
@@ -734,10 +1001,11 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
                 <LoadingSpinner />
                 <span>{t('logs.trace_request_log_loading')}</span>
               </div>
-            ) : requestLogError ? (
-              <div className={styles.errorHint}>{requestLogError}</div>
-            ) : currentTabBlocks.length > 0 ? (
-              currentTabBlocks.map((block, blockIndex) => {
+            ) : (
+              <>
+                {requestLogError && <div className={styles.errorHint}>{requestLogError}</div>}
+                {currentTabBlocks.length > 0 ? (
+                  currentTabBlocks.map((block, blockIndex) => {
                 const displayInfo = buildDisplayInfo(
                   block.content,
                   expandedSections.has(activeTab),
@@ -776,7 +1044,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
                             className={styles.headerExpandButton}
                             onClick={() => toggleHeaderExpand(activeTab)}
                           >
-                            Show {hiddenHeaderCount} more headers
+                            {t('logs.trace.show_more_headers', { count: hiddenHeaderCount })}
                           </button>
                         )}
                       </div>
@@ -789,7 +1057,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
                         </pre>
                         {displayInfo.isTruncated && (
                           <button className={styles.expandBtn} onClick={() => toggleExpand(activeTab)}>
-                            {t('trace.expand_all', { total: displayInfo.totalLines })}
+                            {t('logs.trace.expand_all', { total: displayInfo.totalLines })}
                           </button>
                         )}
                       </>
@@ -800,16 +1068,18 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
                         </pre>
                         {displayInfo.isTruncated && (
                           <button className={styles.expandBtn} onClick={() => toggleExpand(activeTab)}>
-                            {t('trace.expand_all', { total: displayInfo.totalLines })}
+                            {t('logs.trace.expand_all', { total: displayInfo.totalLines })}
                           </button>
                         )}
                       </>
                     )}
                   </section>
                 );
-              })
-            ) : (
-              <div className={styles.hint}>{t('trace.no_data')}</div>
+                  })
+                ) : (
+                  <div className={styles.hint}>{t('logs.trace.no_data')}</div>
+                )}
+              </>
             )}
           </div>
         </div>

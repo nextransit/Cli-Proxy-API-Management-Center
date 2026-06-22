@@ -1,4 +1,122 @@
 @use '../styles/mixins' as *;
+// AI_INSIGHT_STYLES_INSTALLED
+.aiCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: $radius-md;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--text-tertiary);
+
+  &[data-tone="ok"] { border-left-color: var(--success-color); }
+  &[data-tone="warn"] {
+    border-left-color: var(--warning-color);
+    background: color-mix(in srgb, var(--warning-color) 5%, var(--bg-secondary));
+  }
+  &[data-tone="danger"] {
+    border-left-color: var(--error-color);
+    background: color-mix(in srgb, var(--error-color) 6%, var(--bg-secondary));
+  }
+}
+
+.aiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.aiHeaderTitle {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.aiHeaderMeta {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.aiHeaderChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: $radius-full;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+
+  &[data-tone="danger"] {
+    color: var(--failure-badge-text);
+    background: var(--failure-badge-bg);
+    border-color: var(--failure-badge-border);
+  }
+  &[data-tone="warn"] {
+    color: var(--warning-text, #92400e);
+    background: var(--warning-bg, #fef3c7);
+    border-color: var(--warning-border, #fde68a);
+  }
+  &[data-tone="ok"] {
+    color: var(--success-badge-text);
+    background: var(--success-badge-bg);
+    border-color: var(--success-badge-border);
+  }
+}
+
+.aiList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aiItem {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  grid-column-gap: 8px;
+  grid-row-gap: 2px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-top: 1px dashed var(--border-color);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary);
+
+  &:first-child { border-top: none; padding-top: 0; }
+
+  &[data-tone="danger"] .aiLabel { color: var(--error-color); font-weight: 700; }
+  &[data-tone="warn"] .aiLabel { color: var(--warning-text, #92400e); font-weight: 600; }
+  &[data-tone="ok"] .aiLabel { color: var(--text-primary); }
+}
+
+.aiSeverity {
+  grid-row: 1 / span 2;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.aiLabel {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aiHint {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
 
 // ==============================
 // Drawer Title
