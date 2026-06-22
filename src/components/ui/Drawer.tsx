@@ -5,6 +5,8 @@ import {
   useRef,
   useState,
   type PropsWithChildren,
+  type FocusEventHandler,
+  type MouseEventHandler,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -18,6 +20,11 @@ interface DrawerProps {
   width?: number | string;
   className?: string;
   closeDisabled?: boolean;
+  modal?: boolean;
+  onPanelMouseEnter?: MouseEventHandler<HTMLDivElement>;
+  onPanelMouseLeave?: MouseEventHandler<HTMLDivElement>;
+  onPanelFocus?: FocusEventHandler<HTMLDivElement>;
+  onPanelBlur?: FocusEventHandler<HTMLDivElement>;
 }
 
 const DRAWER_ANIMATION_DURATION = 300;
@@ -136,6 +143,11 @@ export function Drawer({
   width = 560,
   className,
   closeDisabled = false,
+  modal = true,
+  onPanelMouseEnter,
+  onPanelMouseLeave,
+  onPanelFocus,
+  onPanelBlur,
   children,
 }: PropsWithChildren<DrawerProps>) {
   const { t } = useTranslation();
@@ -207,7 +219,7 @@ export function Drawer({
     };
   }, []);
 
-  const shouldLockScroll = open || isVisible;
+  const shouldLockScroll = modal && (open || isVisible);
 
   useEffect(() => {
     if (!shouldLockScroll) return;
@@ -216,7 +228,7 @@ export function Drawer({
   }, [shouldLockScroll]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !modal) return;
 
     previouslyFocusedRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -232,7 +244,7 @@ export function Drawer({
   }, [getFocusableElements, open]);
 
   useEffect(() => {
-    if (open || isVisible) return;
+    if (!modal || open || isVisible) return;
     previouslyFocusedRef.current?.focus();
     previouslyFocusedRef.current = null;
   }, [isVisible, open]);
@@ -255,20 +267,24 @@ export function Drawer({
 
   if (!open && !isVisible) return null;
 
-  const overlayClass = `drawer-overlay ${isClosing ? 'drawer-overlay-closing' : 'drawer-overlay-entering'}`;
+  const overlayClass = `drawer-overlay ${modal ? '' : 'drawer-overlay-preview'} ${isClosing ? 'drawer-overlay-closing' : 'drawer-overlay-entering'}`;
   const panelClass = `drawer-panel ${isClosing ? 'drawer-panel-closing' : 'drawer-panel-entering'}${className ? ` ${className}` : ''}`;
 
   const content = (
-    <div className={overlayClass} onClick={closeDisabled ? undefined : handleClose}>
+    <div className={overlayClass} onClick={modal && !closeDisabled ? handleClose : undefined}>
       <div
         ref={drawerRef}
         className={panelClass}
         style={{ width }}
         role="dialog"
-        aria-modal="true"
+        aria-modal={modal}
         aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        onMouseEnter={onPanelMouseEnter}
+        onMouseLeave={onPanelMouseLeave}
+        onFocus={onPanelFocus}
+        onBlur={onPanelBlur}
       >
         <div className="drawer-header">
           <div className="drawer-title" id={title ? titleId : undefined}>

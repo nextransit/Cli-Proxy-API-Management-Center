@@ -1307,6 +1307,8 @@
       "view_raw": "原始",
       "view_preview": "預覽",
       "no_data": "無資料",
+      "empty_section": "完整請求日誌中沒有此分區內容",
+      "full_log_unavailable": "完整請求日誌不可用：目前事件只有 usage 摘要，無法還原請求體或響應體",
       "ai_diagnostics_title": "AI 診斷",
       "insight": {
         "prompt_ok": "提示詞 {{value}} tokens",

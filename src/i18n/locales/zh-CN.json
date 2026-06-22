@@ -1311,6 +1311,8 @@
       "view_raw": "原始",
       "view_preview": "预览",
       "no_data": "无数据",
+      "empty_section": "完整请求日志中没有该分区内容",
+      "full_log_unavailable": "完整请求日志不可用：当前事件只有 usage 摘要，无法还原请求体或响应体",
       "ai_diagnostics_title": "AI 诊断",
       "insight": {
         "prompt_ok": "提示词 {{value}} tokens",

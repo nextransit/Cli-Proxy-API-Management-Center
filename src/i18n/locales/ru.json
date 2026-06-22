@@ -1281,6 +1281,8 @@
       "view_raw": "Raw",
       "view_preview": "Preview",
       "no_data": "No data",
+      "empty_section": "This section is not present in the full request log",
+      "full_log_unavailable": "Full request log unavailable: this event only has usage summary data, so request and response bodies cannot be reconstructed",
       "ai_diagnostics_title": "AI Диагностика",
       "insight": {
         "prompt_ok": "Промпт {{value}} токенов",

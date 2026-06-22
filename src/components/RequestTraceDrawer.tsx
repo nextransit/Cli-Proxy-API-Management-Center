@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FocusEventHandler, type MouseEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Drawer } from '@/components/ui/Drawer';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +14,11 @@ interface RequestTraceDrawerProps {
   logLine: ParsedLogLine | null;
   open: boolean;
   onClose: () => void;
+  modal?: boolean;
+  onPanelMouseEnter?: MouseEventHandler<HTMLDivElement>;
+  onPanelMouseLeave?: MouseEventHandler<HTMLDivElement>;
+  onPanelFocus?: FocusEventHandler<HTMLDivElement>;
+  onPanelBlur?: FocusEventHandler<HTMLDivElement>;
 }
 
 const JSON_PREVIEW_MAX_LINES = 200;
@@ -561,10 +566,11 @@ const buildFallbackSections = (line: ParsedLogLine | null): LogSections => {
     line.timestamp ? `Timestamp: ${line.timestamp}` : '',
     line.requestId ? `Request ID: ${line.requestId}` : '',
     line.source ? `Source: ${line.source}` : '',
+    line.message ? `Message: ${line.message}` : '',
+    line.raw ? `Raw Log: ${line.raw}` : '',
   ].filter(Boolean);
 
-  appendSection(sections, 'requestHeaders', requestInfo.join('\n'), 'LOG INFO');
-  appendSection(sections, 'requestBody', line.raw || line.message, 'RAW LOG LINE');
+  appendSection(sections, 'requestHeaders', requestInfo.join('\n'), 'REQUEST SUMMARY');
 
   return sections;
 };
@@ -579,7 +585,16 @@ const buildTimeScale = (totalMs: number): string[] => {
   return scale;
 };
 
-export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawerProps) {
+export function RequestTraceDrawer({
+  logLine,
+  open,
+  onClose,
+  modal = true,
+  onPanelMouseEnter,
+  onPanelMouseLeave,
+  onPanelFocus,
+  onPanelBlur,
+}: RequestTraceDrawerProps) {
   const { t } = useTranslation();
   const { showNotification } = useNotificationStore();
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
@@ -592,6 +607,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
   const [requestLogError, setRequestLogError] = useState('');
   const [requestLog, setRequestLog] = useState<RequestLogDetail | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('requestBody');
+  const [userSelectedTab, setUserSelectedTab] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<TabKey>>(new Set());
   const [viewMode, setViewMode] = useState<DetailViewMode>('pretty');
   const [expandedHeaderTabs, setExpandedHeaderTabs] = useState<Set<TabKey>>(new Set());
@@ -610,6 +626,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
     setRequestLog(null);
     setRequestLogError('');
     setActiveTab(typeof logLine.statusCode === 'number' && logLine.statusCode >= 400 ? 'responseBody' : 'requestBody');
+    setUserSelectedTab(false);
     setExpandedSections(new Set());
     setViewMode('pretty');
     setExpandedHeaderTabs(new Set());
@@ -672,7 +689,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
   }, [logLine, requestLog?.content]);
 
   useEffect(() => {
-    if (!open || currentTabHasContent(sections, activeTab)) return;
+    if (!open || userSelectedTab || currentTabHasContent(sections, activeTab)) return;
     const preferredTabs: TabKey[] =
       typeof logLine?.statusCode === 'number' && logLine.statusCode >= 400
         ? ['responseBody', 'responseHeaders', 'requestBody', 'requestHeaders']
@@ -683,7 +700,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
     if (firstAvailableTab) {
       setActiveTab(firstAvailableTab.key);
     }
-  }, [activeTab, logLine?.statusCode, open, sections]);
+  }, [activeTab, logLine?.statusCode, open, sections, userSelectedTab]);
 
   // Copy current tab content
   const handleCopyTab = async () => {
@@ -798,6 +815,9 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
   const currentTabBlocks = sections[activeTab];
   const currentTabContent = stringifyBlocks(currentTabBlocks);
   const hasAnyContent = TABS.some((tab) => currentTabHasContent(sections, tab.key));
+  const emptyTabMessage = requestLogId
+    ? t('logs.trace.empty_section')
+    : t('logs.trace.full_log_unavailable');
 
   // Compute trace ID from request ID
   const traceId = logLine?.requestId ? `tr-${logLine.requestId.substring(0, 8)}...` : '-';
@@ -824,6 +844,11 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
     <Drawer
       open={open}
       onClose={onClose}
+      modal={modal}
+      onPanelMouseEnter={onPanelMouseEnter}
+      onPanelMouseLeave={onPanelMouseLeave}
+      onPanelFocus={onPanelFocus}
+      onPanelBlur={onPanelBlur}
       width={760}
       title={
         <div className={styles.drawerTitle}>
@@ -964,7 +989,10 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
               <button
                 key={tab.key}
                 className={`${styles.tabItem} ${activeTab === tab.key ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => {
+                  setUserSelectedTab(true);
+                  setActiveTab(tab.key);
+                }}
               >
                 {t(tab.labelKey)}
               </button>
@@ -1077,7 +1105,7 @@ export function RequestTraceDrawer({ logLine, open, onClose }: RequestTraceDrawe
                 );
                   })
                 ) : (
-                  <div className={styles.hint}>{t('logs.trace.no_data')}</div>
+                  <div className={styles.hint}>{emptyTabMessage}</div>
                 )}
               </>
             )}

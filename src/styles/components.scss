@@ -1707,6 +1707,13 @@ $drawer-animation-duration: 300ms;
   }
 }
 
+.drawer-overlay-preview {
+  pointer-events: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .drawer-panel {
   display: flex;
   flex-direction: column;
@@ -1722,6 +1729,10 @@ $drawer-animation-duration: 300ms;
   &.drawer-panel-closing {
     animation: drawer-slide-out $drawer-animation-duration cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
+}
+
+.drawer-overlay-preview .drawer-panel {
+  pointer-events: auto;
 }
 
 .drawer-header {
