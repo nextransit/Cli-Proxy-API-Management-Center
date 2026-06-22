@@ -269,6 +269,32 @@ export function RequestEventsDetailsCard({
   const [activeToast, setActiveToast] = useState<ActiveToast | null>(null);
   const [traceDrawerLine, setTraceDrawerLine] = useState<ParsedLogLine | null>(null);
   const toastRef = useRef<HTMLDivElement | null>(null);
+  // Keep the drawer mounted while the pointer travels from a result cell into
+  // the drawer panel; the trace drawer exposes panel hover/focus events that
+  // let us cancel a pending close.
+  const closeTraceDrawerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelScheduledClose = useCallback(() => {
+    if (closeTraceDrawerTimerRef.current !== null) {
+      clearTimeout(closeTraceDrawerTimerRef.current);
+      closeTraceDrawerTimerRef.current = null;
+    }
+  }, []);
+  const scheduleCloseTraceDrawer = useCallback(() => {
+    cancelScheduledClose();
+    closeTraceDrawerTimerRef.current = setTimeout(() => {
+      closeTraceDrawerTimerRef.current = null;
+      setTraceDrawerLine(null);
+    }, 180);
+  }, [cancelScheduledClose]);
+  useEffect(
+    () => () => {
+      if (closeTraceDrawerTimerRef.current !== null) {
+        clearTimeout(closeTraceDrawerTimerRef.current);
+        closeTraceDrawerTimerRef.current = null;
+      }
+    },
+    []
+  );
   const modelFilter = selectedModelFilter ?? localModelFilter;
   const handleModelFilterChange = useCallback(
     (value: string) => {
@@ -677,10 +703,26 @@ export function RequestEventsDetailsCard({
     setActiveToast({ kind, row });
   }, []);
 
-  const openTraceDrawer = useCallback((row: RequestEventRow) => {
-    setActiveToast(null);
-    setTraceDrawerLine(buildTraceLineFromRow(row));
-  }, []);
+  const openTraceDrawer = useCallback(
+    (row: RequestEventRow) => {
+      cancelScheduledClose();
+      setActiveToast(null);
+      setTraceDrawerLine(buildTraceLineFromRow(row));
+    },
+    [cancelScheduledClose]
+  );
+
+  const closeTraceDrawer = useCallback(() => {
+    scheduleCloseTraceDrawer();
+  }, [scheduleCloseTraceDrawer]);
+
+  const handleDrawerPanelEnter = useCallback(() => {
+    cancelScheduledClose();
+  }, [cancelScheduledClose]);
+
+  const handleDrawerPanelLeave = useCallback(() => {
+    scheduleCloseTraceDrawer();
+  }, [scheduleCloseTraceDrawer]);
 
   const handleToastKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>, kind: ActiveToast['kind'], row: RequestEventRow) => {
@@ -931,7 +973,9 @@ export function RequestEventsDetailsCard({
                             : styles.requestEventsResultSuccess
                         }`}
                         onMouseEnter={() => openTraceDrawer(row)}
+                        onMouseLeave={closeTraceDrawer}
                         onFocus={() => openTraceDrawer(row)}
+                        onBlur={closeTraceDrawer}
                         onKeyDown={(event) => handleToastKeyDown(event, 'result', row)}
                         title={t('usage_stats.request_events_toast_request_title')}
                       >
@@ -1109,7 +1153,12 @@ export function RequestEventsDetailsCard({
           <RequestTraceDrawer
             logLine={traceDrawerLine}
             open={Boolean(traceDrawerLine)}
-            onClose={() => setTraceDrawerLine(null)}
+            onClose={closeTraceDrawer}
+            modal={false}
+            onPanelMouseEnter={handleDrawerPanelEnter}
+            onPanelMouseLeave={handleDrawerPanelLeave}
+            onPanelFocus={handleDrawerPanelEnter}
+            onPanelBlur={handleDrawerPanelLeave}
           />
         </>
       )}
