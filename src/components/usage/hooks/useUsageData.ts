@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { usageApi } from '@/services/api/usage';
+import { subscribeUsageStream } from '@/services/api/usageStream';
 import { modelPricesApi } from '@/services/api/modelPrices';
 import { downloadBlob } from '@/utils/download';
 import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
-
-const AUTO_REFRESH_INTERVAL_MS = 30_000;
 
 export interface UsagePayload {
   total_requests?: number;
@@ -84,15 +84,58 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
   }, [loadUsageStats, timeRange]);
 
   useEffect(() => {
-    const timerId = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
+    let pollingTimer: ReturnType<typeof setInterval> | null = null;
+    let streamHandle: ReturnType<typeof subscribeUsageStream> | null = null;
+
+    const stopPolling = () => {
+      if (pollingTimer) {
+        window.clearInterval(pollingTimer);
+        pollingTimer = null;
       }
-      void loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange }).catch(() => {});
-    }, AUTO_REFRESH_INTERVAL_MS);
+    };
+
+    const startPolling = () => {
+      if (pollingTimer) return;
+      pollingTimer = window.setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          return;
+        }
+        void loadUsageStats({
+          force: true,
+          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+          timeRange,
+        }).catch(() => {});
+      }, 10_000);
+    };
+
+    streamHandle = subscribeUsageStream({
+      getManagementKey: () => useAuthStore.getState().managementKey ?? '',
+      onEvent: (event) => {
+        if (event.type !== 'snapshot') return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          return;
+        }
+        useUsageStatsStore.setState({
+          usage: event.payload as never,
+          loading: false,
+          error: '',
+          lastRefreshedAt: Date.now(),
+        });
+      },
+      onStatusChange: (status) => {
+        if (status === 'open') {
+          stopPolling();
+        } else if (status === 'error' || status === 'closed') {
+          startPolling();
+        }
+      },
+      baseDelayMs: 1_000,
+      maxDelayMs: 30_000,
+    });
 
     return () => {
-      window.clearInterval(timerId);
+      streamHandle?.close();
+      stopPolling();
     };
   }, [loadUsageStats, timeRange]);
 
