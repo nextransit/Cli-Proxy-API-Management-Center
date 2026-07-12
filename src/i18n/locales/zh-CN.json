@@ -1131,6 +1131,8 @@
     "request_events_no_result_title": "没有匹配结果",
     "request_events_no_result_desc": "请尝试调整筛选条件，或清空当前筛选。",
     "request_events_count": "{{count}} 条事件",
+    "request_events_total_count": "共 {{total}} 条",
+    "request_events_filtered_count": "当前过滤命中 {{filtered}} 条",
     "request_events_limit_hint": "为保证渲染性能，仅展示 {{shown}} / {{total}} 条事件。",
     "input_tokens": "输入 Tokens",
     "output_tokens": "输出 Tokens",
