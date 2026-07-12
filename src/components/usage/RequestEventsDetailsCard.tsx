@@ -903,7 +903,11 @@ export function RequestEventsDetailsCard({
       ) : (
         <>
           <div className={styles.requestEventsMeta}>
-            <span>{t('usage_stats.request_events_count', { count: filteredRows.length })}</span>
+            <span>
+              {t('usage_stats.request_events_total_count', { total: rows.length })}
+              {' · '}
+              {t('usage_stats.request_events_filtered_count', { filtered: filteredRows.length })}
+            </span>
             {hasLatencyData && <span className={styles.requestEventsLimitHint}>{latencyHint}</span>}
             {filteredRows.length > MAX_RENDERED_EVENTS && (
               <span className={styles.requestEventsLimitHint}>
