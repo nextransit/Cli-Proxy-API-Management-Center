@@ -2,14 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { subscribeUsageStream } from './usageStream';
 
 describe('subscribeUsageStream', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.useRealTimers();
   });
 
@@ -23,7 +23,7 @@ describe('subscribeUsageStream', () => {
       },
     });
 
-    global.fetch = vi.fn(async () =>
+    globalThis.fetch = vi.fn(async () =>
       new Response(stream, {
         status: 200,
         headers: { 'Content-Type': 'text/event-stream' },
@@ -47,7 +47,7 @@ describe('subscribeUsageStream', () => {
   });
 
   it('reconnects with backoff after fetch error', async () => {
-    global.fetch = vi.fn(async () => {
+    globalThis.fetch = vi.fn(async () => {
       throw new Error('network down');
     }) as unknown as typeof fetch;
 

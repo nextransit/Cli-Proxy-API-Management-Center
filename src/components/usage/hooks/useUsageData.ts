@@ -52,6 +52,18 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
   }, [loadUsageStats, timeRange]);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      void loadUsage().catch(() => {});
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadUsage]);
+
+  useEffect(() => {
     void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange }).catch(() => {});
     const localPrices = loadModelPrices();
     setModelPrices(localPrices);
@@ -115,12 +127,11 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
           return;
         }
-        useUsageStatsStore.setState({
-          usage: event.payload as never,
-          loading: false,
-          error: '',
-          lastRefreshedAt: Date.now(),
-        });
+        void loadUsageStats({
+          force: true,
+          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+          timeRange,
+        }).catch(() => {});
       },
       onStatusChange: (status) => {
         if (status === 'open') {
