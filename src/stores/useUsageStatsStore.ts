@@ -6,6 +6,7 @@ import i18n from '@/i18n';
 
 export const USAGE_STATS_STALE_TIME_MS = 240_000;
 export const MAX_RECENT_DETAILS = 200;
+export type { UsageDetail } from '@/utils/usage';
 
 export interface UsageEventDetail {
   id: number;

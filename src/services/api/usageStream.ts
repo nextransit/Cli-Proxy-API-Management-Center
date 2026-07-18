@@ -1,15 +1,24 @@
 /**
  * SSE subscription for usage statistics. Subscribes to
- * `/v0/management/usage/events` and surfaces snapshot / heartbeat events.
+ * `/v0/management/usage/events` and surfaces usage_event / summary / heartbeat events.
  *
  * The native EventSource API does not support custom headers, so we use
  * `fetch` + ReadableStream and inject the Authorization header manually.
  */
 
-import type { UsagePayload } from '../../components/usage/hooks/useUsageData';
+import type { UsageDetail } from '../../stores/useUsageStatsStore';
+
+export interface StreamSummary {
+  total_requests?: number;
+  total_tokens?: number;
+  success_count?: number;
+  failure_count?: number;
+  latest_event_id: number;
+}
 
 export type StreamEvent =
-  | { type: 'snapshot'; payload: UsagePayload }
+  | { type: 'summary'; payload: StreamSummary }
+  | { type: 'usage_event'; payload: UsageDetail }
   | { type: 'heartbeat'; ts: string };
 
 export type StreamStatus = 'connecting' | 'open' | 'closed' | 'error';
@@ -22,7 +31,10 @@ export interface UsageStreamHandle {
 export interface UsageStreamOptions {
   endpoint?: string;
   getManagementKey: () => string;
-  onEvent: (event: StreamEvent) => void;
+  getLastEventId?: () => number;
+  onEvent?: (event: StreamEvent) => void;
+  onUsageEvent?: (detail: UsageDetail) => void;
+  onSummary?: (summary: StreamSummary) => void;
   onStatusChange?: (status: StreamStatus) => void;
   baseDelayMs?: number;
   maxDelayMs?: number;
@@ -64,15 +76,20 @@ export function subscribeUsageStream(
       else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
     }
     const data = dataLines.join('\n');
-    if (event === 'snapshot') {
-      try {
-        const payload = JSON.parse(data) as UsagePayload;
-        opts.onEvent({ type: 'snapshot', payload });
-      } catch {
-        /* ignore malformed */
+    try {
+      if (event === 'summary') {
+        const payload = JSON.parse(data) as StreamSummary;
+        opts.onSummary?.(payload);
+        opts.onEvent?.({ type: 'summary', payload });
+      } else if (event === 'usage_event') {
+        const payload = JSON.parse(data) as UsageDetail;
+        opts.onUsageEvent?.(payload);
+        opts.onEvent?.({ type: 'usage_event', payload });
+      } else if (event === 'heartbeat') {
+        opts.onEvent?.({ type: 'heartbeat', ts: new Date().toISOString() });
       }
-    } else if (event === 'heartbeat') {
-      opts.onEvent({ type: 'heartbeat', ts: new Date().toISOString() });
+    } catch {
+      /* ignore malformed */
     }
   };
 
@@ -83,6 +100,8 @@ export function subscribeUsageStream(
     const headers: Record<string, string> = { Accept: 'text/event-stream' };
     const key = opts.getManagementKey();
     if (key) headers.Authorization = `Bearer ${key}`;
+    const lastId = opts.getLastEventId?.();
+    if (lastId && lastId > 0) headers['Last-Event-ID'] = String(lastId);
 
     fetch(endpoint, {
       method: 'GET',
