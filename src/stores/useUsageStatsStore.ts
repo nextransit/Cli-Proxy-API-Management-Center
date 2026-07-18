@@ -25,6 +25,7 @@ export type LoadUsageStatsOptions = {
   supersedeInFlight?: boolean;
   staleTimeMs?: number;
   timeRange?: string;
+  silent?: boolean;
 };
 
 type UsageStatsSnapshot = Record<string, unknown>;
@@ -85,6 +86,7 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
     const supersedeInFlight = options.supersedeInFlight === true;
     const staleTimeMs = options.staleTimeMs ?? USAGE_STATS_STALE_TIME_MS;
     const timeRange = options.timeRange || 'all';
+    const silent = options.silent === true;
     const { apiBase = '', managementKey = '' } = useAuthStore.getState();
     const scopeKey = `${apiBase}::${managementKey}::usage:${timeRange}`;
     const state = get();
@@ -126,7 +128,11 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
 
     const requestId = (usageRequestToken += 1);
     const abortController = new AbortController();
-    set({ loading: true, error: null, scopeKey });
+    if (!silent) {
+      set({ loading: true, error: null, scopeKey });
+    } else {
+      set({ error: null, scopeKey });
+    }
 
     const requestPromise = (async () => {
       try {
@@ -141,25 +147,26 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
         if (requestId !== usageRequestToken) return;
 
         const usageDetails = collectUsageDetails(usage);
-        set({
+        const update: Partial<UsageStatsState> = {
           usage,
           keyStats: computeKeyStatsFromDetails(usageDetails),
           usageDetails,
-          recentDetails: [],
-          lastEventId: 0,
-          loading: false,
           error: null,
           lastRefreshedAt: Date.now(),
-          scopeKey
-        });
+          scopeKey,
+        };
+        if (!silent) {
+          update.recentDetails = [];
+          update.lastEventId = 0;
+          update.loading = false;
+        }
+        set(update as UsageStatsState);
       } catch (error: unknown) {
         if (requestId !== usageRequestToken) return;
         const message = getErrorMessage(error);
-        set({
-          loading: false,
-          error: message,
-          scopeKey
-        });
+        const update: Partial<UsageStatsState> = { error: message, scopeKey };
+        if (!silent) update.loading = false;
+        set(update as UsageStatsState);
         throw new Error(message);
       } finally {
         if (inFlightUsageRequest?.id === requestId) {

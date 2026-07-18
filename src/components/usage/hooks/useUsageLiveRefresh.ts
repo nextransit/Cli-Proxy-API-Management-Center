@@ -5,6 +5,8 @@ import { useAuthStore } from '@/stores/useAuthStore';
 
 const USAGE_POLL_INTERVAL_MS = 1_000;
 const FOREGROUND_REFRESH_DEDUPE_MS = 250;
+const SILENT_REFRESH_DEBOUNCE_MS = 2_000;
+const SILENT_REFRESH_THROTTLE_MS = 3_000;
 
 export function useUsageLiveRefresh(timeRange: string, enabled = true) {
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
@@ -38,10 +40,12 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     };
   }, [enabled, loadUsageStats, timeRange]);
 
-  // SSE + 1s polling fallback.
+  // SSE + 1s polling fallback + debounced silent background refresh.
   useEffect(() => {
     if (!enabled) return;
     let pollingTimer: ReturnType<typeof setInterval> | null = null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastSilentRefreshAt = 0;
 
     const refreshUsage = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
@@ -52,6 +56,37 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
         staleTimeMs: USAGE_STATS_STALE_TIME_MS,
         timeRange,
       }).catch(() => {});
+    };
+
+    const triggerSilentRefresh = () => {
+      const now = Date.now();
+      if (now - lastSilentRefreshAt < SILENT_REFRESH_THROTTLE_MS) {
+        // Already refreshed recently, just debounce-reset for the next batch
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          lastSilentRefreshAt = Date.now();
+          void loadUsageStats({
+            force: true,
+            supersedeInFlight: true,
+            staleTimeMs: 0,
+            timeRange,
+            silent: true,
+          }).catch(() => {});
+        }, SILENT_REFRESH_DEBOUNCE_MS);
+        return;
+      }
+      // Not refreshed recently, wait for debounce
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        lastSilentRefreshAt = Date.now();
+        void loadUsageStats({
+          force: true,
+          supersedeInFlight: true,
+          staleTimeMs: 0,
+          timeRange,
+          silent: true,
+        }).catch(() => {});
+      }, SILENT_REFRESH_DEBOUNCE_MS);
     };
 
     const stopPolling = () => {
@@ -68,14 +103,16 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       getManagementKey: () => useAuthStore.getState().managementKey ?? '',
       getLastEventId: () => useUsageStatsStore.getState().lastEventId,
       onUsageEvent: (detail) => {
-        // **THIS IS THE FIX**: incrementally merge, DO NOT call loadUsageStats
-        // This avoids the loading=true → spinner → loading=false cycle
+        // Incrementally merge into recentDetails for instant display
         useUsageStatsStore.getState().applyIncrementalEvent(detail);
+        // Trigger a debounced silent background refresh of aggregates
+        triggerSilentRefresh();
       },
       onSummary: (s) => {
         // Reconnect summary: server already replayed missed events.
         // Just align the high-water-mark.
         useUsageStatsStore.setState({ lastEventId: s.latest_event_id });
+        triggerSilentRefresh();
       },
       onStatusChange: (status) => {
         if (status === 'open') stopPolling();
@@ -88,6 +125,7 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     return () => {
       streamHandle.close();
       stopPolling();
+      if (debounceTimer) clearTimeout(debounceTimer);
     };
   }, [enabled, loadUsageStats, timeRange]);
 }
