@@ -6,7 +6,7 @@
  * `fetch` + ReadableStream and inject the Authorization header manually.
  */
 
-import type { UsageDetail } from '../../stores/useUsageStatsStore';
+import type { UsageEventDetail } from '../../stores/useUsageStatsStore';
 
 export interface StreamSummary {
   total_requests?: number;
@@ -18,7 +18,7 @@ export interface StreamSummary {
 
 export type StreamEvent =
   | { type: 'summary'; payload: StreamSummary }
-  | { type: 'usage_event'; payload: UsageDetail }
+  | { type: 'usage_event'; payload: UsageEventDetail }
   | { type: 'heartbeat'; ts: string };
 
 export type StreamStatus = 'connecting' | 'open' | 'closed' | 'error';
@@ -33,7 +33,7 @@ export interface UsageStreamOptions {
   getManagementKey: () => string;
   getLastEventId?: () => number;
   onEvent?: (event: StreamEvent) => void;
-  onUsageEvent?: (detail: UsageDetail) => void;
+  onUsageEvent?: (detail: UsageEventDetail) => void;
   onSummary?: (summary: StreamSummary) => void;
   onStatusChange?: (status: StreamStatus) => void;
   baseDelayMs?: number;
@@ -82,7 +82,7 @@ export function subscribeUsageStream(
         opts.onSummary?.(payload);
         opts.onEvent?.({ type: 'summary', payload });
       } else if (event === 'usage_event') {
-        const payload = JSON.parse(data) as UsageDetail;
+        const payload = JSON.parse(data) as UsageEventDetail;
         opts.onUsageEvent?.(payload);
         opts.onEvent?.({ type: 'usage_event', payload });
       } else if (event === 'heartbeat') {

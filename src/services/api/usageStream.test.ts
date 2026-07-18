@@ -145,7 +145,7 @@ describe('subscribeUsageStream', () => {
     handle.close();
 
     expect(capturedHeaders).toBeDefined();
-    expect((capturedHeaders as Record<string, string>)['Last-Event-ID']).toBe('99');
+    expect((capturedHeaders as unknown as Record<string, string>)['Last-Event-ID']).toBe('99');
   });
 
   it('does not send Last-Event-ID when getLastEventId returns 0', async () => {

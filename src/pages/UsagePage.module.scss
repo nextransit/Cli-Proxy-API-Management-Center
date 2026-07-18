@@ -7260,6 +7260,130 @@ $navy-blue: #2A7B9B;
   color: rgba(139, 148, 158, 0.5);
 }
 
+// Request event details use the same semantic hierarchy as dark mode,
+// with stronger contrast tuned for the white and paper-light themes.
+:global([data-theme='white']) .container .requestEventsTableWrapper,
+:global([data-theme='light']) .container .requestEventsTableWrapper,
+:root:not([data-theme]) .container .requestEventsTableWrapper {
+  .table td.requestEventsTimestamp {
+    color: #64748b !important;
+  }
+
+  .table .requestEventsModelButton {
+    color: #0369a1 !important;
+    background: rgba(14, 165, 233, 0.1);
+    border-color: rgba(2, 132, 199, 0.3);
+
+    &:hover {
+      color: #075985 !important;
+      background: rgba(14, 165, 233, 0.16);
+      border-color: rgba(2, 132, 199, 0.48);
+    }
+  }
+
+  .table td.requestEventsSourceCell {
+    color: #15803d !important;
+  }
+
+  .table td.requestEventsSourceCell > span:first-child {
+    color: inherit !important;
+  }
+
+  .table .credentialType {
+    color: #475569 !important;
+  }
+
+  .table td.requestEventsAuthIndex {
+    color: #7e22ce !important;
+  }
+
+  .table td.durationCell,
+  .table .tokenSummaryTotal,
+  .table td.requestEventsTimestamp,
+  .table td.requestEventsSourceCell,
+  .table td.requestEventsAuthIndex {
+    font-weight: 600;
+  }
+
+  .table td.durationCell.latencyFast,
+  .table td.durationCell.latencyFailed {
+    color: #94a3b8 !important;
+  }
+
+  .table td.durationCell.latencySmooth {
+    color: #15803d !important;
+  }
+
+  .table td.durationCell.latencyNormal {
+    color: #a16207 !important;
+  }
+
+  .table td.durationCell.latencySlow {
+    color: #c2410c !important;
+  }
+
+  .table td.durationCell.latencyCritical {
+    color: #be123c !important;
+  }
+
+  .table .tokenSummaryTotal {
+    color: #0e7490 !important;
+  }
+
+  .table .tokenSummaryParts {
+    color: #64748b !important;
+  }
+
+  .table .requestEventsResultSuccess {
+    color: #166534 !important;
+  }
+
+  .table .requestEventsResultFailed {
+    color: #b91c1c !important;
+  }
+
+  .table .requestEventsResultWarning {
+    color: #92400e !important;
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(180, 83, 9, 0.34);
+  }
+
+  .table .requestEventsResultUnknown {
+    color: #475569 !important;
+    background: rgba(100, 116, 139, 0.1);
+    border-color: rgba(71, 85, 105, 0.26);
+  }
+
+  .table .requestEventsResultSuccess .resultGlyph,
+  .table .requestEventsResultSuccess .resultText,
+  .table .requestEventsResultFailed .resultGlyph,
+  .table .requestEventsResultFailed .resultText,
+  .table .requestEventsResultWarning .resultGlyph,
+  .table .requestEventsResultWarning .resultText,
+  .table .requestEventsResultUnknown .resultGlyph,
+  .table .requestEventsResultUnknown .resultText {
+    color: inherit !important;
+  }
+
+  .table .thinkingXHigh,
+  .table .thinkingHigh {
+    color: #6d28d9 !important;
+    background: rgba(124, 58, 237, 0.1);
+    border-color: rgba(109, 40, 217, 0.26);
+  }
+
+  .table .thinkingMedium {
+    color: #1d4ed8 !important;
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(29, 78, 216, 0.24);
+  }
+
+  .table .thinkingLow,
+  .table .requestEventsThinkingEmpty {
+    color: #64748b !important;
+  }
+}
+
 .thinkingXHigh,
 .thinkingHigh {
   color: #c4b5fd;

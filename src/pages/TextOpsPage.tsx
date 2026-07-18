@@ -227,7 +227,8 @@ function splitInsightKeyValues(text: string): { pairs: Array<{ label: string; va
 }
 
 function getTextOpsRunAIPhases(run: TextOpsRun): TextOpsAIPhaseState[] {
-  const model = run.aiModel || '-';
+  const responseModel = run.response?.data?.summary?.model;
+  const model = String(responseModel || run.aiModel || '-');
   if (!run.aiEnabled) {
     return [
       { key: 'router', label: 'Router Off', tone: 'off', detail: '未启用 CPA AI，使用本地启发式路由' },
@@ -257,10 +258,22 @@ function getTextOpsRunAIPhases(run: TextOpsRun): TextOpsAIPhaseState[] {
   const routerFailed = hasWarningPrefix(warnings, 'router_llm_failed:');
   const presenterFailed = hasWarningPrefix(warnings, 'presenter_llm_failed:');
   const routerActive = !routerFailed && route === 'llm_router';
+  const fastRoute = route === 'heuristic_fast';
+  const weatherRoute = route.startsWith('weather_');
+  const newsRoute = route.startsWith('news_');
+  const generalRoute = route.startsWith('general_');
   const hasPresentation = Boolean(run.response.presentation?.markdown || run.response.presentation?.blocks?.length);
 
   return [
-    routerActive
+    fastRoute
+      ? { key: 'router', label: 'Router Fast', tone: 'ok', detail: '已使用本地确定性路由，跳过模型分类等待' }
+      : weatherRoute
+        ? { key: 'router', label: 'Weather Tool', tone: route === 'weather_tool_failed' ? 'warn' : 'ok', detail: '已进入实时天气工具链' }
+        : newsRoute
+          ? { key: 'router', label: 'News Tool', tone: route === 'news_tool_failed' ? 'warn' : 'ok', detail: '已进入实时新闻工具链' }
+        : generalRoute
+          ? { key: 'router', label: 'General Route', tone: route === 'general_llm_failed' ? 'warn' : 'ok', detail: '已切换到通用问答路径' }
+          : routerActive
       ? { key: 'router', label: 'Router AI', tone: 'ok', detail: `${model} 已完成意图路由` }
       : {
           key: 'router',
@@ -268,7 +281,13 @@ function getTextOpsRunAIPhases(run: TextOpsRun): TextOpsAIPhaseState[] {
           tone: 'warn',
           detail: routerFailed ? `${model} 路由失败，已切到启发式路由` : `当前路由为 ${route || 'heuristic'}，使用启发式路由`,
         },
-    presenterFailed
+    fastRoute || weatherRoute || newsRoute
+      ? { key: 'presenter', label: 'Presenter Fast', tone: 'ok', detail: '已直接生成结果，跳过第二次模型调用' }
+      : generalRoute
+        ? route === 'general_llm' || route === 'general_llm_fallback'
+          ? { key: 'presenter', label: 'General AI', tone: 'ok', detail: `${model} 已完成通用问答` }
+          : { key: 'presenter', label: 'General Fallback', tone: 'warn', detail: '通用模型不可用，已返回明确的本地兜底结果' }
+      : presenterFailed
       ? { key: 'presenter', label: 'Presenter Fallback', tone: 'warn', detail: `${model} 展示增强失败，已使用模板结果` }
       : {
           key: 'presenter',
@@ -487,8 +506,18 @@ function formatCell(value: unknown, format?: unknown): string {
 }
 
 function inlineMarkdown(text: string) {
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*)/g).filter(Boolean);
+  const parts = text
+    .split(/(\[[^\]]+\]\(https?:\/\/[^)]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*)/g)
+    .filter(Boolean);
   return parts.map((part, index) => {
+    const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
+    if (link) {
+      return (
+        <a key={index} href={link[2]} target="_blank" rel="noreferrer noopener">
+          {link[1]}
+        </a>
+      );
+    }
     if (part.startsWith('`') && part.endsWith('`')) {
       return <code key={index}>{part.slice(1, -1)}</code>;
     }
@@ -1483,6 +1512,7 @@ export function TextOpsPage() {
           {
             user_query: userQuery,
             current_time: new Date().toISOString(),
+            fast_mode: true,
             operator_context: {
               role,
               user_id: Number.isFinite(operatorID) && operatorID > 0 ? operatorID : 1,
@@ -1493,14 +1523,14 @@ export function TextOpsPage() {
               api_key: llmAPIKey,
               base_url: llmBaseURL,
               model: llmModel,
-              max_tokens: 2000,
+              max_tokens: 800,
             },
             presenter: {
               enabled: llmEnabled,
               api_key: llmAPIKey,
               base_url: llmBaseURL,
               model: llmModel,
-              max_tokens: 4096,
+              max_tokens: 1200,
             },
           },
           { signal: controller.signal },
@@ -1855,7 +1885,11 @@ export function TextOpsPage() {
                     {activeRun.response ? (
                       <div className={styles.intentBadge}>
                         <span>{activeRun.response.router.intent}</span>
-                        <small>{String(activeRun.response.router.filters?.start_time || '')} ~ {String(activeRun.response.router.filters?.end_time || '')}</small>
+                        <small>
+                          {activeRun.response.router.intent === 'GENERAL_ASSISTANT'
+                            ? activeRun.response.router.route
+                            : `${String(activeRun.response.router.filters?.start_time || '')} ~ ${String(activeRun.response.router.filters?.end_time || '')}`}
+                        </small>
                       </div>
                     ) : null}
                     {activeRun.response?.warnings?.length ? (

@@ -6,22 +6,27 @@ import { useUsageData } from './useUsageData';
 const mocks = vi.hoisted(() => {
   const loadUsageStats = vi.fn(async () => {});
   const setUsageState = vi.fn();
+  const applyIncrementalEvent = vi.fn();
   const usageStoreState = {
     usage: null,
     loading: false,
     error: null,
     lastRefreshedAt: null,
+    lastEventId: 0,
     loadUsageStats,
+    applyIncrementalEvent,
   };
 
+  const getState = () => usageStoreState;
   const useUsageStatsStore = Object.assign(
     (selector: (state: typeof usageStoreState) => unknown) => selector(usageStoreState),
-    { setState: setUsageState }
+    { setState: setUsageState, getState }
   );
 
   return {
     loadUsageStats,
     setUsageState,
+    applyIncrementalEvent,
     useUsageStatsStore,
     closeUsageStream: vi.fn(),
     getModelPrices: vi.fn(async () => ({ prices: {} })),
@@ -110,6 +115,7 @@ describe('useUsageData page visibility refresh', () => {
     await waitFor(() => {
       expect(mocks.loadUsageStats).toHaveBeenCalledWith({
         force: true,
+        supersedeInFlight: true,
         staleTimeMs: 240_000,
         timeRange: '24h',
       });
@@ -119,7 +125,56 @@ describe('useUsageData page visibility refresh', () => {
     expect(mocks.closeUsageStream).toHaveBeenCalledOnce();
   });
 
-  it('removes the visibility listener when the usage page unmounts', async () => {
+  it('forces one refresh for paired visibility and focus events', async () => {
+    const { unmount } = renderHook(() => useUsageData('24h'));
+
+    await waitFor(() => expect(mocks.loadUsageStats).toHaveBeenCalled());
+    mocks.loadUsageStats.mockClear();
+
+    act(() => {
+      setVisibilityState('hidden');
+      document.dispatchEvent(new Event('visibilitychange'));
+      setVisibilityState('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    await waitFor(() => {
+      expect(mocks.loadUsageStats).toHaveBeenCalledTimes(1);
+      expect(mocks.loadUsageStats).toHaveBeenCalledWith({
+        force: true,
+        supersedeInFlight: true,
+        staleTimeMs: 240_000,
+        timeRange: '24h',
+      });
+    });
+
+    unmount();
+  });
+
+  it('forces a refresh when a cached page is restored', async () => {
+    const { unmount } = renderHook(() => useUsageData('7d'));
+
+    await waitFor(() => expect(mocks.loadUsageStats).toHaveBeenCalled());
+    mocks.loadUsageStats.mockClear();
+
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+
+    await waitFor(() => {
+      expect(mocks.loadUsageStats).toHaveBeenCalledWith({
+        force: true,
+        supersedeInFlight: true,
+        staleTimeMs: 240_000,
+        timeRange: '7d',
+      });
+    });
+
+    unmount();
+  });
+
+  it('removes foreground refresh listeners when the usage page unmounts', async () => {
     const { unmount } = renderHook(() => useUsageData());
 
     await waitFor(() => expect(mocks.loadUsageStats).toHaveBeenCalled());
@@ -131,12 +186,14 @@ describe('useUsageData page visibility refresh', () => {
       document.dispatchEvent(new Event('visibilitychange'));
       setVisibilityState('visible');
       document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     });
 
     expect(mocks.loadUsageStats).not.toHaveBeenCalled();
   });
 
-  it('refreshes the full usage snapshot when an SSE snapshot arrives', async () => {
+  it('merges usage events incrementally via SSE onUsageEvent callback', async () => {
     const { unmount } = renderHook(() => useUsageData('7d'));
 
     await waitFor(() => {
@@ -148,25 +205,65 @@ describe('useUsageData page visibility refresh', () => {
     });
     mocks.loadUsageStats.mockClear();
 
+    const detail = { id: 42, total_requests: 1, total_tokens: 100 } as const;
     act(() => {
-      mocks.usageStreamOptions?.onEvent({
-        type: 'snapshot',
-        payload: {
-          total_requests: 1,
-          total_tokens: 2,
-        },
-      });
+      mocks.usageStreamOptions?.onUsageEvent?.(detail);
     });
 
-    await waitFor(() => {
-      expect(mocks.loadUsageStats).toHaveBeenCalledWith({
-        force: true,
-        staleTimeMs: 240_000,
-        timeRange: '7d',
-      });
-    });
-    expect(mocks.setUsageState).not.toHaveBeenCalled();
+    // Should NOT trigger loadUsageStats (avoids the spinner cycle)
+    expect(mocks.loadUsageStats).not.toHaveBeenCalled();
+    // Should update the store incrementally
+    expect(mocks.applyIncrementalEvent).toHaveBeenCalledWith(detail);
 
     unmount();
+  });
+
+  it('aligns lastEventId via SSE onSummary callback', async () => {
+    const { unmount } = renderHook(() => useUsageData('7d'));
+
+    await waitFor(() => {
+      expect(mocks.usageStreamOptions).not.toBeNull();
+    });
+    mocks.loadUsageStats.mockClear();
+    mocks.setUsageState.mockClear();
+
+    const summary = { latest_event_id: 99, total_requests: 10, total_tokens: 500 };
+    act(() => {
+      mocks.usageStreamOptions?.onSummary?.(summary);
+    });
+
+    expect(mocks.setUsageState).toHaveBeenCalledWith({ lastEventId: 99 });
+
+    unmount();
+  });
+
+  it('falls back to one-second polling when the usage stream is unavailable', async () => {
+    vi.useFakeTimers();
+    const { unmount } = renderHook(() => useUsageData('24h'));
+
+    await vi.waitFor(() => {
+      expect(mocks.usageStreamOptions).not.toBeNull();
+    });
+    mocks.loadUsageStats.mockClear();
+
+    act(() => {
+      mocks.usageStreamOptions?.onStatusChange?.('error');
+      vi.advanceTimersByTime(999);
+    });
+    expect(mocks.loadUsageStats).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+    });
+
+    expect(mocks.loadUsageStats).toHaveBeenCalledWith({
+      force: true,
+      staleTimeMs: 240_000,
+      timeRange: '24h',
+    });
+
+    unmount();
+    vi.useRealTimers();
   });
 });

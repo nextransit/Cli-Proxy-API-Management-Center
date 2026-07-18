@@ -6,6 +6,7 @@ import {
   IconFileText,
   IconSatellite
 } from '@/components/ui/icons';
+import { useUsageLiveRefresh } from '@/components/usage/hooks/useUsageLiveRefresh';
 import { USAGE_STATS_STALE_TIME_MS, useAuthStore, useConfigStore, useModelsStore, useUsageStatsStore } from '@/stores';
 import { apiKeysApi, providersApi, authFilesApi } from '@/services/api';
 import { formatDateOrFallback } from '@/utils/format';
@@ -176,6 +177,11 @@ export function DashboardPage() {
   const [currentTime, setCurrentTime] = useState(() => new Date());
 
   const apiKeysCache = useRef<string[]>([]);
+
+  useUsageLiveRefresh(
+    '24h',
+    connectionStatus === 'connected' && Boolean(apiBase) && config?.usageStatisticsEnabled !== false
+  );
 
   useEffect(() => {
     apiKeysCache.current = [];

@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { USAGE_STATS_STALE_TIME_MS, useNotificationStore, useUsageStatsStore } from '@/stores';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { usageApi } from '@/services/api/usage';
-import { subscribeUsageStream } from '@/services/api/usageStream';
 import { modelPricesApi } from '@/services/api/modelPrices';
 import { downloadBlob } from '@/utils/download';
 import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
+import { useUsageLiveRefresh } from './useUsageLiveRefresh';
 
 export interface UsagePayload {
   total_requests?: number;
@@ -51,17 +50,7 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
     await loadUsageStats({ force: true, staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange });
   }, [loadUsageStats, timeRange]);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState !== 'visible') return;
-      void loadUsage().catch(() => {});
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [loadUsage]);
+  useUsageLiveRefresh(timeRange);
 
   useEffect(() => {
     void loadUsageStats({ staleTimeMs: USAGE_STATS_STALE_TIME_MS, timeRange }).catch(() => {});
@@ -76,16 +65,16 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
         const localKeys = Object.keys(localPrices);
 
         if (serverKeys.length === 0 && localKeys.length > 0) {
-          // localStorage有，服务器数据库空 -> store 数据库
+          // Seed the server database from localStorage.
           return modelPricesApi.putModelPrices(localPrices);
         } else if (localKeys.length > 0 && serverKeys.length > 0) {
-          // localStorage有，服务器数据库有，冲突 -> 数据库为准，重写localstorage
+          // Prefer the server database when both sources contain different values.
           if (JSON.stringify(localPrices) !== JSON.stringify(serverPrices)) {
             saveModelPrices(serverPrices);
             setModelPrices(serverPrices);
           }
         } else if (localKeys.length === 0 && serverKeys.length > 0) {
-          // localStorage空，数据库有 -> 写入localstorage
+          // Populate localStorage from the server database.
           saveModelPrices(serverPrices);
           setModelPrices(serverPrices);
         }
@@ -93,61 +82,6 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
       .catch(() => {
         // Server unavailable, fallback to localStorage
       });
-  }, [loadUsageStats, timeRange]);
-
-  useEffect(() => {
-    let pollingTimer: ReturnType<typeof setInterval> | null = null;
-    let streamHandle: ReturnType<typeof subscribeUsageStream> | null = null;
-
-    const stopPolling = () => {
-      if (pollingTimer) {
-        window.clearInterval(pollingTimer);
-        pollingTimer = null;
-      }
-    };
-
-    const startPolling = () => {
-      if (pollingTimer) return;
-      pollingTimer = window.setInterval(() => {
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-          return;
-        }
-        void loadUsageStats({
-          force: true,
-          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
-          timeRange,
-        }).catch(() => {});
-      }, 10_000);
-    };
-
-    streamHandle = subscribeUsageStream({
-      getManagementKey: () => useAuthStore.getState().managementKey ?? '',
-      onEvent: (event) => {
-        if (event.type !== 'snapshot') return;
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-          return;
-        }
-        void loadUsageStats({
-          force: true,
-          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
-          timeRange,
-        }).catch(() => {});
-      },
-      onStatusChange: (status) => {
-        if (status === 'open') {
-          stopPolling();
-        } else if (status === 'error' || status === 'closed') {
-          startPolling();
-        }
-      },
-      baseDelayMs: 1_000,
-      maxDelayMs: 30_000,
-    });
-
-    return () => {
-      streamHandle?.close();
-      stopPolling();
-    };
   }, [loadUsageStats, timeRange]);
 
   const handleExport = async () => {

@@ -110,6 +110,7 @@ describe('useUsageStatsStore foreground refresh', () => {
 });
 
 interface UsageEventDetail {
+  [key: string]: unknown;
   id: number;
   api_key?: string;
   model?: string;

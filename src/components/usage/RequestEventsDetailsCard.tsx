@@ -111,6 +111,25 @@ const hasAnyTokens = (row: RequestEventRow): boolean =>
 const isMissingSuccessfulTokenUsage = (row: RequestEventRow): boolean =>
   row.resultTone === 'success' && !hasAnyTokens(row);
 
+const buildRequestEventsUpdateKey = (rows: RequestEventRow[]): string =>
+  rows
+    .slice(0, MAX_RENDERED_EVENTS)
+    .map((row) =>
+      [
+        row.id,
+        row.statusLabel,
+        row.failed ? '1' : '0',
+        row.latencyMs ?? '',
+        row.inputTokens,
+        row.outputTokens,
+        row.reasoningTokens,
+        row.cachedTokens,
+        row.totalTokens,
+        row.thinkingLabel,
+      ].join(':')
+    )
+    .join('|');
+
 type RequestEventRow = {
   id: string;
   timestamp: string;
@@ -269,6 +288,8 @@ export function RequestEventsDetailsCard({
   const [activeToast, setActiveToast] = useState<ActiveToast | null>(null);
   const [traceDrawerLine, setTraceDrawerLine] = useState<ParsedLogLine | null>(null);
   const toastRef = useRef<HTMLDivElement | null>(null);
+  const tableWrapperRef = useRef<HTMLDivElement | null>(null);
+  const previousRequestEventsUpdateKeyRef = useRef<string | null>(null);
   // Keep the drawer mounted while the pointer travels from a result cell into
   // the drawer panel; the trace drawer exposes panel hover/focus events that
   // let us cancel a pending close.
@@ -599,6 +620,19 @@ export function RequestEventsDetailsCard({
   );
 
   const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
+  const requestEventsUpdateKey = useMemo(() => buildRequestEventsUpdateKey(rows), [rows]);
+
+  useEffect(() => {
+    const previousUpdateKey = previousRequestEventsUpdateKeyRef.current;
+    previousRequestEventsUpdateKeyRef.current = requestEventsUpdateKey;
+
+    if (previousUpdateKey !== null && previousUpdateKey !== requestEventsUpdateKey) {
+      const tableWrapper = tableWrapperRef.current;
+      if (tableWrapper) {
+        tableWrapper.scrollTop = 0;
+      }
+    }
+  }, [requestEventsUpdateKey]);
 
   const hasActiveFilters =
     effectiveModelFilter !== ALL_FILTER ||
@@ -919,7 +953,7 @@ export function RequestEventsDetailsCard({
             )}
           </div>
 
-          <div className={styles.requestEventsTableWrapper}>
+          <div ref={tableWrapperRef} className={styles.requestEventsTableWrapper}>
             <table className={styles.table}>
               <thead>
                 <tr>

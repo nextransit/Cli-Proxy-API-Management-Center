@@ -1,6 +1,6 @@
 import { apiClient } from './client';
 
-export type TextOpsIntent = 'TOKEN_CONSUMPTION' | 'CACHE_METRICS' | 'FINANCIAL_STATUS';
+export type TextOpsIntent = 'TOKEN_CONSUMPTION' | 'CACHE_METRICS' | 'FINANCIAL_STATUS' | 'GENERAL_ASSISTANT';
 
 export type TextOpsRole = 'admin' | 'reseller' | 'customer';
 
@@ -21,6 +21,7 @@ export interface TextOpsOperatorContext {
 export interface TextOpsQueryRequest {
   user_query: string;
   current_time?: string;
+  fast_mode?: boolean;
   operator_context?: TextOpsOperatorContext;
   router?: TextOpsLLMConfig;
   presenter?: TextOpsLLMConfig;
@@ -73,4 +74,3 @@ export const textOpsApi = {
       signal: options?.signal,
     }),
 };
-

@@ -26,9 +26,10 @@ export const usageApi = {
   /**
    * 获取使用统计原始数据
    */
-  getUsage: (options?: { timeRange?: string }) =>
+  getUsage: (options?: { timeRange?: string; signal?: AbortSignal }) =>
     apiClient.get<Record<string, unknown>>('/usage', {
       timeout: USAGE_TIMEOUT_MS,
+      signal: options?.signal,
       params: options?.timeRange && options.timeRange !== 'all'
         ? { time_range: options.timeRange }
         : undefined,
