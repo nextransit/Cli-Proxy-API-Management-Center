@@ -5,9 +5,23 @@ import { collectUsageDetails, computeKeyStatsFromDetails, type KeyStats, type Us
 import i18n from '@/i18n';
 
 export const USAGE_STATS_STALE_TIME_MS = 240_000;
+export const MAX_RECENT_DETAILS = 200;
+
+export interface UsageEventDetail {
+  id: number;
+  api_key?: string;
+  model?: string;
+  failed?: boolean;
+  tokens?: { input: number; output: number; total: number };
+  requested_at?: string;
+  duration_ms?: number;
+  status_code?: number;
+  [key: string]: unknown;
+}
 
 export type LoadUsageStatsOptions = {
   force?: boolean;
+  supersedeInFlight?: boolean;
   staleTimeMs?: number;
   timeRange?: string;
 };
@@ -18,18 +32,34 @@ type UsageStatsState = {
   usage: UsageStatsSnapshot | null;
   keyStats: KeyStats;
   usageDetails: UsageDetail[];
+  recentDetails: UsageEventDetail[];
+  lastEventId: number;
   loading: boolean;
   error: string | null;
   lastRefreshedAt: number | null;
   scopeKey: string;
   loadUsageStats: (options?: LoadUsageStatsOptions) => Promise<void>;
   clearUsageStats: () => void;
+  applyIncrementalEvent: (detail: UsageEventDetail) => void;
+  applyBulkEvents: (events: UsageEventDetail[]) => void;
+  resetRecent: () => void;
 };
 
 const createEmptyKeyStats = (): KeyStats => ({ bySource: {}, byAuthIndex: {} });
 
 let usageRequestToken = 0;
-let inFlightUsageRequest: { id: number; scopeKey: string; promise: Promise<void> } | null = null;
+let inFlightUsageRequest: {
+  id: number;
+  scopeKey: string;
+  promise: Promise<void>;
+  abortController: AbortController;
+} | null = null;
+
+const invalidateInFlightUsageRequest = () => {
+  usageRequestToken += 1;
+  inFlightUsageRequest?.abortController.abort();
+  inFlightUsageRequest = null;
+};
 
 const getErrorMessage = (error: unknown) =>
   error instanceof Error
@@ -42,6 +72,8 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
   usage: null,
   keyStats: createEmptyKeyStats(),
   usageDetails: [],
+  recentDetails: [] as UsageEventDetail[],
+  lastEventId: 0,
   loading: false,
   error: null,
   lastRefreshedAt: null,
@@ -49,6 +81,7 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
 
   loadUsageStats: async (options = {}) => {
     const force = options.force === true;
+    const supersedeInFlight = options.supersedeInFlight === true;
     const staleTimeMs = options.staleTimeMs ?? USAGE_STATS_STALE_TIME_MS;
     const timeRange = options.timeRange || 'all';
     const { apiBase = '', managementKey = '' } = useAuthStore.getState();
@@ -56,16 +89,18 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
     const state = get();
     const scopeChanged = state.scopeKey !== scopeKey;
 
-    // 先复用同源 in-flight 请求，避免多个页面同时发起重复 /usage。
+    // Reuse same-scope requests unless a foreground refresh must replace stale work.
     if (inFlightUsageRequest && inFlightUsageRequest.scopeKey === scopeKey) {
-      await inFlightUsageRequest.promise;
-      return;
+      if (!supersedeInFlight) {
+        await inFlightUsageRequest.promise;
+        return;
+      }
+      invalidateInFlightUsageRequest();
     }
 
-    // 连接目标变化时，旧请求结果必须失效。
+    // A request for another connection or time range must not update this scope.
     if (inFlightUsageRequest && inFlightUsageRequest.scopeKey !== scopeKey) {
-      usageRequestToken += 1;
-      inFlightUsageRequest = null;
+      invalidateInFlightUsageRequest();
     }
 
     const fresh =
@@ -89,11 +124,15 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
     }
 
     const requestId = (usageRequestToken += 1);
+    const abortController = new AbortController();
     set({ loading: true, error: null, scopeKey });
 
     const requestPromise = (async () => {
       try {
-        const usageResponse = await usageApi.getUsage({ timeRange });
+        const usageResponse = await usageApi.getUsage({
+          timeRange,
+          signal: abortController.signal,
+        });
         const rawUsage = usageResponse?.usage ?? usageResponse;
         const usage =
           rawUsage && typeof rawUsage === 'object' ? (rawUsage as UsageStatsSnapshot) : null;
@@ -105,6 +144,8 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
           usage,
           keyStats: computeKeyStatsFromDetails(usageDetails),
           usageDetails,
+          recentDetails: [],
+          lastEventId: 0,
           loading: false,
           error: null,
           lastRefreshedAt: Date.now(),
@@ -126,13 +167,38 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
       }
     })();
 
-    inFlightUsageRequest = { id: requestId, scopeKey, promise: requestPromise };
+    inFlightUsageRequest = {
+      id: requestId,
+      scopeKey,
+      promise: requestPromise,
+      abortController,
+    };
     await requestPromise;
   },
 
+  applyIncrementalEvent: (detail: UsageEventDetail) => {
+    const { recentDetails, lastEventId } = get();
+    if (detail.id <= lastEventId) return;
+    const next = [detail, ...recentDetails];
+    if (next.length > MAX_RECENT_DETAILS) next.length = MAX_RECENT_DETAILS;
+    set({ recentDetails: next, lastEventId: detail.id });
+  },
+
+  applyBulkEvents: (events: UsageEventDetail[]) => {
+    const { recentDetails, lastEventId } = get();
+    const filtered = events.filter(e => e.id > lastEventId);
+    if (filtered.length === 0) return;
+    const maxId = Math.max(...filtered.map(e => e.id));
+    const merged = [...filtered, ...recentDetails]
+      .sort((a, b) => b.id - a.id)
+      .slice(0, MAX_RECENT_DETAILS);
+    set({ recentDetails: merged, lastEventId: maxId });
+  },
+
+  resetRecent: () => set({ recentDetails: [], lastEventId: 0 }),
+
   clearUsageStats: () => {
-    usageRequestToken += 1;
-    inFlightUsageRequest = null;
+    invalidateInFlightUsageRequest();
     set({
       usage: null,
       keyStats: createEmptyKeyStats(),
