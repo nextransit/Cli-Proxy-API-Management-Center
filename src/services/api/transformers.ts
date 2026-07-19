@@ -295,6 +295,8 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   const models = normalizeModelAliases(provider.models);
   const priority = provider.priority ?? provider['priority'];
   const testModel = provider['test-model'] ?? provider.testModel;
+  const sessionAffinityMaxRequests =
+    provider['session-affinity-max-requests'] ?? provider.sessionAffinityMaxRequests;
   const disabledRaw = provider.disabled ?? provider['disabled'];
   const enabledRaw = provider.enabled ?? provider['enabled'];
   const normalizedDisabled = normalizeBoolean(disabledRaw);
@@ -315,6 +317,12 @@ const normalizeOpenAIProvider = (provider: unknown): OpenAIProviderConfig | null
   if (models.length) result.models = models;
   if (priority !== undefined) result.priority = Number(priority);
   if (testModel) result.testModel = String(testModel);
+  if (sessionAffinityMaxRequests !== undefined) {
+    const parsed = Number(sessionAffinityMaxRequests);
+    if (Number.isFinite(parsed)) {
+      result.sessionAffinityMaxRequests = Math.max(0, Math.trunc(parsed));
+    }
+  }
   const authIndex = normalizeAuthIndex(
     provider['auth-index'] ?? provider.authIndex ?? provider['auth_index']
   );

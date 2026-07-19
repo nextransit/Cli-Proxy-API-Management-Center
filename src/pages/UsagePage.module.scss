@@ -7060,7 +7060,7 @@ $navy-blue: #2A7B9B;
   border-radius: 14px;
   padding: 12px;
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.94)),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 98%, transparent), color-mix(in srgb, var(--bg-primary) 94%, transparent)),
     var(--floating-surface, var(--bg-primary));
   box-shadow:
     0 24px 72px rgba(0, 0, 0, 0.38),
@@ -7111,7 +7111,7 @@ $navy-blue: #2A7B9B;
 .requestEventsToastDetails {
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 10px;
-  background: rgba(15, 23, 42, 0.52);
+  background: color-mix(in srgb, var(--bg-secondary) 52%, transparent);
 }
 
 .requestEventsToastMeta {
@@ -7123,22 +7123,22 @@ $navy-blue: #2A7B9B;
 
 .requestEventsToastFailed .requestEventsToastMeta {
   border-left-color: rgba(248, 113, 113, 0.94);
-  background: linear-gradient(90deg, rgba(127, 29, 29, 0.2), rgba(15, 23, 42, 0.5));
+  background: linear-gradient(90deg, color-mix(in srgb, #ef4444 10%, transparent), color-mix(in srgb, var(--bg-secondary) 50%, transparent));
 }
 
 .requestEventsToastWarning .requestEventsToastMeta {
   border-left-color: rgba(245, 158, 11, 0.94);
-  background: linear-gradient(90deg, rgba(120, 53, 15, 0.18), rgba(15, 23, 42, 0.5));
+  background: linear-gradient(90deg, color-mix(in srgb, #f59e0b 10%, transparent), color-mix(in srgb, var(--bg-secondary) 50%, transparent));
 }
 
 .requestEventsToastUnknown .requestEventsToastMeta {
   border-left-color: rgba(148, 163, 184, 0.74);
-  background: linear-gradient(90deg, rgba(51, 65, 85, 0.18), rgba(15, 23, 42, 0.5));
+  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
 }
 
 .requestEventsToastModel .requestEventsToastMeta {
   border-left-color: rgba(56, 189, 248, 0.94);
-  background: linear-gradient(90deg, rgba(12, 74, 110, 0.18), rgba(15, 23, 42, 0.5));
+  background: linear-gradient(90deg, color-mix(in srgb, #38bdf8 10%, transparent), color-mix(in srgb, var(--bg-secondary) 50%, transparent));
 }
 
 .requestEventsToastHeader {
@@ -7231,7 +7231,7 @@ $navy-blue: #2A7B9B;
   height: 28px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 8px;
-  background: rgba(15, 23, 42, 0.5);
+  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
   color: var(--text-secondary);
   font-size: 18px;
   line-height: 1;

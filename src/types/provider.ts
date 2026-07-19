@@ -55,6 +55,7 @@ export interface ProviderKeyConfig {
 export interface OpenAIProviderConfig {
   name: string;
   disabled?: boolean;
+  sessionAffinityMaxRequests?: number;
   prefix?: string;
   baseUrl: string;
   apiKeyEntries: ApiKeyEntry[];
