@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { TelemetryChart } from '@/components/charts/TelemetryChart';
@@ -46,6 +46,7 @@ export interface UsageChartProps {
 
 const ALL_FILTER = 'all';
 const DEFAULT_CHART_LINES = ['all'];
+const MAX_CHART_DETAILS = 5_000;
 const CHART_COLORS = ['#00E5FF', '#7C4DFF'];
 const TAIL_LINE_COLOR = 'rgba(255, 255, 255, 0.22)';
 const TOKEN_FOCUS_CHART_COLORS = {
@@ -54,6 +55,20 @@ const TOKEN_FOCUS_CHART_COLORS = {
   output: '#22c55e',
   rate: '#94a3b8',
 };
+
+// Sample details when the dataset is too large for chart rendering.
+function sampleDetails(details: UsageDetail[], max: number): UsageDetail[] {
+  if (details.length <= max) return details;
+  const step = details.length / max;
+  const sampled: UsageDetail[] = [];
+  for (let i = 0; i < details.length; i++) {
+    if (Math.floor(i / step) === sampled.length) {
+      sampled.push(details[i]);
+    }
+    if (sampled.length >= max) break;
+  }
+  return sampled;
+}
 
 const withAlpha = (hex: string, alpha: number): string => {
   const normalized = hex.replace('#', '');
@@ -88,7 +103,7 @@ const buildHourlyLabels = (hourWindowHours: number | undefined): string[] => {
   );
 };
 
-export function UsageChart({
+export const UsageChart = memo(function UsageChart({
   title,
   metric,
   scopedDetails,
@@ -213,7 +228,7 @@ export function UsageChart({
       </div>
     );
   }
-}
+});
 
 function getTrendValue(metric: UsageChartMetric, detail: UsageDetail): number {
   if (metric === 'tokens') {
@@ -232,7 +247,7 @@ function buildTrendChartData(
   hourWindowHours: number | undefined,
   t: (key: string) => string
 ): ChartData {
-  const details = scopedDetails;
+  const details = sampleDetails(scopedDetails, MAX_CHART_DETAILS);
   const labels =
     period === 'hour'
       ? buildHourlyLabels(hourWindowHours)
@@ -345,7 +360,7 @@ function buildFocusedTokenChartData(
   hourWindowHours: number | undefined,
   t: (key: string) => string
 ): ChartData {
-  const details = scopedDetails.filter((detail) => detail.__modelName === modelName);
+  const details = sampleDetails(scopedDetails, MAX_CHART_DETAILS).filter((detail) => detail.__modelName === modelName);
   const labels =
     period === 'hour'
       ? buildHourlyLabels(hourWindowHours)

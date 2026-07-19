@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UsageChart, ChartLineSelector, CostTrendChart } from '@/components/usage';
 import type { UsageChartProps } from '@/components/usage/UsageChart';
@@ -19,7 +20,7 @@ export interface TrendTabsCardProps {
   lineSelector?: Omit<ChartLineSelectorProps, 'className'> & { visibleOnTabs?: string[] };
 }
 
-export function TrendTabsCard({
+export const TrendTabsCard = memo(function TrendTabsCard({
   tabs,
   activeTab,
   onTabChange,
@@ -77,4 +78,4 @@ export function TrendTabsCard({
       </div>
     </div>
   );
-}
+});

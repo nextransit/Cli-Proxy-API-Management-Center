@@ -15,7 +15,7 @@
   backdrop-filter: blur(14px);
   box-shadow:
     inset 0 0 15px color-mix(in srgb, #22d3ee 4%, transparent),
-    0 12px 34px color-mix(in srgb, #020617 20%, transparent);
+    0 12px 34px color-mix(in srgb, var(--bg-primary) 20%, transparent);
   font-family: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -29,7 +29,7 @@
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, #a78bfa 14%, transparent);
   border-radius: 8px;
-  background: color-mix(in srgb, #020617 26%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 26%, transparent);
   color: inherit;
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
@@ -271,7 +271,7 @@
   top: 1px;
   width: 4px;
   height: 7px;
-  border: solid #020617;
+  border: solid var(--border-color);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -651,7 +651,7 @@
   border: 1px solid color-mix(in srgb, #22d3ee 22%, transparent);
   border-radius: 999px;
   color: color-mix(in srgb, #67e8f9 78%, var(--text-secondary));
-  background: color-mix(in srgb, #020617 48%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 48%, transparent);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -729,7 +729,7 @@
   padding: 6px 8px;
   border-radius: 8px;
   border: 1px dashed color-mix(in srgb, #64748b 28%, transparent);
-  background: color-mix(in srgb, #020617 38%, var(--surface-secondary));
+  background: color-mix(in srgb, var(--bg-primary) 38%, var(--surface-secondary));
   font-family: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   > div {
@@ -877,7 +877,7 @@
   padding: 1px 6px;
   border-radius: 4px;
   color: color-mix(in srgb, #fde68a 88%, #ffffff);
-  background: color-mix(in srgb, #020617 60%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 60%, transparent);
   border: 1px solid color-mix(in srgb, #f59e0b 20%, transparent);
   font-size: 10px;
   font-family: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -992,11 +992,11 @@
 .opsSection {
   --ops-tone: #67e8f9;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--ops-tone) 18%, #1e293b);
+  border: 1px solid color-mix(in srgb, var(--ops-tone) 18%, var(--bg-secondary));
   border-radius: 8px;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--ops-tone) 7%, transparent), transparent 54%),
-    color-mix(in srgb, #020617 46%, transparent);
+    color-mix(in srgb, var(--bg-primary) 46%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 4%, transparent);
 }
 
@@ -1026,7 +1026,7 @@
   padding: 8px 9px;
   border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--ops-tone) 12%, transparent);
-  background: color-mix(in srgb, #020617 34%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 34%, transparent);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -1121,7 +1121,7 @@
     padding: 1px 5px;
     border: 1px solid color-mix(in srgb, #67e8f9 14%, var(--border-primary));
     border-radius: 5px;
-    background: color-mix(in srgb, #020617 62%, transparent);
+    background: color-mix(in srgb, var(--bg-primary) 62%, transparent);
     color: #67e8f9;
     font-family: "JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 11px;
@@ -1141,7 +1141,7 @@
   padding: 8px;
   border: 1px solid color-mix(in srgb, #67e8f9 13%, transparent);
   border-radius: 7px;
-  background: color-mix(in srgb, #0f172a 54%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 54%, transparent);
 
   span {
     min-width: 0;
@@ -1174,7 +1174,7 @@
   padding: 7px 8px;
   border: 1px solid color-mix(in srgb, #2dd4bf 16%, transparent);
   border-radius: 7px;
-  background: color-mix(in srgb, #020617 48%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 48%, transparent);
 
   > div:not(.metricShareTrack) {
     display: grid;
@@ -1316,7 +1316,7 @@
   margin-top: 2px;
   border: 1px solid color-mix(in srgb, #22c55e 56%, transparent);
   border-radius: 3px;
-  background: color-mix(in srgb, #020617 60%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 60%, transparent);
   box-shadow: 0 0 10px color-mix(in srgb, #22c55e 12%, transparent);
 }
 
@@ -1326,7 +1326,7 @@
   border: 1px solid color-mix(in srgb, #67e8f9 16%, var(--border-primary));
   border-radius: 10px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, #0f172a 20%, transparent), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 20%, transparent), transparent),
     color-mix(in srgb, var(--surface-primary) 88%, transparent);
 }
 
@@ -1450,7 +1450,7 @@
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, #020617 70%, var(--surface-secondary));
+  background: color-mix(in srgb, var(--bg-primary) 70%, var(--surface-secondary));
   box-shadow: inset 0 0 4px color-mix(in srgb, #000000 55%, transparent);
 }
 
@@ -1483,7 +1483,7 @@
   min-height: 34px;
   padding: 2px 8px;
   border-radius: 8px;
-  background: color-mix(in srgb, #020617 54%, var(--surface-secondary));
+  background: color-mix(in srgb, var(--bg-primary) 54%, var(--surface-secondary));
 }
 
 .tableHint {
@@ -1590,7 +1590,7 @@
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, #67e8f9 18%, var(--border-primary));
   background:
-    linear-gradient(180deg, color-mix(in srgb, #0f172a 34%, transparent), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 34%, transparent), transparent),
     color-mix(in srgb, var(--surface-primary) 88%, transparent);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #ffffff 6%, transparent),
@@ -1612,7 +1612,7 @@
   border: 1px solid color-mix(in srgb, #a78bfa 24%, var(--border-primary));
   border-radius: 14px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, #0f172a 18%, transparent), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 18%, transparent), transparent),
     color-mix(in srgb, var(--surface-primary) 76%, transparent);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #ffffff 6%, transparent),
@@ -1737,7 +1737,7 @@
   overflow-y: auto;
   border-right: 1px solid color-mix(in srgb, var(--border-primary) 76%, transparent);
   padding: 10px 8px;
-  background: color-mix(in srgb, #020617 30%, transparent);
+  background: color-mix(in srgb, var(--bg-primary) 30%, transparent);
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, #334155 72%, transparent) transparent;
 }
@@ -1859,9 +1859,9 @@
   overflow: hidden;
   border-radius: 12px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, #0f172a 14%, transparent), transparent 46%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 14%, transparent), transparent 46%),
     repeating-linear-gradient(90deg, color-mix(in srgb, #67e8f9 5%, transparent) 0 1px, transparent 1px 48px),
-    color-mix(in srgb, #020617 20%, transparent);
+    color-mix(in srgb, var(--bg-primary) 20%, transparent);
 }
 
 .responseZeroState::before {
@@ -2211,7 +2211,7 @@
 .followUpChip {
   border: 1px solid color-mix(in srgb, #22d3ee 20%, var(--border-primary));
   border-radius: 999px;
-  background: color-mix(in srgb, #020617 40%, var(--surface-secondary));
+  background: color-mix(in srgb, var(--bg-primary) 40%, var(--surface-secondary));
   color: var(--text-secondary);
   padding: 6px 10px;
   font-size: 12px;
@@ -2246,7 +2246,7 @@
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, #a78bfa 32%, var(--border-primary));
   background:
-    linear-gradient(180deg, color-mix(in srgb, #0f172a 22%, transparent), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 22%, transparent), transparent),
     color-mix(in srgb, var(--surface-primary) 92%, transparent);
   overflow: hidden;
   box-shadow:
@@ -2346,7 +2346,7 @@
   overflow: hidden;
   padding: 28px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, #0f172a 26%, transparent), transparent),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-primary) 26%, transparent), transparent),
     color-mix(in srgb, var(--surface-primary) 82%, transparent);
 }
 
@@ -2414,7 +2414,7 @@
     border-radius: 10px;
     background:
       linear-gradient(110deg, transparent 0%, color-mix(in srgb, #ffffff 7%, transparent) 44%, transparent 78%),
-      color-mix(in srgb, #020617 22%, transparent);
+      color-mix(in srgb, var(--bg-primary) 22%, transparent);
     animation: standbyCellPulse 2.2s ease-in-out infinite;
   }
 }
@@ -2533,7 +2533,7 @@
     border-radius: 999px;
     padding: 4px 9px;
     color: color-mix(in srgb, #67e8f9 70%, var(--text-tertiary));
-    background: color-mix(in srgb, #020617 44%, transparent);
+    background: color-mix(in srgb, var(--bg-primary) 44%, transparent);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.08em;
