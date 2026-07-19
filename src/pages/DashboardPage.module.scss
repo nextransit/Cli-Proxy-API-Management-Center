@@ -274,15 +274,30 @@
   padding: $spacing-lg;
   color: inherit;
   text-decoration: none;
-  transition: border-color $transition-fast, transform $transition-fast, box-shadow $transition-fast;
+  position: relative;
+  transition: border-color $transition-fast, transform $transition-fast;
 
-  &:hover {
-    border-color: color-mix(in srgb, #38bdf8 58%, var(--border-color));
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
     box-shadow:
       0 24px 54px rgb(0 0 0 / 0.18),
       0 0 0 1px rgba(56, 189, 248, 0.08),
       inset 0 1px 0 rgb(255 255 255 / 0.045);
+    opacity: 0;
+    transition: opacity $transition-fast;
+    pointer-events: none;
+  }
+
+  &:hover {
+    border-color: color-mix(in srgb, #38bdf8 58%, var(--border-color));
     transform: translateY(-2px);
+
+    &::before {
+      opacity: 1;
+    }
   }
 }
 

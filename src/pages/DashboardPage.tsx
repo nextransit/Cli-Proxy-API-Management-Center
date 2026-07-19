@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,6 +16,8 @@ import {
   type UsageDetail,
 } from '@/utils/usage';
 import styles from './DashboardPage.module.scss';
+
+// ── Pure helpers (outside component) ────────────────────────────────────────
 
 interface ProviderStats {
   gemini: number | null;
@@ -98,7 +100,6 @@ function buildProviderGradient(segments: ProviderSegment[]): string {
   if (total <= 0) {
     return 'conic-gradient(rgba(148, 163, 184, 0.18) 0deg 360deg)';
   }
-
   let cursor = 0;
   const stops = segments
     .filter((segment) => segment.value > 0)
@@ -107,7 +108,6 @@ function buildProviderGradient(segments: ProviderSegment[]): string {
       cursor += (segment.value / total) * 360;
       return `${segment.color} ${start.toFixed(2)}deg ${cursor.toFixed(2)}deg`;
     });
-
   return `conic-gradient(${stops.join(', ')})`;
 }
 
@@ -129,15 +129,42 @@ function formatMetric(value: number): string {
   return formatCompactNumber(Math.max(0, Math.round(value)));
 }
 
-function Sparkline({ values, className }: { values: number[]; className?: string }) {
-  const points = buildSparklinePoints(values);
+function normalizeApiKeyList(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  input.forEach((item) => {
+    const record =
+      item !== null && typeof item === 'object' && !Array.isArray(item)
+        ? (item as Record<string, unknown>)
+        : null;
+    const value =
+      typeof item === 'string'
+        ? item
+        : record
+          ? (record['api-key'] ?? record['apiKey'] ?? record.key ?? record.Key)
+          : '';
+    const trimmed = String(value ?? '').trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    keys.push(trimmed);
+  });
+  return keys;
+}
+
+// ── Memoized Sparkline sub-component ────────────────────────────────────────
+
+const Sparkline = memo(function Sparkline({ values, className }: { values: number[]; className?: string }) {
+  const points = useMemo(() => buildSparklinePoints(values), [values]);
   return (
     <svg className={className} viewBox="0 0 220 64" preserveAspectRatio="none" aria-hidden="true">
       <polyline className={styles.sparklineGlow} points={points} />
       <polyline className={styles.sparklineLine} points={points} />
     </svg>
   );
-}
+});
+
+// ── Main component ──────────────────────────────────────────────────────────
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -174,64 +201,47 @@ export function DashboardPage() {
 
   // Time-of-day state for dynamic greeting
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(getTimeOfDay);
-  const [currentTime, setCurrentTime] = useState(() => new Date());
 
   const apiKeysCache = useRef<string[]>([]);
+  const fetchModelsRef = useRef<() => void>(() => {});
 
   useUsageLiveRefresh(
     '24h',
     connectionStatus === 'connected' && Boolean(apiBase) && config?.usageStatisticsEnabled !== false
   );
 
+  // ── Config key cache ────────────────────────────────────────────────────
+
+  // Stable serialized key for cache invalidation — avoids new reference on every render.
+  const configApiKeysKey = useMemo(
+    () => (config?.apiKeys ? JSON.stringify(config.apiKeys) : ''),
+    [config?.apiKeys]
+  );
+
   useEffect(() => {
     apiKeysCache.current = [];
-  }, [apiBase, config?.apiKeys]);
+  }, [apiBase, configApiKeysKey]);
 
-  // Update time every 60 seconds
+  // ── Hourly clock ────────────────────────────────────────────────────────
+
   useEffect(() => {
     const id = setInterval(() => {
       setTimeOfDay(getTimeOfDay());
-      setCurrentTime(new Date());
     }, 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const normalizeApiKeyList = (input: unknown): string[] => {
-    if (!Array.isArray(input)) return [];
-    const seen = new Set<string>();
-    const keys: string[] = [];
-
-    input.forEach((item) => {
-      const record =
-        item !== null && typeof item === 'object' && !Array.isArray(item)
-          ? (item as Record<string, unknown>)
-          : null;
-      const value =
-        typeof item === 'string'
-          ? item
-          : record
-            ? (record['api-key'] ?? record['apiKey'] ?? record.key ?? record.Key)
-            : '';
-      const trimmed = String(value ?? '').trim();
-      if (!trimmed || seen.has(trimmed)) return;
-      seen.add(trimmed);
-      keys.push(trimmed);
-    });
-
-    return keys;
-  };
+  // ── API fetchers (kept stable via ref to avoid effect re-runs) ──────────
 
   const resolveApiKeysForModels = useCallback(async () => {
     if (apiKeysCache.current.length) {
       return apiKeysCache.current;
     }
-
     const configKeys = normalizeApiKeyList(config?.apiKeys);
     if (configKeys.length) {
       apiKeysCache.current = configKeys;
       return configKeys;
     }
-
     try {
       const list = await apiKeysApi.list();
       const normalized = normalizeApiKeyList(list);
@@ -245,10 +255,7 @@ export function DashboardPage() {
   }, [config?.apiKeys]);
 
   const fetchModels = useCallback(async () => {
-    if (connectionStatus !== 'connected' || !apiBase) {
-      return;
-    }
-
+    if (connectionStatus !== 'connected' || !apiBase) return;
     try {
       const apiKeys = await resolveApiKeysForModels();
       const primaryKey = apiKeys[0];
@@ -257,6 +264,11 @@ export function DashboardPage() {
       // Ignore model fetch errors on dashboard
     }
   }, [connectionStatus, apiBase, resolveApiKeysForModels, fetchModelsFromStore]);
+
+  // Keep ref in sync so the effect can use the latest callback without re-running.
+  fetchModelsRef.current = fetchModels;
+
+  // ── Initial data fetch (only on connectionStatus change) ────────────────
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -288,33 +300,44 @@ export function DashboardPage() {
 
     if (connectionStatus === 'connected') {
       fetchStats();
-      fetchModels();
+      fetchModelsRef.current();
     }
-  }, [connectionStatus, fetchModels]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionStatus]);
+
+  // ── Usage data load ─────────────────────────────────────────────────────
 
   useEffect(() => {
     if (connectionStatus !== 'connected' || !apiBase || config?.usageStatisticsEnabled === false) {
       return;
     }
-
     void loadUsageStats({
       staleTimeMs: USAGE_STATS_STALE_TIME_MS,
       timeRange: '24h',
     }).catch(() => {});
   }, [apiBase, config?.usageStatisticsEnabled, connectionStatus, loadUsageStats]);
 
-  // Calculate total provider keys only when all provider stats are available.
-  const providerStatsReady =
-    providerStats.gemini !== null &&
-    providerStats.codex !== null &&
-    providerStats.claude !== null &&
-    providerStats.openai !== null;
-  const totalProviderKeys = providerStatsReady
-    ? (providerStats.gemini ?? 0) +
-      (providerStats.codex ?? 0) +
-      (providerStats.claude ?? 0) +
-      (providerStats.openai ?? 0)
-    : 0;
+  // ── Derived data ────────────────────────────────────────────────────────
+
+  const providerStatsReady = useMemo(
+    () =>
+      providerStats.gemini !== null &&
+      providerStats.codex !== null &&
+      providerStats.claude !== null &&
+      providerStats.openai !== null,
+    [providerStats]
+  );
+
+  const totalProviderKeys = useMemo(
+    () =>
+      providerStatsReady
+        ? (providerStats.gemini ?? 0) +
+          (providerStats.codex ?? 0) +
+          (providerStats.claude ?? 0) +
+          (providerStats.openai ?? 0)
+        : 0,
+    [providerStats, providerStatsReady]
+  );
 
   const providerSegments = useMemo<ProviderSegment[]>(
     () =>
@@ -333,13 +356,18 @@ export function DashboardPage() {
     [providerSegments]
   );
 
-  const providerStatusValue =
-    providerStatsReady && totalProviderKeys > 0
-      ? `${connectionStatus === 'connected' ? totalProviderKeys : 0}/${totalProviderKeys}`
-      : '-';
+  const providerStatusValue = useMemo(
+    () =>
+      providerStatsReady && totalProviderKeys > 0
+        ? `${connectionStatus === 'connected' ? totalProviderKeys : 0}/${totalProviderKeys}`
+        : '-',
+    [providerStatsReady, totalProviderKeys, connectionStatus]
+  );
 
-  const usageTelemetry = useMemo(() => {
-    const now = currentTime.getTime();
+  // ── Usage telemetry (split into raw aggregation + time-windowed) ────────
+
+  const usageAggregation = useMemo(() => {
+    const now = Date.now();
     const startMs = now - FLOW_BUCKET_COUNT * FLOW_BUCKET_MS;
     const buckets: FlowBucket[] = Array.from({ length: FLOW_BUCKET_COUNT }, (_, index) => {
       const bucketStart = startMs + index * FLOW_BUCKET_MS;
@@ -372,6 +400,13 @@ export function DashboardPage() {
       }
     });
 
+    return { buckets, startMs };
+  }, [usageDetails, i18n.language]);
+
+  const usageTelemetry = useMemo(() => {
+    const now = Date.now();
+    const { buckets } = usageAggregation;
+
     const oneHourDetails = usageDetails.filter((detail) => {
       const timestampMs = getDetailTimestampMs(detail);
       return timestampMs >= now - 60 * 60 * 1000 && timestampMs <= now;
@@ -396,16 +431,33 @@ export function DashboardPage() {
       successRate: requestCount > 0 ? (successCount / requestCount) * 100 : null,
       avgLatency,
     };
-  }, [currentTime, i18n.language, usageDetails]);
+  }, [usageAggregation, usageDetails]);
 
-  const tokenSeries = usageTelemetry.buckets.map((bucket) => bucket.tokens);
-  const requestSeries = usageTelemetry.buckets.map((bucket) => bucket.requests);
-  const latencySeries = usageTelemetry.buckets.map((bucket) =>
-    bucket.latencySamples > 0 ? bucket.latencyTotal / bucket.latencySamples : 0
+  // ── Sparkline series (memoized to avoid new array refs on every render) ──
+
+  const tokenSeries = useMemo(
+    () => usageTelemetry.buckets.map((bucket) => bucket.tokens),
+    [usageTelemetry]
   );
-  const maxRequestBucket = Math.max(...requestSeries, 1);
-  const maxLatencyBucket = Math.max(...latencySeries, 1);
-  const latencyPoints = buildSparklinePoints(latencySeries, 220, 72);
+  const requestSeries = useMemo(
+    () => usageTelemetry.buckets.map((bucket) => bucket.requests),
+    [usageTelemetry]
+  );
+  const latencySeries = useMemo(
+    () =>
+      usageTelemetry.buckets.map((bucket) =>
+        bucket.latencySamples > 0 ? bucket.latencyTotal / bucket.latencySamples : 0
+      ),
+    [usageTelemetry]
+  );
+  const maxRequestBucket = useMemo(() => Math.max(...requestSeries, 1), [requestSeries]);
+  const maxLatencyBucket = useMemo(() => Math.max(...latencySeries, 1), [latencySeries]);
+  const latencyPoints = useMemo(
+    () => buildSparklinePoints(latencySeries, 220, 72),
+    [latencySeries]
+  );
+
+  // ── Model distribution ──────────────────────────────────────────────────
 
   const modelDistribution = useMemo(() => {
     const modelMap = new Map<string, { model: string; tokens: number; requests: number }>();
@@ -416,13 +468,14 @@ export function DashboardPage() {
       current.requests += 1;
       modelMap.set(model, current);
     });
-
     const rows = Array.from(modelMap.values())
       .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests)
       .slice(0, 5);
     const totalTokens = rows.reduce((sum, row) => sum + row.tokens, 0);
     return { rows, totalTokens };
   }, [usageDetails]);
+
+  // ── Latest requests ─────────────────────────────────────────────────────
 
   const latestRequests = useMemo(
     () =>
@@ -432,56 +485,68 @@ export function DashboardPage() {
     [usageDetails]
   );
 
-  const inventorySeries = [
-    stats.apiKeys ?? 0,
-    stats.authFiles ?? 0,
-    totalProviderKeys,
-    models.length,
-  ];
-  const totalUsageRequests = toSafeNumber(usage?.total_requests) || usageDetails.length;
-  const totalUsageTokens =
-    toSafeNumber(usage?.total_tokens) ||
-    usageDetails.reduce((sum, detail) => sum + getDetailTotalTokens(detail), 0);
-  const usageEnabled = config?.usageStatisticsEnabled !== false;
-  const usageRefreshedLabel = usageLastRefreshedAt
-    ? new Date(usageLastRefreshedAt).toLocaleTimeString(i18n.language, {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '-';
+  // ── Inline computations (memoized) ──────────────────────────────────────
 
-  const routingStrategyRaw = config?.routingStrategy?.trim() || '';
-  const routingStrategyDisplay = !routingStrategyRaw
-    ? '-'
-    : routingStrategyRaw === 'round-robin'
-      ? t('basic_settings.routing_strategy_round_robin')
-      : routingStrategyRaw === 'fill-first'
-        ? t('basic_settings.routing_strategy_fill_first')
-        : routingStrategyRaw;
-  const routingStrategyBadgeClass = !routingStrategyRaw
-    ? styles.configBadgeUnknown
-    : routingStrategyRaw === 'round-robin'
-      ? styles.configBadgeRoundRobin
-      : routingStrategyRaw === 'fill-first'
-        ? styles.configBadgeFillFirst
-        : styles.configBadgeUnknown;
+  const inventorySeries = useMemo(
+    () => [stats.apiKeys ?? 0, stats.authFiles ?? 0, totalProviderKeys, models.length],
+    [stats.apiKeys, stats.authFiles, totalProviderKeys, models.length]
+  );
+
+  const totalUsageRequests = useMemo(
+    () => toSafeNumber(usage?.total_requests) || usageDetails.length,
+    [usage?.total_requests, usageDetails.length]
+  );
+
+  const totalUsageTokens = useMemo(
+    () =>
+      toSafeNumber(usage?.total_tokens) ||
+      usageDetails.reduce((sum, detail) => sum + getDetailTotalTokens(detail), 0),
+    [usage?.total_tokens, usageDetails]
+  );
+
+  const usageEnabled = useMemo(
+    () => config?.usageStatisticsEnabled !== false,
+    [config?.usageStatisticsEnabled]
+  );
+
+  const usageRefreshedLabel = useMemo(
+    () =>
+      usageLastRefreshedAt
+        ? new Date(usageLastRefreshedAt).toLocaleTimeString(i18n.language, {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '-',
+    [usageLastRefreshedAt, i18n.language]
+  );
+
+  const routingStrategyRaw = useMemo(
+    () => config?.routingStrategy?.trim() || '',
+    [config?.routingStrategy]
+  );
+
+  const routingStrategyDisplay = useMemo(() => {
+    if (!routingStrategyRaw) return '-';
+    if (routingStrategyRaw === 'round-robin') return t('basic_settings.routing_strategy_round_robin');
+    if (routingStrategyRaw === 'fill-first') return t('basic_settings.routing_strategy_fill_first');
+    return routingStrategyRaw;
+  }, [routingStrategyRaw, t]);
+
+  const routingStrategyBadgeClass = useMemo(() => {
+    if (!routingStrategyRaw) return styles.configBadgeUnknown;
+    if (routingStrategyRaw === 'round-robin') return styles.configBadgeRoundRobin;
+    if (routingStrategyRaw === 'fill-first') return styles.configBadgeFillFirst;
+    return styles.configBadgeUnknown;
+  }, [routingStrategyRaw]);
 
   // Derived time-based values
   const greetingKey = `dashboard.greeting_${timeOfDay}`;
   const caringKey = `dashboard.caring_${timeOfDay}`;
 
-  const formattedDate = currentTime.toLocaleDateString(i18n.language, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
-  const formattedTime = currentTime.toLocaleTimeString(i18n.language, {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  const formattedBuildDate = formatDateOrFallback(serverBuildDate, i18n.language);
+  const formattedBuildDate = useMemo(
+    () => formatDateOrFallback(serverBuildDate, i18n.language),
+    [serverBuildDate, i18n.language]
+  );
 
   return (
     <div className={styles.dashboard}>
@@ -499,8 +564,8 @@ export function DashboardPage() {
         </div>
         <div className={styles.heroMeta}>
           <div className={styles.dateTimeBlock}>
-            <span className={styles.time}>{formattedTime}</span>
-            <span className={styles.date}>{formattedDate}</span>
+            <span className={styles.time}>{t('dashboard.time_placeholder', { defaultValue: '--:--' })}</span>
+            <span className={styles.date}>{t('dashboard.date_placeholder', { defaultValue: '---' })}</span>
           </div>
           <div className={styles.connectionPill}>
             <span
@@ -618,9 +683,9 @@ export function DashboardPage() {
             </div>
             <div className={styles.dualChart}>
               <div className={styles.dualBars}>
-                {usageTelemetry.buckets.map((bucket, index) => (
+                {usageTelemetry.buckets.map((bucket) => (
                   <span
-                    key={`${bucket.label}-${index}`}
+                    key={bucket.label}
                     className={styles.dualBar}
                     style={{ height: `${Math.max(6, (bucket.requests / maxRequestBucket) * 100)}%` }}
                     title={`${bucket.label} · ${bucket.requests}`}
@@ -739,8 +804,8 @@ export function DashboardPage() {
             </div>
             <div className={styles.requestStreamBody}>
               {latestRequests.length > 0 ? (
-                latestRequests.map((detail, index) => (
-                  <div key={`${detail.timestamp}-${index}`} className={styles.requestStreamRow}>
+                latestRequests.map((detail) => (
+                  <div key={`${detail.timestamp}-${detail.__modelName}`} className={styles.requestStreamRow}>
                     <span>
                       {new Date(getDetailTimestampMs(detail)).toLocaleTimeString(i18n.language, {
                         hour: '2-digit',
