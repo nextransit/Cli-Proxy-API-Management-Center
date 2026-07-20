@@ -100,9 +100,15 @@ const renderUsageChart = (
 };
 
 const getSeriesColors = (option: EChartsOption): string[] => {
-  const series = option.series as Array<{ lineStyle?: { color?: string } }> | undefined;
+  const series = option.series as Array<{ lineStyle?: { color?: string; width?: number } }> | undefined;
   if (!Array.isArray(series)) return [];
   return series.map((entry) => entry.lineStyle?.color ?? '');
+};
+
+const getSeriesLineWidths = (option: EChartsOption): number[] => {
+  const series = option.series as Array<{ lineStyle?: { color?: string; width?: number } }> | undefined;
+  if (!Array.isArray(series)) return [];
+  return series.map((entry) => entry.lineStyle?.width ?? -1);
 };
 
 describe('<UsageChart /> rank-based coloring', () => {
@@ -126,5 +132,26 @@ describe('<UsageChart /> rank-based coloring', () => {
     expect(colors[0]).toBe(MODEL_TREND_PALETTE[0]);
     expect(colors[7]).toBe(MODEL_TREND_PALETTE[7]);
     expect(colors[8]).toBe(TAIL_LINE_COLOR);
+  });
+
+  it('uses a flat line width of 1 for every rank (stacked-area parity)', () => {
+    const baseTimestamp = Date.UTC(2026, 6, 15, 10, 0, 0); // 2026-07-15 10:00:00Z
+    const scopedDetails = buildDetails(
+      baseTimestamp,
+      NINE_MODEL_NAMES,
+      REQUESTS_PER_MODEL,
+    );
+
+    renderUsageChart(scopedDetails, [...NINE_MODEL_NAMES]);
+
+    const option = lastOptionRef.current;
+    expect(option).not.toBeNull();
+    if (!option) return;
+
+    const widths = getSeriesLineWidths(option);
+    expect(widths).toHaveLength(9);
+    widths.forEach((width) => {
+      expect(width).toBe(1);
+    });
   });
 });

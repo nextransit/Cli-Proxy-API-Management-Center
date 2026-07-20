@@ -325,8 +325,8 @@ function buildTrendChartData(
     const rank = rankByLine.get(series.line) ?? 0;
     const color = getRankColor(rank);
     const isTop = rank === 0;
-    const borderWidth = rank === 0 ? 2 : rank < 8 ? 1.5 : 1;
-    const pointHoverRadius = rank === 0 ? 6 : 4;
+    const borderWidth = 1;
+    const pointHoverRadius = 4;
 
     return {
       label: series.label,
