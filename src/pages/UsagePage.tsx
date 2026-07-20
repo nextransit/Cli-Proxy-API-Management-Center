@@ -37,6 +37,8 @@ import styles from './UsagePage.module.scss';
 const TIME_RANGE_STORAGE_KEY = 'cli-proxy-usage-time-range-v1';
 const DEFAULT_CHART_LINES = ['all'];
 const MAX_CHART_LINES = 9;
+/** Number of models/credentials to auto-pick when the user has not customized chart lines. */
+const DEFAULT_TOP_N = 8;
 const DEFAULT_TIME_RANGE: UsageTimeRange = '24h';
 const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: UsageTimeRange; labelKey: string }> = [
   { value: 'today', labelKey: 'usage_stats.range_today' },
@@ -678,12 +680,12 @@ export function UsagePage() {
     if (chartCompareMode === 'credential') {
       const topCredentials = credentialRows
         .filter((row) => row.requests > 0)
-        .slice(0, 4)
+        .slice(0, DEFAULT_TOP_N)
         .map((row) => row.value);
       return topCredentials.length > 0 ? topCredentials : chartLines;
     }
 
-    const topModels = modelStats.slice(0, 4).map((stat) => stat.model);
+    const topModels = modelStats.slice(0, DEFAULT_TOP_N).map((stat) => stat.model);
     return topModels.length > 0 ? topModels : chartLines;
   }, [chartCompareMode, chartLines, credentialRows, modelStats]);
   const effectiveDetailModelFilter = useMemo(() => {
