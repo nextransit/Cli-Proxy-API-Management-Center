@@ -77,3 +77,61 @@ describe('buildEChartsTrendOption', () => {
     expect(series[0]?.sampling).toBe('lttb');
   });
 });
+
+describe('buildEChartsTrendOption - 8 series with palette', () => {
+  const theme: ThemeColors = {
+    textPrimary: '#e5e7eb',
+    textSecondary: '#9ca3af',
+    border: '#374151',
+    borderMuted: '#374151',
+    bgPrimary: '#111827',
+    accent: '#06b6d4',
+  };
+
+  const palette = [
+    '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B',
+    '#EC4899', '#06B6D4', '#F43F5E', '#64748B',
+  ];
+
+  const data: ChartData = {
+    labels: ['00:00', '01:00', '02:00'],
+    datasets: Array.from({ length: 8 }, (_, i) => ({
+      label: `model-${i + 1}`,
+      data: [i + 1, (i + 1) * 2, (i + 1) * 3],
+      borderColor: palette[i] as string,
+      backgroundColor: 'transparent',
+      fill: true,
+      tension: 0.35,
+    })),
+  };
+
+  it('returns a legend with 8 entries and built-in all/inverse selector', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const legend = option.legend as { data: string[]; selector: string[] };
+    expect(legend).toBeDefined();
+    expect(legend.data).toHaveLength(8);
+    expect(legend.selector).toEqual(expect.arrayContaining(['all', 'inverse']));
+  });
+
+  it('configures per-series emphasis.focus and blur.opacity', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const series = option.series as Array<{
+      emphasis: { focus: string };
+      blur: { lineStyle: { opacity: number } };
+    }>;
+    expect(series).toHaveLength(8);
+    for (const s of series) {
+      expect(s.emphasis.focus).toBe('series');
+      expect(s.blur.lineStyle.opacity).toBe(0.15);
+    }
+  });
+
+  it('uses rank-aware line width: first series thicker, rest standard', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const series = option.series as Array<{ lineStyle: { width: number } }>;
+    expect(series[0]?.lineStyle.width).toBe(2);
+    for (let i = 1; i < series.length; i++) {
+      expect(series[i]?.lineStyle.width).toBe(1.5);
+    }
+  });
+});

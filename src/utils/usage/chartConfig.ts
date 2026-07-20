@@ -43,6 +43,25 @@ export function buildEChartsTrendOption(
       borderColor: theme.border,
       textStyle: { color: theme.textPrimary, fontFamily: FONT_FAMILY },
     },
+    legend: {
+      type: 'scroll',
+      orient: 'horizontal',
+      top: 8,
+      left: 'center',
+      itemWidth: 14,
+      itemHeight: 8,
+      itemGap: 14,
+      textStyle: { color: theme.textPrimary, fontSize: 12 },
+      pageIconColor: theme.textSecondary,
+      pageTextStyle: { color: theme.textSecondary },
+      data: data.datasets.map((d) => d.label),
+      selector: ['all', 'inverse'],
+      selectorLabel: {
+        color: theme.textSecondary,
+        borderColor: theme.border,
+      },
+      selectorPosition: 'end',
+    },
     xAxis: {
       type: 'category',
       data: data.labels,
@@ -60,13 +79,18 @@ export function buildEChartsTrendOption(
           { type: 'slider', height: 18, bottom: 8, brushSelect: true },
         ]
       : undefined,
-    series: data.datasets.map((d: ChartDataset) => ({
+    series: data.datasets.map((d: ChartDataset, i: number) => ({
       name: d.label,
       type: 'line',
       smooth: true,
       showSymbol: false,
       sampling: 'lttb',
-      lineStyle: { width: 1.5, color: d.borderColor },
+      lineStyle: { width: i === 0 ? 2 : 1.5, color: d.borderColor },
+      emphasis: { focus: 'series', lineStyle: { width: 3 } },
+      blur: {
+        lineStyle: { opacity: 0.15 },
+        itemStyle: { opacity: 0.15 },
+      },
       areaStyle: {
         color: {
           type: 'linear',
