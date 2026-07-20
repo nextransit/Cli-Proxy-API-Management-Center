@@ -5,6 +5,7 @@
 import type { EChartsOption } from 'echarts';
 import type { ChartData, ChartDataset } from '../usage';
 import type { ThemeColors } from '../echarts/themeBridge';
+import { buildAreaGradient } from './chartPalette';
 
 export interface BuildEChartsTrendOptionArgs {
   isNarrowScreen: boolean;
@@ -32,16 +33,6 @@ function formatNum(n: number): string {
   if (!Number.isFinite(n)) return '0';
   return compactNumberFormatter.format(n);
 }
-
-const hexToRgba = (hex: string, alpha: number): string => {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return hex;
-  const intVal = parseInt(m[1] as string, 16);
-  const r = (intVal >> 16) & 0xff;
-  const g = (intVal >> 8) & 0xff;
-  const b = intVal & 0xff;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
 
 export function buildEChartsTrendOption(
   data: ChartData,
@@ -144,17 +135,7 @@ export function buildEChartsTrendOption(
         itemStyle: { opacity: 0.15 },
       },
       areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0,
-          y: 0,
-          x2: 0,
-          y2: 1,
-          colorStops: [
-            { offset: 0, color: hexToRgba(d.borderColor, 0.33) },
-            { offset: 1, color: hexToRgba(d.borderColor, 0) },
-          ],
-        },
+        color: buildAreaGradient(d.borderColor as string),
       },
       data: d.data,
     })),
