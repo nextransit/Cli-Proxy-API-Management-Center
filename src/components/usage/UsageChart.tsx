@@ -6,6 +6,10 @@ import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
 import { getThemeColors } from '@/utils/echarts/themeBridge';
 import { buildEChartsTrendOption } from '@/utils/usage/chartConfig';
 import {
+  getRankColor,
+  buildAreaGradient,
+} from '@/utils/usage/chartPalette';
+import {
   formatDayLabel,
   formatHourLabel,
   extractTotalTokens,
@@ -47,8 +51,6 @@ export interface UsageChartProps {
 const ALL_FILTER = 'all';
 const DEFAULT_CHART_LINES = ['all'];
 const MAX_CHART_DETAILS = 5_000;
-const CHART_COLORS = ['#00E5FF', '#7C4DFF'];
-const TAIL_LINE_COLOR = 'rgba(255, 255, 255, 0.22)';
 const TOKEN_FOCUS_CHART_COLORS = {
   input: '#00E5FF',
   cache: '#7C4DFF',
@@ -321,30 +323,25 @@ function buildTrendChartData(
   const rankByLine = new Map(rankedLines.map((series, index) => [series.line, index]));
   const datasets = rawSeries.map((series) => {
     const rank = rankByLine.get(series.line) ?? 0;
-    const isPrimary = rank === 0;
-    const isSecondary = rank === 1;
-    const color = isPrimary
-      ? CHART_COLORS[0]
-      : isSecondary
-        ? CHART_COLORS[1]
-        : TAIL_LINE_COLOR;
+    const color = getRankColor(rank);
+    const isTop = rank === 0;
+    const borderWidth = rank === 0 ? 2 : rank < 8 ? 1.5 : 1;
+    const pointHoverRadius = rank === 0 ? 6 : 4;
 
     return {
       label: series.label,
       data: series.data,
       borderColor: color,
-      backgroundColor: isPrimary
-        ? withAlpha(color, 0.16)
-        : 'rgba(255, 255, 255, 0)',
+      backgroundColor: buildAreaGradient(color),
       pointBackgroundColor: color,
       pointBorderColor: color,
-      borderWidth: isPrimary ? 2.4 : isSecondary ? 1.8 : 1.15,
+      borderWidth,
       pointRadius: 0,
-      pointHoverRadius: isPrimary ? 5 : 3,
+      pointHoverRadius,
       pointHitRadius: 10,
       pointBorderWidth: 0,
       pointHoverBorderWidth: 2,
-      fill: isPrimary,
+      fill: isTop,
       tension: 0.42,
       order: rank,
     };
