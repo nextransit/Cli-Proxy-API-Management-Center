@@ -78,6 +78,70 @@ describe('buildEChartsTrendOption', () => {
   });
 });
 
+describe('buildEChartsTrendOption - stacked area', () => {
+  const theme = {
+    textPrimary: '#e5e7eb',
+    textSecondary: '#9ca3af',
+    bgPrimary: '#111827',
+    border: '#374151',
+    borderMuted: '#4b5563',
+    accent: '#06b6d4',
+  } as const;
+
+  const data: ChartData = {
+    labels: ['00:00', '01:00', '02:00'],
+    datasets: Array.from({ length: 8 }, (_, i) => ({
+      label: `model-${i + 1}`,
+      data: [i + 1, (i + 1) * 2, (i + 1) * 3],
+      borderColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B',
+                    '#EC4899', '#06B6D4', '#F43F5E', '#64748B'][i] as string,
+      backgroundColor: 'transparent',
+      fill: true,
+      tension: 0.35,
+    })),
+  };
+
+  it('enables stack: "total" on every series', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const series = option.series as Array<{ stack?: string }>;
+    expect(series).toHaveLength(8);
+    for (const s of series) {
+      expect(s.stack).toBe('total');
+    }
+  });
+
+  it('sets smooth: false on every series (stacked area prefers straight edges)', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const series = option.series as Array<{ smooth?: boolean }>;
+    for (const s of series) {
+      expect(s.smooth).toBe(false);
+    }
+  });
+
+  it('uses a vertical gradient areaStyle with opacityTop > opacityBottom', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const series = option.series as Array<{ areaStyle: { color: unknown } }>;
+    for (const s of series) {
+      const css = s.areaStyle.color as string;
+      expect(typeof css).toBe('string');
+      expect(css).toContain('linear-gradient');
+      // 180deg = top first, bottom second; the larger alpha (0.55) should precede the smaller (0.2)
+      const topIdx = css.indexOf(', 0.55)');
+      const bottomIdx = css.indexOf(', 0.2)');
+      expect(topIdx).toBeGreaterThan(-1);
+      expect(bottomIdx).toBeGreaterThan(topIdx);
+    }
+  });
+
+  it('emphasis.lineStyle.width is reduced to 2 (was 3)', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const series = option.series as Array<{ emphasis: { lineStyle: { width: number } } }>;
+    for (const s of series) {
+      expect(s.emphasis.lineStyle.width).toBe(2);
+    }
+  });
+});
+
 describe('buildEChartsTrendOption - 8 series with palette', () => {
   const theme: ThemeColors = {
     textPrimary: '#e5e7eb',
@@ -126,12 +190,11 @@ describe('buildEChartsTrendOption - 8 series with palette', () => {
     }
   });
 
-  it('uses rank-aware line width: first series thicker, rest standard', () => {
+  it('uses a uniform line width of 1 across all series (stacked area)', () => {
     const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
     const series = option.series as Array<{ lineStyle: { width: number } }>;
-    expect(series[0]?.lineStyle.width).toBe(2);
-    for (let i = 1; i < series.length; i++) {
-      expect(series[i]?.lineStyle.width).toBe(1.5);
+    for (const s of series) {
+      expect(s.lineStyle.width).toBe(1);
     }
   });
 });

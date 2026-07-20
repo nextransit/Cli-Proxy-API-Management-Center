@@ -122,22 +122,24 @@ export function buildEChartsTrendOption(
           { type: 'slider', height: 18, bottom: 8, brushSelect: true },
         ]
       : undefined,
-    series: data.datasets.map((d: ChartDataset, i: number) => ({
+    series: data.datasets.map((d: ChartDataset) => ({
       name: d.label,
       type: 'line',
-      smooth: true,
+      stack: 'total',
+      smooth: false,
       showSymbol: false,
       sampling: 'lttb',
-      lineStyle: { width: i === 0 ? 2 : 1.5, color: d.borderColor },
-      emphasis: { focus: 'series', lineStyle: { width: 3 } },
+      lineStyle: { width: 1, color: d.borderColor },
+      itemStyle: { color: d.borderColor },
+      areaStyle: {
+        color: buildAreaGradient(d.borderColor as string, 0.55, 0.20),
+      },
+      data: d.data,
+      emphasis: { focus: 'series', lineStyle: { width: 2 } },
       blur: {
         lineStyle: { opacity: 0.15 },
         itemStyle: { opacity: 0.15 },
       },
-      areaStyle: {
-        color: buildAreaGradient(d.borderColor as string),
-      },
-      data: d.data,
     })),
   };
 }
