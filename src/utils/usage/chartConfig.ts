@@ -46,7 +46,7 @@ export function buildEChartsTrendOption(
     animationDuration,
     animationEasing,
     textStyle: { fontFamily: FONT_FAMILY, color: theme.textPrimary },
-    grid: { left: 56, right: 24, top: 32, bottom: isNarrowScreen ? 40 : 24 },
+    grid: { left: 56, right: 24, top: 72, bottom: isNarrowScreen ? 40 : 24 },
     tooltip: {
       trigger: 'axis',
       backgroundColor: theme.bgPrimary,
@@ -87,15 +87,16 @@ export function buildEChartsTrendOption(
       }),
     },
     legend: {
-      type: 'scroll',
+      type: 'plain',            // CHANGED: from 'scroll' to 'plain' for natural wrap
       orient: 'horizontal',
-      top: 8,
       left: 'center',
+      top: 8,
+      width: '70%',             // NEW: constrains legend width to force 2-row wrap
       itemWidth: 14,
       itemHeight: 8,
-      itemGap: 14,
+      itemGap: 18,              // CHANGED: from 14 → 18 for better readability when wrapped
       textStyle: { color: theme.textPrimary, fontSize: 12 },
-      pageIconColor: theme.textSecondary,
+      pageIconColor: theme.textSecondary,        // kept (unused for plain but harmless)
       pageTextStyle: { color: theme.textSecondary },
       data: data.datasets.map((d) => d.label),
       selector: ['all', 'inverse'],
@@ -103,7 +104,7 @@ export function buildEChartsTrendOption(
         color: theme.textSecondary,
         borderColor: theme.border,
       },
-      selectorPosition: 'end',
+      selectorPosition: 'start',  // CHANGED: from 'end' to 'start'
     },
     xAxis: {
       type: 'category',

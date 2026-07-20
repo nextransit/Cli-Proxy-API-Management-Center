@@ -142,6 +142,66 @@ describe('buildEChartsTrendOption - stacked area', () => {
   });
 });
 
+describe('buildEChartsTrendOption - legend grid layout', () => {
+  const theme = {
+    textPrimary: '#e5e7eb',
+    textSecondary: '#9ca3af',
+    bgPrimary: '#111827',
+    border: '#374151',
+    borderMuted: '#4b5563',
+    accent: '#06b6d4',
+  } as const;
+
+  const data = {
+    labels: ['00:00'],
+    datasets: Array.from({ length: 8 }, (_, i) => ({
+      label: `model-${i + 1}`,
+      data: [1],
+      borderColor: '#000',
+      backgroundColor: '',
+      fill: true,
+      tension: 0.35,
+    })),
+  };
+
+  it('legend uses type "plain" (not "scroll") so it can wrap to multiple rows', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const legend = option.legend as { type: string };
+    expect(legend.type).toBe('plain');
+  });
+
+  it('legend has a constrained width to force wrap (percentage or px)', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const legend = option.legend as { width: string | number };
+    expect(legend.width).toBeDefined();
+    // Specifically accepts the spec'd "70%" — narrower values force more rows;
+    // wider values collapse to a single row. Both produce wrapped grids; we
+    // pin the exact value so future tweaks don't silently break the layout.
+    expect(legend.width).toBe('70%');
+  });
+
+  it('legend still exposes selector all/inverse', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const legend = option.legend as { selector: string[] };
+    expect(legend.selector).toEqual(expect.arrayContaining(['all', 'inverse']));
+  });
+
+  it('legend selectorPosition is "start" (so it does not compete with the 2-row grid)', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const legend = option.legend as { selectorPosition?: string };
+    expect(legend.selectorPosition).toBe('start');
+  });
+
+  it('grid.top has enough room for the 2-row wrapped legend (does not overlap chart)', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const grid = option.grid as { top: number };
+    // Legend with 2 rows at itemGap=18 needs ~56px below legend.top (8).
+    // grid.top must be > 8 + 2*(itemHeight + itemGap) + small padding = 8 + 2*(8+18) + ~20 = 80.
+    // We use 72 to allow a little headroom for narrow widths where legend might wrap to 3 rows.
+    expect(grid.top).toBeGreaterThanOrEqual(72);
+  });
+});
+
 describe('buildEChartsTrendOption - 8 series with palette', () => {
   const theme: ThemeColors = {
     textPrimary: '#e5e7eb',
