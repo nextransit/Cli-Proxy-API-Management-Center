@@ -135,3 +135,51 @@ describe('buildEChartsTrendOption - 8 series with palette', () => {
     }
   });
 });
+
+describe('buildEChartsTrendOption - tooltip formatter', () => {
+  const theme: ThemeColors = {
+    textPrimary: '#e5e7eb',
+    textSecondary: '#9ca3af',
+    border: '#374151',
+    borderMuted: '#4b5563',
+    bgPrimary: '#111827',
+    accent: '#06b6d4',
+  };
+
+  const data: ChartData = {
+    labels: ['00:00'],
+    datasets: [
+      { label: 'low',  data: [1],   borderColor: '#3B82F6', backgroundColor: '', fill: true, tension: 0.35 },
+      { label: 'high', data: [100], borderColor: '#10B981', backgroundColor: '', fill: true, tension: 0.35 },
+      { label: 'mid',  data: [50],  borderColor: '#8B5CF6', backgroundColor: '', fill: true, tension: 0.35 },
+    ],
+  };
+
+  it('sorts rows by descending value and includes color + percentage', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const tooltip = option.tooltip as { formatter: (params: unknown) => string };
+    const params = [
+      { seriesName: 'low',  value: 1,   color: '#3B82F6', axisValueLabel: '00:00' },
+      { seriesName: 'high', value: 100, color: '#10B981', axisValueLabel: '00:00' },
+      { seriesName: 'mid',  value: 50,  color: '#8B5CF6', axisValueLabel: '00:00' },
+    ];
+    const html = tooltip.formatter(params as never);
+    // Order: high (100), mid (50), low (1)
+    const highIdx = html.indexOf('high');
+    const midIdx  = html.indexOf('mid');
+    const lowIdx  = html.indexOf('low');
+    expect(highIdx).toBeGreaterThan(-1);
+    expect(highIdx).toBeLessThan(midIdx);
+    expect(midIdx).toBeLessThan(lowIdx);
+    // Color swatch + percent markup present
+    expect(html).toContain('#10B981');
+    expect(html).toContain('66.2%'); // 100 / 151 ≈ 66.2
+  });
+
+  it('returns empty string for invalid params', () => {
+    const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
+    const tooltip = option.tooltip as { formatter: (p: unknown) => string };
+    expect(tooltip.formatter([])).toBe('');
+    expect(tooltip.formatter(null as never)).toBe('');
+  });
+});
