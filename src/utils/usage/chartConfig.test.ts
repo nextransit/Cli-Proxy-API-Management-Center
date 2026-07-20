@@ -183,3 +183,47 @@ describe('buildEChartsTrendOption - tooltip formatter', () => {
     expect(tooltip.formatter(null as never)).toBe('');
   });
 });
+
+describe('buildEChartsTrendOption - theme propagation', () => {
+  const lightTheme: ThemeColors = {
+    textPrimary: '#111827',
+    textSecondary: '#6b7280',
+    border: '#e5e7eb',
+    borderMuted: '#d1d5db',
+    bgPrimary: '#ffffff',
+    accent: '#3b82f6',
+  };
+
+  const darkTheme: ThemeColors = {
+    textPrimary: '#f9fafb',
+    textSecondary: '#9ca3af',
+    border: '#374151',
+    borderMuted: '#4b5563',
+    bgPrimary: '#111827',
+    accent: '#06b6d4',
+  };
+
+  const data: ChartData = {
+    labels: ['00:00'],
+    datasets: [
+      { label: 'm', data: [1], borderColor: '#000', backgroundColor: '', fill: true, tension: 0.35 },
+    ],
+  };
+
+  it('propagates theme colors into legend text and tooltip background', () => {
+    const lightOption = buildEChartsTrendOption(data, lightTheme, { isNarrowScreen: false });
+    const darkOption = buildEChartsTrendOption(data, darkTheme, { isNarrowScreen: false });
+
+    const lightLegend = lightOption.legend as { textStyle: { color: string } };
+    const darkLegend = darkOption.legend as { textStyle: { color: string } };
+    expect(lightLegend.textStyle.color).toBe(lightTheme.textPrimary);
+    expect(darkLegend.textStyle.color).toBe(darkTheme.textPrimary);
+    expect(lightLegend.textStyle.color).not.toBe(darkLegend.textStyle.color);
+
+    const lightTooltip = lightOption.tooltip as { backgroundColor: string };
+    const darkTooltip = darkOption.tooltip as { backgroundColor: string };
+    expect(lightTooltip.backgroundColor).toBe(lightTheme.bgPrimary);
+    expect(darkTooltip.backgroundColor).toBe(darkTheme.bgPrimary);
+    expect(lightTooltip.backgroundColor).not.toBe(darkTooltip.backgroundColor);
+  });
+});
