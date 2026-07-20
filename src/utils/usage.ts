@@ -13,6 +13,7 @@ import {
 } from './usage/latency';
 import { maskApiKey } from './format';
 import { parseTimestampMs } from './timestamp';
+import { buildAreaGradient } from './usage/chartPalette';
 
 export type { DurationFormatOptions, LatencyStats } from './usage/latency';
 export {
@@ -22,6 +23,7 @@ export {
   extractLatencyMs,
   formatDurationMs,
 } from './usage/latency';
+export { buildAreaGradient };
 
 export interface KeyStatBucket {
   success: number;
@@ -1623,35 +1625,6 @@ const CHART_COLORS = [
   { borderColor: '#0891b2', backgroundColor: 'rgba(8, 145, 178, 0.12)' },
   { borderColor: '#67e8f9', backgroundColor: 'rgba(103, 232, 249, 0.13)' },
 ];
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-
-const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
-  const normalized = hex.trim().replace('#', '');
-  if (normalized.length !== 6) {
-    return null;
-  }
-  const r = Number.parseInt(normalized.slice(0, 2), 16);
-  const g = Number.parseInt(normalized.slice(2, 4), 16);
-  const b = Number.parseInt(normalized.slice(4, 6), 16);
-  if (![r, g, b].every((channel) => Number.isFinite(channel))) {
-    return null;
-  }
-  return { r, g, b };
-};
-
-const withAlpha = (hex: string, alpha: number) => {
-  const rgb = hexToRgb(hex);
-  if (!rgb) {
-    return hex;
-  }
-  const clamped = clamp(alpha, 0, 1);
-  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clamped})`;
-};
-
-const buildAreaGradient = (baseHex: string): string => {
-  return withAlpha(baseHex, 0.18);
-};
 
 /**
  * Build chart datasets for usage trends.
