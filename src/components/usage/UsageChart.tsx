@@ -325,8 +325,6 @@ function buildTrendChartData(
     const rank = rankByLine.get(series.line) ?? 0;
     const color = getRankColor(rank);
     const isTop = rank === 0;
-    const borderWidth = 1;
-    const pointHoverRadius = 4;
 
     return {
       label: series.label,
@@ -335,9 +333,7 @@ function buildTrendChartData(
       backgroundColor: buildAreaGradient(color),
       pointBackgroundColor: color,
       pointBorderColor: color,
-      borderWidth,
       pointRadius: 0,
-      pointHoverRadius,
       pointHitRadius: 10,
       pointBorderWidth: 0,
       pointHoverBorderWidth: 2,
@@ -407,9 +403,7 @@ function buildFocusedTokenChartData(
         backgroundColor: withAlpha(TOKEN_FOCUS_CHART_COLORS.input, 0.15),
         pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.input,
         pointBorderColor: TOKEN_FOCUS_CHART_COLORS.input,
-        borderWidth: 2.4,
         pointRadius: 0,
-        pointHoverRadius: 5,
         pointHitRadius: 10,
         fill: true,
         tension: 0.42,
@@ -421,9 +415,7 @@ function buildFocusedTokenChartData(
         backgroundColor: 'rgba(255, 255, 255, 0)',
         pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.output,
         pointBorderColor: TOKEN_FOCUS_CHART_COLORS.output,
-        borderWidth: 1.9,
         pointRadius: 0,
-        pointHoverRadius: 4,
         pointHitRadius: 10,
         fill: false,
         tension: 0.42,
@@ -435,9 +427,7 @@ function buildFocusedTokenChartData(
         backgroundColor: 'rgba(255, 255, 255, 0)',
         pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.cache,
         pointBorderColor: TOKEN_FOCUS_CHART_COLORS.cache,
-        borderWidth: 1.8,
         pointRadius: 0,
-        pointHoverRadius: 4,
         pointHitRadius: 10,
         fill: false,
         tension: 0.42,
@@ -449,9 +439,7 @@ function buildFocusedTokenChartData(
         backgroundColor: 'rgba(255, 255, 255, 0)',
         pointBackgroundColor: TOKEN_FOCUS_CHART_COLORS.rate,
         pointBorderColor: TOKEN_FOCUS_CHART_COLORS.rate,
-        borderWidth: 1.4,
         pointRadius: 0,
-        pointHoverRadius: 3,
         pointHitRadius: 10,
         fill: false,
         tension: 0.42,

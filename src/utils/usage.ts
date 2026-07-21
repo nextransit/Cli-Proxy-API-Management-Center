@@ -1598,7 +1598,6 @@ export interface ChartDataset {
   pointHitRadius?: number;
   pointBorderWidth?: number;
   pointHoverBorderWidth?: number;
-  borderWidth?: number;
   hoverBorderWidth?: number;
   hoverBorderColor?: string;
   hoverBackgroundColor?: string;
