@@ -11,6 +11,14 @@ interface TransitionNavLinkProps
   to: string;
   className?: NavLinkClassName;
   children: ReactNode;
+  /**
+   * When true (the default), the link is only active when the current path is
+   * exactly `to`. When false, it stays active for nested routes whose path
+   * starts with `to + '/'`. This mirrors the semantics of react-router's
+   * <NavLink end={...}> prop, but flipped: the legacy NavLink defaulted to
+   * false, which is what causes the "Dashboard stays active forever" bug
+   * when `to="/"` because the root path prefixes everything.
+   */
   end?: boolean;
   caseSensitive?: boolean;
 }
@@ -26,7 +34,7 @@ export function TransitionNavLink({
   to,
   className,
   children,
-  end,
+  end = true,
   caseSensitive,
   ...rest
 }: TransitionNavLinkProps) {
@@ -48,7 +56,10 @@ export function TransitionNavLink({
       ) {
         return;
       }
-      if (to === location.pathname + location.search + location.hash) return;
+      if (to === location.pathname && !location.search && !location.hash) {
+        // Already on the same path; do nothing.
+        return;
+      }
       event.preventDefault();
       // react-router v7 schedules the new route tree through startTransition
       // so the click handler returns immediately. Flushing synchronously would
@@ -78,18 +89,49 @@ export function TransitionNavLink({
   );
 }
 
+/**
+ * Decide whether `to` is the active match for the current location. The rules
+ * match react-router's <NavLink> semantics:
+ *
+ * - `end === true` (default): only exact path equality counts. The root path
+ *   '/' is special-cased so it never claims a nested route.
+ * - `end === false`: the current path must start with `to` followed by either
+ *   nothing or a path segment boundary ('/').
+ *
+ * Query string and hash are ignored because the sidebar links do not carry
+ * them; nested-route matching still works because we compare on pathname
+ * segments, not raw prefixes.
+ */
 function checkIsActive(
   location: Location,
   to: string,
-  end?: boolean,
+  end: boolean,
   caseSensitive?: boolean
 ): boolean {
   const targetPath = to.split('?')[0].split('#')[0];
   const currentPath = location.pathname;
-  if (caseSensitive) {
-    return end ? currentPath === targetPath : currentPath.startsWith(targetPath);
+  const cmp = caseSensitive
+    ? (a: string, b: string) => a === b
+    : (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+  if (end) {
+    // The root path '/' would otherwise match every pathname that begins with
+    // '/'. Treat it as exact-only and never as a prefix.
+    if (targetPath === '/' || targetPath === '') {
+      return currentPath === '/' || currentPath === '';
+    }
+    return cmp(currentPath, targetPath);
   }
-  const lowerTarget = targetPath.toLowerCase();
-  const lowerCurrent = currentPath.toLowerCase();
-  return end ? lowerCurrent === lowerTarget : lowerCurrent.startsWith(lowerTarget);
+
+  if (targetPath === '/' || targetPath === '') {
+    // Prefix-matching against '/' is meaningless for our routes; fall back
+    // to exact match to keep the sidebar from glowing on every page.
+    return currentPath === '/' || currentPath === '';
+  }
+  if (currentPath === targetPath) return true;
+  if (!currentPath.startsWith(targetPath)) return false;
+  // Require a segment boundary so '/config' does not match '/configuration'.
+  const nextChar = currentPath.charAt(targetPath.length);
+  if (nextChar === '' || nextChar === '/') return true;
+  return false;
 }
