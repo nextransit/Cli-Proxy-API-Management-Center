@@ -16,11 +16,11 @@ interface PageTransitionProps {
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
-const VERTICAL_TRANSITION_DURATION = 0.2;
-const VERTICAL_TRAVEL_DISTANCE = 40;
-const IOS_TRANSITION_DURATION = 0.25;
-const IOS_ENTER_FROM_X_PERCENT = 100;
-const IOS_EXIT_TO_X_PERCENT_FORWARD = -30;
+const VERTICAL_TRANSITION_DURATION = 0.12;
+const VERTICAL_TRAVEL_DISTANCE = 24;
+const IOS_TRANSITION_DURATION = 0.18;
+const IOS_ENTER_FROM_X_PERCENT = 60;
+const IOS_EXIT_TO_X_PERCENT_FORWARD = -22;
 const IOS_EXIT_TO_X_PERCENT_BACKWARD = 100;
 const IOS_ENTER_FROM_X_PERCENT_BACKWARD = -30;
 const IOS_EXIT_DIM_OPACITY = 0.72;
@@ -358,25 +358,17 @@ export function PageTransition({
 
   return (
     <div className={`page-transition${isAnimating ? ' page-transition--animating' : ''}`}>
-      {(() => {
-        const currentIndex = layers.findIndex((layer) => layer.status === 'current');
-        const resolvedCurrentIndex = currentIndex === -1 ? layers.length - 1 : currentIndex;
-        const keepStackedIndex = layers
-          .slice(0, resolvedCurrentIndex)
-          .map((layer, index) => ({ layer, index }))
-          .reverse()
-          .find(({ layer }) => layer.status === 'stacked')?.index;
-
-        return layers.map((layer, index) => {
-          const shouldKeepStacked = layer.status === 'stacked' && index === keepStackedIndex;
-          return (
+      {layers.map((layer) => {
+        // Stacked (non-current) layers are no longer kept mounted. Each layer
+        // has `display: none` once it leaves the active stack, so React does
+        // not pay the cost of rendering two full route trees concurrently.
+        return (
             <div
               key={layer.key}
               className={[
                 'page-transition__layer',
                 layer.status === 'exiting' ? 'page-transition__layer--exit' : '',
                 layer.status === 'stacked' ? 'page-transition__layer--stacked' : '',
-                shouldKeepStacked ? 'page-transition__layer--stacked-keep' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -400,8 +392,7 @@ export function PageTransition({
               </PageTransitionLayerContext.Provider>
             </div>
           );
-        });
-      })()}
+      })}
     </div>
   );
 }

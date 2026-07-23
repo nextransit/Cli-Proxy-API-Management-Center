@@ -6,15 +6,12 @@ import {
   IconFileText,
   IconSatellite
 } from '@/components/ui/icons';
-import { useUsageLiveRefresh } from '@/components/usage/hooks/useUsageLiveRefresh';
-import { USAGE_STATS_STALE_TIME_MS, useAuthStore, useConfigStore, useModelsStore, useUsageStatsStore } from '@/stores';
+import { useDashboardLiveRefresh } from '@/components/usage/hooks/useDashboardLiveRefresh';
+import { useAuthStore, useConfigStore, useDashboardViewStore, useModelsStore } from '@/stores';
 import { apiKeysApi, providersApi, authFilesApi } from '@/services/api';
 import { formatDateOrFallback } from '@/utils/format';
-import {
-  formatCompactNumber,
-  formatDurationMs,
-  type UsageDetail,
-} from '@/utils/usage';
+import { formatCompactNumber, formatDurationMs } from '@/utils/usage';
+import type { DashboardLatestRequest } from '@/services/api/usage';
 import styles from './DashboardPage.module.scss';
 
 // ── Pure helpers (outside component) ────────────────────────────────────────
@@ -34,12 +31,20 @@ interface ProviderSegment {
   color: string;
 }
 
-interface FlowBucket {
-  label: string;
-  requests: number;
-  tokens: number;
-  latencyTotal: number;
-  latencySamples: number;
+interface DashboardTelemetryShape {
+  buckets: Array<{
+    label: string;
+    requests: number;
+    tokens: number;
+    latencyTotal: number;
+    latencySamples: number;
+  }>;
+  totalTokens: number;
+  requestCount: number;
+  successRate: number | null;
+  avgLatency: number | null;
+  tpm: number;
+  tps: number;
 }
 
 type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
@@ -58,9 +63,6 @@ const PROVIDER_LABELS: Record<keyof ProviderStats, { label: string; shortLabel: 
   openai: { label: 'OpenAI', shortLabel: 'O' },
 };
 
-const FLOW_BUCKET_COUNT = 12;
-const FLOW_BUCKET_MS = 5 * 60 * 1000;
-
 function getTimeOfDay(): TimeOfDay {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 12) return 'morning';
@@ -72,27 +74,6 @@ function getTimeOfDay(): TimeOfDay {
 function toSafeNumber(value: unknown): number {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
-}
-
-function getDetailTimestampMs(detail: UsageDetail): number {
-  if (typeof detail.__timestampMs === 'number' && Number.isFinite(detail.__timestampMs)) {
-    return detail.__timestampMs;
-  }
-  const parsed = Date.parse(detail.timestamp);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function getDetailTotalTokens(detail: UsageDetail): number {
-  const tokens = detail.tokens ?? {};
-  const total = toSafeNumber(tokens.total_tokens);
-  if (total > 0) return total;
-  return (
-    toSafeNumber(tokens.input_tokens) +
-    toSafeNumber(tokens.output_tokens) +
-    toSafeNumber(tokens.cached_tokens) +
-    toSafeNumber(tokens.cache_tokens) +
-    toSafeNumber(tokens.reasoning_tokens)
-  );
 }
 
 function buildProviderGradient(segments: ProviderSegment[]): string {
@@ -177,12 +158,15 @@ export function DashboardPage() {
   const models = useModelsStore((state) => state.models);
   const modelsLoading = useModelsStore((state) => state.loading);
   const fetchModelsFromStore = useModelsStore((state) => state.fetchModels);
-  const usage = useUsageStatsStore((state) => state.usage);
-  const usageDetails = useUsageStatsStore((state) => state.usageDetails);
-  const usageLoading = useUsageStatsStore((state) => state.loading);
-  const usageError = useUsageStatsStore((state) => state.error);
-  const usageLastRefreshedAt = useUsageStatsStore((state) => state.lastRefreshedAt);
-  const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
+  const dashboardView = useDashboardViewStore((state) => state.view);
+  const dashboardLoading = useDashboardViewStore((state) => state.loading);
+  const dashboardError = useDashboardViewStore((state) => state.error);
+  const dashboardLastRefreshedAt = useDashboardViewStore((state) => state.lastRefreshedAt);
+  const loadDashboardView = useDashboardViewStore((state) => state.loadDashboardView);
+  const dashboardEnabled =
+    connectionStatus === 'connected' &&
+    Boolean(apiBase) &&
+    config?.usageStatisticsEnabled !== false;
 
   const [stats, setStats] = useState<{
     apiKeys: number | null;
@@ -205,10 +189,7 @@ export function DashboardPage() {
   const apiKeysCache = useRef<string[]>([]);
   const fetchModelsRef = useRef<() => void>(() => {});
 
-  useUsageLiveRefresh(
-    '24h',
-    connectionStatus === 'connected' && Boolean(apiBase) && config?.usageStatisticsEnabled !== false
-  );
+  useDashboardLiveRefresh(dashboardEnabled);
 
   // ── Config key cache ────────────────────────────────────────────────────
 
@@ -305,17 +286,14 @@ export function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionStatus]);
 
-  // ── Usage data load ─────────────────────────────────────────────────────
+  // ── Dashboard view load ─────────────────────────────────────────────────
 
   useEffect(() => {
-    if (connectionStatus !== 'connected' || !apiBase || config?.usageStatisticsEnabled === false) {
+    if (!dashboardEnabled) {
       return;
     }
-    void loadUsageStats({
-      staleTimeMs: USAGE_STATS_STALE_TIME_MS,
-      timeRange: '24h',
-    }).catch(() => {});
-  }, [apiBase, config?.usageStatisticsEnabled, connectionStatus, loadUsageStats]);
+    void loadDashboardView({ window: '24h' }).catch(() => {});
+  }, [dashboardEnabled, loadDashboardView]);
 
   // ── Derived data ────────────────────────────────────────────────────────
 
@@ -364,76 +342,73 @@ export function DashboardPage() {
     [providerStatsReady, totalProviderKeys, connectionStatus]
   );
 
-  // ── Usage telemetry (split into raw aggregation + time-windowed) ────────
+  // ── Dashboard telemetry ─────────────────────────────────────────────────
+  // The dashboard view provides a pre-aggregated telemetry shape so we no
+  // longer scan every request detail on the client. Each derived series is
+  // memoized so unrelated re-renders (greeting refresh, inventory updates)
+  // keep stable references.
 
-  const usageAggregation = useMemo(() => {
-    const now = Date.now();
-    const startMs = now - FLOW_BUCKET_COUNT * FLOW_BUCKET_MS;
-    const buckets: FlowBucket[] = Array.from({ length: FLOW_BUCKET_COUNT }, (_, index) => {
-      const bucketStart = startMs + index * FLOW_BUCKET_MS;
+  const flowBuckets = useMemo(
+    () => (Array.isArray(dashboardView?.flow_buckets) ? dashboardView!.flow_buckets : []),
+    [dashboardView]
+  );
+
+  const usageTelemetry = useMemo<DashboardTelemetryShape>(() => {
+    if (!flowBuckets.length) {
       return {
-        label: new Date(bucketStart).toLocaleTimeString(i18n.language, {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        requests: 0,
-        tokens: 0,
-        latencyTotal: 0,
-        latencySamples: 0,
+        buckets: [],
+        totalTokens: 0,
+        requestCount: 0,
+        successRate: null,
+        avgLatency: null,
+        tpm: 0,
+        tps: 0,
+      };
+    }
+    const buckets = flowBuckets.map((bucket) => {
+      const requests = toSafeNumber(bucket.requests);
+      const tokens = toSafeNumber(bucket.tokens);
+      const avgLatencyMs = toSafeNumber(bucket.avg_latency_ms);
+      const latencySamples = avgLatencyMs > 0 ? requests : 0;
+      const label = typeof bucket.label === 'string' && bucket.label.length > 0
+        ? bucket.label
+        : new Date(toSafeNumber(bucket.start_ms)).toLocaleTimeString(i18n.language, {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+      return {
+        label,
+        requests,
+        tokens,
+        latencyTotal: avgLatencyMs * requests,
+        latencySamples,
       };
     });
-
-    usageDetails.forEach((detail) => {
-      const timestampMs = getDetailTimestampMs(detail);
-      if (timestampMs < startMs || timestampMs > now) return;
-      const bucketIndex = Math.min(
-        FLOW_BUCKET_COUNT - 1,
-        Math.max(0, Math.floor((timestampMs - startMs) / FLOW_BUCKET_MS))
-      );
-      const bucket = buckets[bucketIndex];
-      bucket.requests += 1;
-      bucket.tokens += getDetailTotalTokens(detail);
-      const latencyMs = toSafeNumber(detail.latency_ms);
-      if (latencyMs > 0) {
-        bucket.latencyTotal += latencyMs;
-        bucket.latencySamples += 1;
-      }
-    });
-
-    return { buckets, startMs };
-  }, [usageDetails, i18n.language]);
-
-  const usageTelemetry = useMemo(() => {
-    const now = Date.now();
-    const { buckets } = usageAggregation;
-
-    const oneHourDetails = usageDetails.filter((detail) => {
-      const timestampMs = getDetailTimestampMs(detail);
-      return timestampMs >= now - 60 * 60 * 1000 && timestampMs <= now;
-    });
-    const totalTokens = oneHourDetails.reduce((sum, detail) => sum + getDetailTotalTokens(detail), 0);
-    const requestCount = oneHourDetails.length;
-    const successCount = oneHourDetails.filter((detail) => !detail.failed).length;
-    const latencySamples = oneHourDetails
-      .map((detail) => toSafeNumber(detail.latency_ms))
-      .filter((latency) => latency > 0);
-    const avgLatency =
-      latencySamples.length > 0
-        ? latencySamples.reduce((sum, latency) => sum + latency, 0) / latencySamples.length
+    const totalTokens = buckets.reduce((sum, bucket) => sum + bucket.tokens, 0);
+    const requestCount = buckets.reduce((sum, bucket) => sum + bucket.requests, 0);
+    const windowRequests = toSafeNumber(dashboardView?.window_requests);
+    const windowFailures = toSafeNumber(dashboardView?.window_failures);
+    const aggregateSuccessRate =
+      windowRequests > 0
+        ? ((windowRequests - windowFailures) / windowRequests) * 100
         : null;
+    const latencyTotal = buckets.reduce(
+      (sum, bucket) => sum + bucket.latencyTotal,
+      0
+    );
+    const avgLatency =
+      requestCount > 0 ? latencyTotal / requestCount : null;
 
     return {
       buckets,
-      requestCount,
       totalTokens,
+      requestCount,
+      successRate: aggregateSuccessRate,
+      avgLatency: avgLatency && avgLatency > 0 ? avgLatency : null,
       tpm: totalTokens / 60,
       tps: totalTokens / 3600,
-      successRate: requestCount > 0 ? (successCount / requestCount) * 100 : null,
-      avgLatency,
     };
-  }, [usageAggregation, usageDetails]);
-
-  // ── Sparkline series (memoized to avoid new array refs on every render) ──
+  }, [dashboardView, flowBuckets, i18n.language]);
 
   const tokenSeries = useMemo(
     () => usageTelemetry.buckets.map((bucket) => bucket.tokens),
@@ -457,32 +432,30 @@ export function DashboardPage() {
     [latencySeries]
   );
 
-  // ── Model distribution ──────────────────────────────────────────────────
+  // ── Model distribution (pre-aggregated by the backend) ──────────────────
 
   const modelDistribution = useMemo(() => {
-    const modelMap = new Map<string, { model: string; tokens: number; requests: number }>();
-    usageDetails.forEach((detail) => {
-      const model = detail.__modelName?.trim() || 'unknown';
-      const current = modelMap.get(model) || { model, tokens: 0, requests: 0 };
-      current.tokens += getDetailTotalTokens(detail);
-      current.requests += 1;
-      modelMap.set(model, current);
-    });
-    const rows = Array.from(modelMap.values())
-      .sort((a, b) => b.tokens - a.tokens || b.requests - a.requests)
-      .slice(0, 5);
-    const totalTokens = rows.reduce((sum, row) => sum + row.tokens, 0);
-    return { rows, totalTokens };
-  }, [usageDetails]);
+    const rows = Array.isArray(dashboardView?.model_top) ? dashboardView!.model_top : [];
+    const limited = rows.slice(0, 5);
+    const totalTokens = limited.reduce(
+      (sum, row) => sum + toSafeNumber(row.tokens),
+      0
+    );
+    return {
+      rows: limited.map((row) => ({
+        model: row.model,
+        tokens: toSafeNumber(row.tokens),
+        requests: toSafeNumber(row.requests),
+      })),
+      totalTokens,
+    };
+  }, [dashboardView]);
 
-  // ── Latest requests ─────────────────────────────────────────────────────
+  // ── Latest requests (pre-aggregated by the backend) ─────────────────────
 
-  const latestRequests = useMemo(
-    () =>
-      [...usageDetails]
-        .sort((a, b) => getDetailTimestampMs(b) - getDetailTimestampMs(a))
-        .slice(0, 7),
-    [usageDetails]
+  const latestRequests = useMemo<DashboardLatestRequest[]>(
+    () => (Array.isArray(dashboardView?.latest_requests) ? dashboardView!.latest_requests : []),
+    [dashboardView]
   );
 
   // ── Inline computations (memoized) ──────────────────────────────────────
@@ -493,32 +466,34 @@ export function DashboardPage() {
   );
 
   const totalUsageRequests = useMemo(
-    () => toSafeNumber(usage?.total_requests) || usageDetails.length,
-    [usage?.total_requests, usageDetails.length]
+    () =>
+      dashboardView
+        ? toSafeNumber(dashboardView.window_requests)
+        : 0,
+    [dashboardView]
   );
 
   const totalUsageTokens = useMemo(
     () =>
-      toSafeNumber(usage?.total_tokens) ||
-      usageDetails.reduce((sum, detail) => sum + getDetailTotalTokens(detail), 0),
-    [usage?.total_tokens, usageDetails]
+      dashboardView
+        ? toSafeNumber(dashboardView.window_tokens)
+        : 0,
+    [dashboardView]
   );
 
-  const usageEnabled = useMemo(
-    () => config?.usageStatisticsEnabled !== false,
-    [config?.usageStatisticsEnabled]
-  );
+  const usageEnabled = dashboardEnabled;
 
   const usageRefreshedLabel = useMemo(
     () =>
-      usageLastRefreshedAt
-        ? new Date(usageLastRefreshedAt).toLocaleTimeString(i18n.language, {
+      dashboardLastRefreshedAt
+        ? new Date(dashboardLastRefreshedAt).toLocaleTimeString(i18n.language, {
             hour: '2-digit',
             minute: '2-digit',
           })
         : '-',
-    [usageLastRefreshedAt, i18n.language]
+    [dashboardLastRefreshedAt, i18n.language]
   );
+
 
   const routingStrategyRaw = useMemo(
     () => config?.routingStrategy?.trim() || '',
@@ -654,7 +629,7 @@ export function DashboardPage() {
                 <h3 className={styles.instrumentTitle}>{t('dashboard.total_tokens')}</h3>
               </div>
               <span className={styles.metricChip}>
-                {usageLoading ? 'SYNC' : usageEnabled ? '24H' : 'OFF'}
+                {dashboardLoading ? 'SYNC' : usageEnabled ? '24H' : 'OFF'}
               </span>
             </div>
             <div className={styles.telemetryValueRow}>
@@ -776,7 +751,7 @@ export function DashboardPage() {
             </>
           ) : (
             <div className={styles.emptyTelemetry}>
-              {usageError || t('dashboard.no_usage_data')}
+              {dashboardError || t('dashboard.no_usage_data')}
             </div>
           )}
         </div>
@@ -804,22 +779,38 @@ export function DashboardPage() {
             </div>
             <div className={styles.requestStreamBody}>
               {latestRequests.length > 0 ? (
-                latestRequests.map((detail) => (
-                  <div key={`${detail.timestamp}-${detail.__modelName}`} className={styles.requestStreamRow}>
-                    <span>
-                      {new Date(getDetailTimestampMs(detail)).toLocaleTimeString(i18n.language, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })}
-                    </span>
-                    <span className={styles.requestModel}>{detail.__modelName || '-'}</span>
-                    <span className={detail.failed ? styles.statusFail : styles.statusOk}>
-                      {detail.failed ? 'ERR' : '200'}
-                    </span>
-                    <span>{detail.latency_ms ? formatDurationMs(detail.latency_ms) : '-'}</span>
-                  </div>
-                ))
+                latestRequests.map((detail) => {
+                  const timestamp = detail.timestamp || new Date().toISOString();
+                  const latencyMs = detail.duration_ms ?? 0;
+                  const statusCode = detail.status_code ?? (detail.failed ? 0 : 200);
+                  return (
+                    <div
+                      key={`${detail.event_id}-${timestamp}-${detail.model}`}
+                      className={styles.requestStreamRow}
+                    >
+                      <span>
+                        {new Date(timestamp).toLocaleTimeString(i18n.language, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </span>
+                      <span className={styles.requestModel}>{detail.model || '-'}</span>
+                      <span
+                        className={
+                          detail.failed || statusCode >= 400
+                            ? styles.statusFail
+                            : styles.statusOk
+                        }
+                      >
+                        {detail.failed ? 'ERR' : statusCode > 0 ? statusCode : '200'}
+                      </span>
+                      <span>
+                        {latencyMs > 0 ? formatDurationMs(latencyMs) : '-'}
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
                 <div className={styles.emptyTelemetry}>{t('dashboard.no_usage_data')}</div>
               )}

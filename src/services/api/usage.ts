@@ -58,3 +58,79 @@ export const usageApi = {
     return computeKeyStats(payload);
   }
 };
+
+export interface DashboardFlowBucket {
+  index: number;
+  start_ms: number;
+  end_ms: number;
+  label: string;
+  requests: number;
+  tokens: number;
+  failures: number;
+  avg_latency_ms: number;
+}
+
+export interface DashboardModelRow {
+  model: string;
+  requests: number;
+  tokens: number;
+  share_percent: number;
+  avg_latency_ms: number;
+  success_rate: number;
+}
+
+export interface DashboardLatestRequest {
+  event_id: number;
+  timestamp: string;
+  model: string;
+  api_key: string;
+  failed: boolean;
+  status_code: number;
+  duration_ms: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+}
+
+export interface DashboardView {
+  total_requests: number;
+  success_count: number;
+  failure_count: number;
+  total_tokens: number;
+  failure_rate: number;
+  latest_event_id: number;
+  generated_at: string;
+  bucket_count: number;
+  bucket_size_ms: number;
+  bucket_start_ms: number;
+  flow_buckets: DashboardFlowBucket[];
+  model_top: DashboardModelRow[];
+  latest_requests: DashboardLatestRequest[];
+  window_start: string | null;
+  window_end: string | null;
+  window_hours: number;
+  window_seconds: number;
+  window_tokens: number;
+  window_requests: number;
+  window_failures: number;
+  window_successes: number;
+}
+
+export interface DashboardViewResponse {
+  dashboard: DashboardView;
+  generated_at: string;
+}
+
+/**
+ * Lightweight dashboard-shaped view of usage stats. The management home page
+ * uses this endpoint instead of the full /usage payload to keep the click and
+ * refresh path cheap on busy servers.
+ */
+export const dashboardApi = {
+  getDashboardView: (options?: { window?: string; signal?: AbortSignal }) =>
+    apiClient.get<DashboardViewResponse>('/usage/dashboard', {
+      timeout: 15_000,
+      signal: options?.signal,
+      params: options?.window ? { window: options.window } : undefined,
+    }),
+};
