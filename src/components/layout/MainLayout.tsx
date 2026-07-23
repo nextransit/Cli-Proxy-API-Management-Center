@@ -7,7 +7,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { TransitionNavLink } from '@/components/common/TransitionNavLink';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { PageTransition } from '@/components/common/PageTransition';
@@ -208,6 +209,11 @@ export function MainLayout() {
   const { t } = useTranslation();
   const { showNotification } = useNotificationStore();
   const location = useLocation();
+  // useNavigate is reserved here for future inline navigation helpers that
+  // bypass the sidebar (e.g. deep-link redirects); the nav links themselves
+  // use TransitionNavLink which calls navigate({ flushSync: true }) to keep
+  // the click-to-first-paint budget under 100 ms.
+  useNavigate();
 
   const logout = useAuthStore((state) => state.logout);
 
@@ -396,44 +402,6 @@ export function MainLayout() {
       : []),
     { path: '/system', label: t('nav.system_info'), icon: sidebarIcons.system },
   ];
-  const navOrder = navItems.map((item) => item.path);
-  const getRouteOrder = (pathname: string) => {
-    const trimmedPath =
-      pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-    const normalizedPath = trimmedPath === '/dashboard' ? '/' : trimmedPath;
-
-    const aiProvidersIndex = navOrder.indexOf('/ai-providers');
-    if (aiProvidersIndex !== -1) {
-      if (normalizedPath === '/ai-providers') return aiProvidersIndex;
-      if (normalizedPath.startsWith('/ai-providers/')) {
-        if (normalizedPath.startsWith('/ai-providers/gemini')) return aiProvidersIndex + 0.1;
-        if (normalizedPath.startsWith('/ai-providers/codex')) return aiProvidersIndex + 0.2;
-        if (normalizedPath.startsWith('/ai-providers/claude')) return aiProvidersIndex + 0.3;
-        if (normalizedPath.startsWith('/ai-providers/vertex')) return aiProvidersIndex + 0.4;
-        if (normalizedPath.startsWith('/ai-providers/ampcode')) return aiProvidersIndex + 0.5;
-        if (normalizedPath.startsWith('/ai-providers/openai')) return aiProvidersIndex + 0.6;
-        return aiProvidersIndex + 0.05;
-      }
-    }
-
-    const authFilesIndex = navOrder.indexOf('/auth-files');
-    if (authFilesIndex !== -1) {
-      if (normalizedPath === '/auth-files') return authFilesIndex;
-      if (normalizedPath.startsWith('/auth-files/')) {
-        if (normalizedPath.startsWith('/auth-files/oauth-excluded')) return authFilesIndex + 0.1;
-        if (normalizedPath.startsWith('/auth-files/oauth-model-alias')) return authFilesIndex + 0.2;
-        return authFilesIndex + 0.05;
-      }
-    }
-
-    const exactIndex = navOrder.indexOf(normalizedPath);
-    if (exactIndex !== -1) return exactIndex;
-    const nestedIndex = navOrder.findIndex(
-      (path) => path !== '/' && normalizedPath.startsWith(`${path}/`)
-    );
-    return nestedIndex === -1 ? null : nestedIndex;
-  };
-
   const getTransitionVariant = useCallback((fromPathname: string, toPathname: string) => {
     const normalize = (pathname: string) => {
       const trimmed =
@@ -647,7 +615,7 @@ export function MainLayout() {
 
           <div className="nav-section">
             {navItems.map((item) => (
-              <NavLink
+              <TransitionNavLink
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
@@ -656,7 +624,7 @@ export function MainLayout() {
               >
                 <span className="nav-icon">{item.icon}</span>
                 {showSidebarLabels && <span className="nav-label">{item.label}</span>}
-              </NavLink>
+              </TransitionNavLink>
             ))}
           </div>
         </aside>
@@ -665,7 +633,6 @@ export function MainLayout() {
           <main className={`main-content${isLogsPage ? ' main-content-logs' : ''}`}>
             <PageTransition
               render={(location) => <MainRoutes location={location} />}
-              getRouteOrder={getRouteOrder}
               getTransitionVariant={getTransitionVariant}
               scrollContainerRef={contentRef}
             />

@@ -16,40 +16,50 @@
     min-height: 0;
     flex: 1;
     background: var(--bg-secondary);
-    backface-visibility: hidden;
-    transform: translateZ(0);
 
-    // During animation, exit layer uses absolute positioning
+    &--current {
+      opacity: 1;
+      // No fade-in animation: the new page must be paintable in the same
+      // frame as the click commit. Hover/transform animations are preserved
+      // on individual cards inside the layer.
+      transition: none;
+    }
+
     &--exit {
       position: absolute;
       inset: 0;
       overflow: hidden;
       pointer-events: none;
-      will-change: transform, opacity;
+      opacity: 1;
+      transition: none;
     }
 
     &--stacked {
       display: none;
-
-      // Keep the previous layer rendered (but invisible) to avoid a blank flash when popping back.
-      // Older stacked layers remain `display: none` for performance.
-      &.page-transition__layer--stacked-keep {
-        display: flex;
-        position: absolute;
-        inset: 0;
-        overflow: hidden;
-        pointer-events: none;
-        opacity: 0;
-        will-change: transform, opacity;
-      }
     }
   }
 
-  &--animating &__layer {
-    will-change: transform, opacity;
+  &--animating[data-variant='vertical'] &__layer--exit {
+    // Exit copy is removed almost immediately so the new page owns the
+    // paint without competing for compositing budget.
+    opacity: 0;
+    transition: opacity 16ms linear;
   }
 
-  &--animating &__layer:not(.page-transition__layer--exit):not(.page-transition__layer--stacked) {
-    position: relative;
+  &--animating[data-variant='ios'] &__layer--exit {
+    transform: translate3d(-22%, 0px, 0px);
+    opacity: 0;
+    transition: opacity 16ms linear, transform 16ms linear;
+  }
+
+  &--animating[data-variant='vertical'] &__layer--current {
+    opacity: 1;
+    transition: none;
+  }
+
+  &--animating[data-variant='ios'] &__layer--current {
+    opacity: 1;
+    transform: translate3d(60%, 0px, 0px);
+    transition: transform 16ms linear;
   }
 }
