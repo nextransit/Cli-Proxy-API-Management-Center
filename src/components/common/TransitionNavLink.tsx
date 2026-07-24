@@ -29,6 +29,10 @@ interface TransitionNavLinkProps
  * is committed at the next paint boundary instead of blocking the click
  * response. We keep the active/pending className API compatible so callers
  * do not have to change anything else.
+ *
+ * A caller-supplied onClick (e.g. closing the mobile sidebar) is composed
+ * with the internal navigation handler instead of overwriting it. The link
+ * still navigates after the caller's onClick runs.
  */
 export function TransitionNavLink({
   to,
@@ -36,6 +40,7 @@ export function TransitionNavLink({
   children,
   end = true,
   caseSensitive,
+  onClick: externalOnClick,
   ...rest
 }: TransitionNavLinkProps) {
   const navigate = useNavigate();
@@ -60,6 +65,19 @@ export function TransitionNavLink({
         // Already on the same path; do nothing.
         return;
       }
+      // Run any caller-supplied onClick (e.g. closing the mobile sidebar)
+      // before we own the anchor's default action. We must defer the
+      // preventDefault() until after this step because the caller's
+      // onClick should be free to observe the unaltered event, and once
+      // preventDefault() runs the event's defaultPrevented flag stays
+      // true for the remainder of the dispatch.
+      if (externalOnClick) {
+        externalOnClick(event);
+        if (event.defaultPrevented) {
+          // The caller already took over the default action - bail out.
+          return;
+        }
+      }
       event.preventDefault();
       // react-router v7 schedules the new route tree through startTransition
       // so the click handler returns immediately. Flushing synchronously would
@@ -69,7 +87,14 @@ export function TransitionNavLink({
         navigate(to);
       });
     },
-    [navigate, to, location.pathname, location.search, location.hash]
+    [
+      navigate,
+      to,
+      location.pathname,
+      location.search,
+      location.hash,
+      externalOnClick,
+    ]
   );
 
   const resolvedClassName =

@@ -77,6 +77,8 @@ export function PageTransition({
     layers.find((layer) => layer.status === 'current') ?? layers[layers.length - 1];
   const currentLayerKey = currentLayer?.key ?? location.key;
   const currentLayerPathname = currentLayer?.location.pathname;
+  const currentLayerSearch = currentLayer?.location.search ?? '';
+  const currentLayerHash = currentLayer?.location.hash ?? '';
 
   const resolveScrollContainer = useCallback(() => {
     if (scrollContainerRef?.current) return scrollContainerRef.current;
@@ -86,8 +88,19 @@ export function PageTransition({
 
   useLayoutEffect(() => {
     if (isAnimating) return;
-    if (location.key === currentLayerKey) return;
-    if (currentLayerPathname === location.pathname) return;
+    // Decide whether the route tree actually changed. We compare pathname +
+    // search + hash so navigations that only differ in those fields still
+    // trigger a layer transition. `location.key` (history entry identifier)
+    // is NOT a reliable gate here: a manual history.pushState + hashchange
+    // never increments it, and inside React's startTransition commit window
+    // it can lag the new pathname, causing the layer to never advance.
+    if (
+      currentLayerPathname === location.pathname &&
+      currentLayerSearch === location.search &&
+      currentLayerHash === location.hash
+    ) {
+      return;
+    }
     const scrollContainer = resolveScrollContainer();
     const exitScrollOffset = scrollContainer?.scrollTop ?? 0;
     exitScrollOffsetRef.current = exitScrollOffset;
@@ -199,6 +212,8 @@ export function PageTransition({
     location,
     currentLayerKey,
     currentLayerPathname,
+    currentLayerSearch,
+    currentLayerHash,
     getRouteOrder,
     getTransitionVariant,
     resolveScrollContainer,
