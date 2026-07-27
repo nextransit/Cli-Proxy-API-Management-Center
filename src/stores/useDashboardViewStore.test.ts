@@ -90,6 +90,114 @@ describe('useDashboardViewStore', () => {
     mocks.authState.managementKey = 'test-key';
   });
 
+  it('resets loading when a silent supersede fails after a non-silent request pinned it', async () => {
+    // Pin loading=true via a non-silent request, then abort it with a silent
+    // supersede that itself times out. The SYNC badge must drop back to false.
+    let rejectSecond: ((err: unknown) => void) | null = null;
+    mocks.getDashboardView
+      .mockImplementationOnce(
+        () => new Promise(() => { /* never resolves — first request stays in-flight */ }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectSecond = reject;
+            setTimeout(
+              () => reject(new Error('timeout of 4000ms exceeded')),
+              30,
+            );
+          }),
+      );
+
+    void useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h' }); // non-silent → loading=true
+    expect(useDashboardViewStore.getState().loading).toBe(true);
+
+    const second = useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h', silent: true, supersedeInFlight: true })
+      .catch(() => undefined);
+
+    await second;
+
+    const state = useDashboardViewStore.getState();
+    expect(state.loading).toBe(false);
+    expect(state.error).toMatch(/timeout/i);
+    expect(rejectSecond).not.toBeNull();
+  });
+
+  it('resets loading when a silent supersede is itself aborted', async () => {
+    // The first non-silent request is superseded by a silent request that is
+    // then aborted by a third supersede. Loading must drop back to false.
+    let rejectThird: ((err: unknown) => void) | null = null;
+    mocks.getDashboardView
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockImplementationOnce(() => new Promise(() => {}))
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectThird = reject;
+            setTimeout(
+              () => reject(new DOMException('Aborted', 'AbortError')),
+              10,
+            );
+          }),
+      );
+
+    void useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h' });
+    expect(useDashboardViewStore.getState().loading).toBe(true);
+
+    void useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h', silent: true, supersedeInFlight: true });
+    const third = useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h', silent: true, supersedeInFlight: true })
+      .catch(() => undefined);
+
+    await third;
+
+    const state = useDashboardViewStore.getState();
+    expect(state.loading).toBe(false);
+    expect(rejectThird).not.toBeNull();
+  });
+
+  it('stays at loading=false after chained supersedes all fail', async () => {
+    // Three chained silent supersedes all fail; the store must converge on
+    // loading=false rather than getting pinned by an earlier non-silent call.
+    const rejecters: Array<(err: unknown) => void> = [];
+    mocks.getDashboardView.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejecters.push(reject);
+        }),
+    );
+
+    const first = useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h' }); // non-silent → loading=true
+    expect(useDashboardViewStore.getState().loading).toBe(true);
+
+    const second = useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h', silent: true, supersedeInFlight: true });
+    const third = useDashboardViewStore
+      .getState()
+      .loadDashboardView({ window: '24h', silent: true, supersedeInFlight: true });
+
+    for (const reject of rejecters) {
+      reject(new DOMException('Aborted', 'AbortError'));
+    }
+    await Promise.allSettled([first, second, third]);
+
+    const state = useDashboardViewStore.getState();
+    expect(state.loading).toBe(false);
+    expect(mocks.getDashboardView).toHaveBeenCalled();
+  });
+
   it('loads the dashboard view and stores the aggregates', async () => {
     mocks.getDashboardView.mockResolvedValueOnce(buildResponse());
 

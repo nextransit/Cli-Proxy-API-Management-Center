@@ -130,8 +130,14 @@ export const useDashboardViewStore = create<DashboardViewState>((set, get) => ({
       } catch (error: unknown) {
         if (requestId !== requestToken) return;
         const message = error instanceof Error ? error.message : String(error ?? '');
-        const update: Partial<DashboardViewState> = { error: message, scopeKey };
-        if (!silent) update.loading = false;
+        // Always clear loading on failure. silent only suppresses the proactive
+        // loading=true transition on entry; it must not leave the UI stuck on SYNC
+        // when the request itself fails or is aborted by a supersede.
+        const update: Partial<DashboardViewState> = {
+          error: message,
+          loading: false,
+          scopeKey,
+        };
         set(update as DashboardViewState);
         throw error;
       } finally {
