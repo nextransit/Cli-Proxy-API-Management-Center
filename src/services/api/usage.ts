@@ -47,15 +47,12 @@ export const usageApi = {
     apiClient.post<UsageImportResponse>('/usage/import', payload, { timeout: USAGE_TIMEOUT_MS }),
 
   /**
-   * 计算密钥成功/失败统计，必要时会先获取 usage 数据
+   * 计算密钥成功/失败统计。调用方必须传入 usage 快照；没有时使用
+   * useUsageStatsStore 中已有的快照，绝不自动拉取 /usage，避免在
+   * UI 任意点击路径上触发重型全量负载。
    */
-  async getKeyStats(usageData?: unknown): Promise<KeyStats> {
-    let payload = usageData;
-    if (!payload) {
-      const response = await apiClient.get<Record<string, unknown>>('/usage', { timeout: USAGE_TIMEOUT_MS });
-      payload = response?.usage ?? response;
-    }
-    return computeKeyStats(payload);
+  getKeyStats(usageData: unknown): KeyStats {
+    return computeKeyStats(usageData);
   }
 };
 

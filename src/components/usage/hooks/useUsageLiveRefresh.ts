@@ -3,7 +3,7 @@ import { subscribeUsageStream } from '@/services/api/usageStream';
 import { USAGE_STATS_STALE_TIME_MS, useUsageStatsStore } from '@/stores';
 import { useAuthStore } from '@/stores/useAuthStore';
 
-const USAGE_POLL_INTERVAL_MS = 1_000;
+const USAGE_POLL_FALLBACK_MS = 30_000;
 const FOREGROUND_REFRESH_DEDUPE_MS = 250;
 const SILENT_REFRESH_DEBOUNCE_MS = 2_000;
 const SILENT_REFRESH_THROTTLE_MS = 3_000;
@@ -40,7 +40,8 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     };
   }, [enabled, loadUsageStats, timeRange]);
 
-  // SSE + 1s polling fallback + debounced silent background refresh.
+  // SSE + 30s polling fallback (down from 1s to stop refresh storms while
+  // the SSE stream is reconnecting) + debounced silent background refresh.
   useEffect(() => {
     if (!enabled) return;
     let pollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -96,7 +97,12 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     };
     const startPolling = () => {
       if (pollingTimer) return;
-      pollingTimer = window.setInterval(refreshUsage, USAGE_POLL_INTERVAL_MS);
+      // 30s polling fallback replaces the previous 1s cadence. The original
+      // cadence caused a refresh storm: every SSE backoff window (1s..30s)
+      // triggered a full /usage fetch, which on long-running servers
+      // re-serializes every retained RequestDetail. SSE events still drive
+      // incremental updates between polls, so 30s is plenty.
+      pollingTimer = window.setInterval(refreshUsage, USAGE_POLL_FALLBACK_MS);
     };
 
     const streamHandle = subscribeUsageStream({
@@ -116,6 +122,10 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       },
       onStatusChange: (status) => {
         if (status === 'open') stopPolling();
+        // Only restart polling when SSE has given up reconnecting (closed by
+        // the client side) or when the stream closed from the server. The
+        // 30s interval is a last-resort safety net, not the primary refresh
+        // path: SSE events still drive onUsageEvent updates between polls.
         else if (status === 'error' || status === 'closed') startPolling();
       },
       baseDelayMs: 1_000,
