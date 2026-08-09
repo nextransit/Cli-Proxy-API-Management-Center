@@ -237,7 +237,7 @@ describe('useUsageData page visibility refresh', () => {
     unmount();
   });
 
-  it('falls back to one-second polling when the usage stream is unavailable', async () => {
+  it('falls back to 30-second polling when the usage stream is unavailable', async () => {
     vi.useFakeTimers();
     const { unmount } = renderHook(() => useUsageData('24h'));
 
@@ -248,7 +248,7 @@ describe('useUsageData page visibility refresh', () => {
 
     act(() => {
       mocks.usageStreamOptions?.onStatusChange?.('error');
-      vi.advanceTimersByTime(999);
+      vi.advanceTimersByTime(29_999);
     });
     expect(mocks.loadUsageStats).not.toHaveBeenCalled();
 

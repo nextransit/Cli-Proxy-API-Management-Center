@@ -25,7 +25,6 @@ import {
 import {
   calculateCost,
   getModelStats,
-  filterUsageByTimeRange,
   collectUsageDetails,
   extractTotalTokens,
   filterUsageDetails,
@@ -153,6 +152,24 @@ const isUsageTimeRange = (value: unknown): value is UsageTimeRange =>
   value === '7d' ||
   value === '30d' ||
   value === 'all';
+
+const readDailyTotals = (
+  usage: unknown,
+  field: 'requests_by_day' | 'tokens_by_day'
+): Record<string, number> | undefined => {
+  if (!usage || typeof usage !== 'object' || Array.isArray(usage)) {
+    return undefined;
+  }
+  const raw = (usage as Record<string, unknown>)[field];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  const entries = Object.entries(raw).filter(
+    (entry): entry is [string, number] =>
+      typeof entry[1] === 'number' && Number.isFinite(entry[1]) && entry[1] >= 0
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
 
 const normalizeChartLines = (value: unknown, maxLines = MAX_CHART_LINES): string[] => {
   if (!Array.isArray(value)) {
@@ -434,13 +451,10 @@ export function UsagePage() {
   const renderUsageData = !usage || readyUsageViewScope === usageViewScope;
   const visibleUsageViewScope = renderUsageData ? usageViewScope : readyUsageViewScope;
 
-  const filteredUsage = useMemo(
-    () =>
-      visibleUsageViewScope?.usage
-        ? filterUsageByTimeRange(visibleUsageViewScope.usage, visibleUsageViewScope.timeRange)
-        : null,
-    [visibleUsageViewScope]
-  );
+  // useUsageData already requests the selected time range from the backend.
+  // Filtering again here would replace canonical aggregate totals with the
+  // retained Details sample.
+  const filteredUsage = visibleUsageViewScope?.usage ?? null;
   const filteredDetails = useMemo(() => collectUsageDetails(filteredUsage), [filteredUsage]);
 
   const credentialRows = useMemo(() => {
@@ -537,6 +551,20 @@ export function UsagePage() {
       ? credentialFilter
       : ALL_FILTER;
   }, [credentialFilter, credentialOptions]);
+
+  const useAllTimeDailyTotals =
+    timeRange === 'all' &&
+    effectiveCredentialFilter === ALL_FILTER &&
+    chartLines.length === 1 &&
+    chartLines[0] === ALL_FILTER;
+  const requestDailyTotals = useMemo(
+    () => (useAllTimeDailyTotals ? readDailyTotals(filteredUsage, 'requests_by_day') : undefined),
+    [filteredUsage, useAllTimeDailyTotals]
+  );
+  const tokenDailyTotals = useMemo(
+    () => (useAllTimeDailyTotals ? readDailyTotals(filteredUsage, 'tokens_by_day') : undefined),
+    [filteredUsage, useAllTimeDailyTotals]
+  );
 
   const scopedUsage = useMemo(() => {
     if (!filteredUsage || effectiveCredentialFilter === ALL_FILTER) {
@@ -907,6 +935,7 @@ export function UsagePage() {
                 emptyText: t('usage_stats.no_data'),
                 timeRange,
                 period: requestsGranularity.granularity,
+                dailyTotals: requestDailyTotals,
                 onPeriodChange: requestsGranularity.setGranularity,
                 cardId: 'usage_trend_requests',
               },
@@ -933,6 +962,10 @@ export function UsagePage() {
                 extra: tokenTrendFocusExtra,
                 timeRange,
                 period: tokensGranularity.granularity,
+                dailyTotals:
+                  effectiveDetailModelFilter === REQUEST_EVENTS_ALL_FILTER
+                    ? tokenDailyTotals
+                    : undefined,
                 onPeriodChange: tokensGranularity.setGranularity,
                 cardId: 'usage_trend_tokens',
               },

@@ -5,10 +5,7 @@ import { TelemetryChart } from '@/components/charts/TelemetryChart';
 import { GranularityCapsule } from '@/components/charts/GranularityCapsule';
 import { getThemeColors } from '@/utils/echarts/themeBridge';
 import { buildEChartsTrendOption } from '@/utils/usage/chartConfig';
-import {
-  getRankColor,
-  buildAreaGradient,
-} from '@/utils/usage/chartPalette';
+import { getRankColor, buildAreaGradient } from '@/utils/usage/chartPalette';
 import {
   formatDayLabel,
   formatHourLabel,
@@ -44,6 +41,7 @@ export interface UsageChartProps {
   extra?: React.ReactNode;
   timeRange: UsageTimeRange;
   period: 'hour' | 'day';
+  dailyTotals?: Record<string, number>;
   onPeriodChange: (next: 'hour' | 'day') => void;
   cardId: string;
 }
@@ -126,6 +124,7 @@ export const UsageChart = memo(function UsageChart({
   extra,
   timeRange,
   period,
+  dailyTotals,
   onPeriodChange,
   cardId,
 }: UsageChartProps) {
@@ -139,6 +138,9 @@ export const UsageChart = memo(function UsageChart({
   };
 
   const chartData = useMemo<ChartData>(() => {
+    if (period === 'day' && dailyTotals && Object.keys(dailyTotals).length > 0) {
+      return buildAggregateDailyChartData(dailyTotals, chartCompareMode, t);
+    }
     if (metric === 'tokens' && focusedModel && focusedModel !== '__all__') {
       return buildFocusedTokenChartData(focusedModel, period, scopedDetails, hourWindowHours, t);
     }
@@ -155,6 +157,7 @@ export const UsageChart = memo(function UsageChart({
   }, [
     chartCompareMode,
     clientApiKeyInfoMap,
+    dailyTotals,
     focusedModel,
     hourWindowHours,
     metric,
@@ -232,6 +235,46 @@ export const UsageChart = memo(function UsageChart({
   }
 });
 
+function buildAggregateDailyChartData(
+  dailyTotals: Record<string, number>,
+  chartCompareMode: 'model' | 'credential',
+  t: (key: string) => string
+): ChartData {
+  const entries = Object.entries(dailyTotals)
+    .filter(
+      ([day, value]) => /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(value) && value >= 0
+    )
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (entries.length === 0) {
+    return { labels: [], datasets: [] };
+  }
+
+  const color = getRankColor(0);
+  return {
+    labels: entries.map(([day]) => day),
+    datasets: [
+      {
+        label:
+          chartCompareMode === 'credential'
+            ? t('usage_stats.chart_line_all_credentials')
+            : t('usage_stats.chart_line_all'),
+        data: entries.map(([, value]) => value),
+        borderColor: color,
+        backgroundColor: buildAreaGradient(color),
+        pointBackgroundColor: color,
+        pointBorderColor: color,
+        pointRadius: 0,
+        pointHitRadius: 10,
+        pointBorderWidth: 0,
+        pointHoverBorderWidth: 2,
+        fill: true,
+        tension: 0.42,
+        order: 0,
+      },
+    ],
+  };
+}
+
 function getTrendValue(metric: UsageChartMetric, detail: UsageDetail): number {
   if (metric === 'tokens') {
     return extractTotalTokens(detail);
@@ -281,12 +324,9 @@ function buildTrendChartData(
 
     const credentialKey = String(detail.__apiKey ?? '').trim() || 'unknown';
     const keyInfo = clientApiKeyInfoMap.get(credentialKey);
-    const key =
-      chartCompareMode === 'credential' ? credentialKey : detail.__modelName || 'Unknown';
+    const key = chartCompareMode === 'credential' ? credentialKey : detail.__modelName || 'Unknown';
     const displayLabel =
-      chartCompareMode === 'credential'
-        ? keyInfo?.label || formatCredentialShortName(key)
-        : key;
+      chartCompareMode === 'credential' ? keyInfo?.label || formatCredentialShortName(key) : key;
 
     if (!dataByKey.has(key)) {
       dataByKey.set(key, new Array(labels.length).fill(0));
@@ -353,7 +393,9 @@ function buildFocusedTokenChartData(
   hourWindowHours: number | undefined,
   t: (key: string) => string
 ): ChartData {
-  const details = sampleDetails(scopedDetails, MAX_CHART_DETAILS).filter((detail) => detail.__modelName === modelName);
+  const details = sampleDetails(scopedDetails, MAX_CHART_DETAILS).filter(
+    (detail) => detail.__modelName === modelName
+  );
   const labels =
     period === 'hour'
       ? buildHourlyLabels(hourWindowHours)

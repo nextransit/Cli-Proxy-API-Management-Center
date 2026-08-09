@@ -8,6 +8,7 @@ import {
   extractLatencyMs,
 } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
+import type { ModelPrice } from '@/utils/usage';
 import { SkeletonBlock } from '@/components/ui/Skeleton';
 import styles from '@/pages/UsagePage.module.scss';
 
@@ -63,11 +64,11 @@ const IconDollar = () => (
 export interface StatCardsProps {
   usage: UsagePayload | null;
   loading?: boolean;
-  modelPrices: Record<string, any>;
-  requestsChartData?: any;
-  requestsChartOptions?: any;
-  tokensChartData?: any;
-  tokensChartOptions?: any;
+  modelPrices: Record<string, ModelPrice>;
+  requestsChartData?: unknown;
+  requestsChartOptions?: unknown;
+  tokensChartData?: unknown;
+  tokensChartOptions?: unknown;
 }
 
 function formatTokenCount(tokens: number): string {
@@ -140,8 +141,10 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         outputTokens: 0,
         cachedTokens: 0,
         reasoningTokens: 0,
-        totalCost: 0,
+        totalCost: null as number | null,
         hasPrices: false,
+        detailsComplete: false,
+        outcomesComplete: false,
       };
     }
     const details = collectUsageDetails(usage);
@@ -176,31 +179,43 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       if (hasPrices) totalCost += calculateCost(detail, modelPrices);
     });
 
+    const totalRequests = toSafeNumber(usage.total_requests ?? details.length);
+    const detailsComplete = details.length >= totalRequests;
+    const resolvedSuccessRequests =
+      usage.success_count === undefined ? successRequests : toSafeNumber(usage.success_count);
+    const resolvedFailureRequests =
+      usage.failure_count === undefined ? failureRequests : toSafeNumber(usage.failure_count);
+    const outcomesComplete =
+      totalRequests === 0 || resolvedSuccessRequests + resolvedFailureRequests >= totalRequests;
+
     return {
-      totalRequests: usage.total_requests ?? details.length,
-      successRequests,
-      failureRequests,
-      avgLatency: latencyCount > 0 ? totalLatency / latencyCount : null,
+      totalRequests,
+      successRequests: resolvedSuccessRequests,
+      failureRequests: resolvedFailureRequests,
+      avgLatency: detailsComplete && latencyCount > 0 ? totalLatency / latencyCount : null,
       totalTokens:
         usage.total_tokens ?? inputTokens + outputTokens + cachedTokens + reasoningTokens,
       inputTokens,
       outputTokens,
       cachedTokens,
       reasoningTokens,
-      totalCost,
+      totalCost: detailsComplete ? totalCost : null,
       hasPrices,
+      detailsComplete,
+      outcomesComplete,
     };
   }, [usage, modelPrices]);
 
   const tokenKnownTotal =
     stats.inputTokens + stats.outputTokens + stats.cachedTokens + stats.reasoningTokens;
   const tokenBarTotal = tokenKnownTotal > 0 ? tokenKnownTotal : stats.totalTokens;
-  const cnyReference = stats.totalCost * USD_TO_CNY_REFERENCE_RATE;
+  const cnyReference = (stats.totalCost ?? 0) * USD_TO_CNY_REFERENCE_RATE;
   const preciseRequestsTitle = stats.totalRequests.toLocaleString();
   const preciseTokensTitle = stats.totalTokens.toLocaleString();
-  const preciseCostTitle = stats.hasPrices
-    ? `${formatUsd(stats.totalCost)} · ${formatCny(cnyReference)}`
-    : undefined;
+  const preciseCostTitle =
+    stats.hasPrices && stats.totalCost !== null
+      ? `${formatUsd(stats.totalCost)} · ${formatCny(cnyReference)}`
+      : undefined;
   const requestSuccessRate = percentOf(stats.successRequests, stats.totalRequests);
 
   const skeletonSummary = (
@@ -218,28 +233,30 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       </span>
       <span className={styles.metricSubDetails}>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleSuccess}`}>
-          ✓ {stats.successRequests.toLocaleString()}
+          ✓ {stats.outcomesComplete ? stats.successRequests.toLocaleString() : '--'}
         </span>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleFailure}`}>
-          ! {stats.failureRequests.toLocaleString()}
+          ! {stats.outcomesComplete ? stats.failureRequests.toLocaleString() : '--'}
         </span>
       </span>
       <span className={styles.metricSubLine}>
         ⏱ {t('usage_stats.avg_latency_short')}: {formatDurationMs(stats.avgLatency)}
       </span>
-      <span
-        className={styles.metricMiniProgress}
-        title={`${t('usage_stats.success_rate')}: ${requestSuccessRate.toFixed(1)}%`}
-      >
+      {stats.outcomesComplete && (
         <span
-          className={styles.metricMiniProgressSuccess}
-          style={{ width: `${requestSuccessRate}%` }}
-        />
-        <span
-          className={styles.metricMiniProgressFailure}
-          style={{ width: `${100 - requestSuccessRate}%` }}
-        />
-      </span>
+          className={styles.metricMiniProgress}
+          title={`${t('usage_stats.success_rate')}: ${requestSuccessRate.toFixed(1)}%`}
+        >
+          <span
+            className={styles.metricMiniProgressSuccess}
+            style={{ width: `${requestSuccessRate}%` }}
+          />
+          <span
+            className={styles.metricMiniProgressFailure}
+            style={{ width: `${100 - requestSuccessRate}%` }}
+          />
+        </span>
+      )}
     </div>
   );
 
@@ -250,42 +267,48 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       </span>
       <span className={styles.metricSubDetails}>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleInput}`}>
-          ↙ {t('usage_stats.input_short')}: {formatTokenCount(stats.inputTokens)}
+          ↙ {t('usage_stats.input_short')}:{' '}
+          {stats.detailsComplete ? formatTokenCount(stats.inputTokens) : '--'}
         </span>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleOutput}`}>
-          ↗ {t('usage_stats.output_short')}: {formatTokenCount(stats.outputTokens)}
+          ↗ {t('usage_stats.output_short')}:{' '}
+          {stats.detailsComplete ? formatTokenCount(stats.outputTokens) : '--'}
         </span>
       </span>
-      <span
-        className={styles.tokenRatioTrack}
-        title={`${t('usage_stats.input_tokens')}: ${stats.inputTokens.toLocaleString()} · ${t('usage_stats.output_tokens')}: ${stats.outputTokens.toLocaleString()}`}
-      >
+      {stats.detailsComplete && (
         <span
-          className={styles.tokenRatioInput}
-          style={{ width: `${percentOf(stats.inputTokens, tokenBarTotal)}%` }}
-        />
-        <span
-          className={styles.tokenRatioOutput}
-          style={{ width: `${percentOf(stats.outputTokens, tokenBarTotal)}%` }}
-        />
-        <span
-          className={styles.tokenRatioCached}
-          style={{ width: `${percentOf(stats.cachedTokens, tokenBarTotal)}%` }}
-        />
-        <span
-          className={styles.tokenRatioReasoning}
-          style={{ width: `${percentOf(stats.reasoningTokens, tokenBarTotal)}%` }}
-        />
-      </span>
+          className={styles.tokenRatioTrack}
+          title={`${t('usage_stats.input_tokens')}: ${stats.inputTokens.toLocaleString()} · ${t('usage_stats.output_tokens')}: ${stats.outputTokens.toLocaleString()}`}
+        >
+          <span
+            className={styles.tokenRatioInput}
+            style={{ width: `${percentOf(stats.inputTokens, tokenBarTotal)}%` }}
+          />
+          <span
+            className={styles.tokenRatioOutput}
+            style={{ width: `${percentOf(stats.outputTokens, tokenBarTotal)}%` }}
+          />
+          <span
+            className={styles.tokenRatioCached}
+            style={{ width: `${percentOf(stats.cachedTokens, tokenBarTotal)}%` }}
+          />
+          <span
+            className={styles.tokenRatioReasoning}
+            style={{ width: `${percentOf(stats.reasoningTokens, tokenBarTotal)}%` }}
+          />
+        </span>
+      )}
     </div>
   );
 
   const costSummary = (
     <div className={styles.metricSummary} title={preciseCostTitle}>
       <span className={`${styles.metricMainValue} ${styles.metricCostValue}`}>
-        {stats.hasPrices ? formatMetricValue(formatUsd(stats.totalCost)) : '--'}
+        {stats.hasPrices && stats.totalCost !== null
+          ? formatMetricValue(formatUsd(stats.totalCost))
+          : '--'}
       </span>
-      {stats.hasPrices && (
+      {stats.hasPrices && stats.totalCost !== null && (
         <span className={styles.metricSubLine}>
           ≈ {formatCny(cnyReference)} ({t('usage_stats.reference_fx')})
         </span>

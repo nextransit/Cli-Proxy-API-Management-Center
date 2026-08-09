@@ -1,11 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import type { EChartsOption } from 'echarts';
-import { UsageChart } from './UsageChart';
-import {
-  MODEL_TREND_PALETTE,
-  TAIL_LINE_COLOR,
-} from '@/utils/usage/chartPalette';
+import { UsageChart, type UsageChartProps } from './UsageChart';
+import { MODEL_TREND_PALETTE, TAIL_LINE_COLOR } from '@/utils/usage/chartPalette';
 import type { UsageDetail } from '@/utils/usage';
 
 // Capture the option that <UsageChart /> hands to the chart container so the
@@ -46,7 +43,7 @@ const REQUESTS_PER_MODEL = [900, 800, 700, 600, 500, 400, 300, 200, 100];
 const buildDetails = (
   baseTimestamp: number,
   modelNames: string[],
-  requestsPerModel: number[],
+  requestsPerModel: number[]
 ): UsageDetail[] => {
   const details: UsageDetail[] = [];
   modelNames.forEach((modelName, modelIndex) => {
@@ -75,6 +72,7 @@ const buildDetails = (
 const renderUsageChart = (
   scopedDetails: UsageDetail[],
   resolvedChartLines: string[],
+  overrides: Partial<UsageChartProps> = {}
 ) => {
   lastOptionRef.current = null;
   return render(
@@ -95,18 +93,23 @@ const renderUsageChart = (
       period="hour"
       onPeriodChange={() => undefined}
       cardId="test-usage-chart"
-    />,
+      {...overrides}
+    />
   );
 };
 
 const getSeriesColors = (option: EChartsOption): string[] => {
-  const series = option.series as Array<{ lineStyle?: { color?: string; width?: number } }> | undefined;
+  const series = option.series as
+    | Array<{ lineStyle?: { color?: string; width?: number } }>
+    | undefined;
   if (!Array.isArray(series)) return [];
   return series.map((entry) => entry.lineStyle?.color ?? '');
 };
 
 const getSeriesLineWidths = (option: EChartsOption): number[] => {
-  const series = option.series as Array<{ lineStyle?: { color?: string; width?: number } }> | undefined;
+  const series = option.series as
+    | Array<{ lineStyle?: { color?: string; width?: number } }>
+    | undefined;
   if (!Array.isArray(series)) return [];
   return series.map((entry) => entry.lineStyle?.width ?? -1);
 };
@@ -115,11 +118,7 @@ describe('<UsageChart /> rank-based coloring', () => {
   it('assigns each dataset a color from MODEL_TREND_PALETTE based on its rank', () => {
     // Use a fixed recent timestamp so the generated hour labels are deterministic.
     const baseTimestamp = Date.UTC(2026, 6, 15, 10, 0, 0); // 2026-07-15 10:00:00Z
-    const scopedDetails = buildDetails(
-      baseTimestamp,
-      NINE_MODEL_NAMES,
-      REQUESTS_PER_MODEL,
-    );
+    const scopedDetails = buildDetails(baseTimestamp, NINE_MODEL_NAMES, REQUESTS_PER_MODEL);
 
     renderUsageChart(scopedDetails, [...NINE_MODEL_NAMES]);
 
@@ -136,11 +135,7 @@ describe('<UsageChart /> rank-based coloring', () => {
 
   it('uses a flat line width of 1 for every rank (stacked-area parity)', () => {
     const baseTimestamp = Date.UTC(2026, 6, 15, 10, 0, 0); // 2026-07-15 10:00:00Z
-    const scopedDetails = buildDetails(
-      baseTimestamp,
-      NINE_MODEL_NAMES,
-      REQUESTS_PER_MODEL,
-    );
+    const scopedDetails = buildDetails(baseTimestamp, NINE_MODEL_NAMES, REQUESTS_PER_MODEL);
 
     renderUsageChart(scopedDetails, [...NINE_MODEL_NAMES]);
 
@@ -153,5 +148,33 @@ describe('<UsageChart /> rank-based coloring', () => {
     widths.forEach((width) => {
       expect(width).toBe(1);
     });
+  });
+});
+
+describe('<UsageChart /> aggregate daily totals', () => {
+  it('renders all-time token history from daily aggregates when retained details are empty', () => {
+    renderUsageChart([], ['model-a'], {
+      metric: 'tokens',
+      timeRange: 'all',
+      period: 'day',
+      dailyTotals: {
+        '2026-05-24': 185_018_084,
+        '2026-08-08': 546_089_410,
+      },
+    });
+
+    const option = lastOptionRef.current;
+    expect(option).not.toBeNull();
+    if (!option) return;
+
+    expect(option.xAxis).toMatchObject({
+      data: ['2026-05-24', '2026-08-08'],
+    });
+    expect(option.series).toEqual([
+      expect.objectContaining({
+        name: 'usage_stats.chart_line_all',
+        data: [185_018_084, 546_089_410],
+      }),
+    ]);
   });
 });

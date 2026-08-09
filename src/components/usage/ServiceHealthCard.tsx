@@ -105,7 +105,12 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
     return calculateServiceHealthData(details);
   }, [usage]);
 
-  const hasData = healthData.totalSuccess + healthData.totalFailure > 0;
+  const detailCount = healthData.totalSuccess + healthData.totalFailure;
+  const totalRequests = Number(usage?.total_requests);
+  const detailsComplete =
+    !Number.isFinite(totalRequests) || totalRequests <= 0 || detailCount >= totalRequests;
+  const hasData = detailCount > 0;
+  const hasCompleteData = hasData && detailsComplete;
 
   // Auto-generate summary when collapsible is true and no custom summary provided
   const autoSummary = useMemo(() => {
@@ -113,13 +118,16 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
       return customSummary;
     }
 
-    const successRateText = loading ? '--' : hasData ? `${healthData.successRate.toFixed(1)}%` : '--';
-    const successCountText = loading ? '--' : healthData.totalSuccess.toLocaleString();
-    const failureCountText = loading ? '--' : healthData.totalFailure.toLocaleString();
+    const successRateText =
+      loading || !hasCompleteData ? '--' : `${healthData.successRate.toFixed(1)}%`;
+    const successCountText =
+      loading || !hasCompleteData ? '--' : healthData.totalSuccess.toLocaleString();
+    const failureCountText =
+      loading || !hasCompleteData ? '--' : healthData.totalFailure.toLocaleString();
 
     return (
       <span className={styles.healthSummary}>
-        <StatusIndicator rate={healthData.successRate} hasData={hasData} loading={loading} />
+        <StatusIndicator rate={healthData.successRate} hasData={hasCompleteData} loading={loading} />
         <span className={styles.healthSummaryRate}>{successRateText}</span>
         <span className={styles.healthSummaryDetail}>
           <span className={styles.healthSummarySuccess}>
@@ -132,7 +140,7 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
         </span>
       </span>
     );
-  }, [collapsible, customSummary, hasData, healthData, loading, t]);
+  }, [collapsible, customSummary, hasCompleteData, healthData, loading, t]);
 
   useEffect(() => {
     if (activeTooltip === null) return;
@@ -277,14 +285,14 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
     return typeof document === 'undefined' ? tooltip : createPortal(tooltip, document.body);
   };
 
-  const rateClass = !hasData
+  const rateClass = !hasCompleteData
     ? ''
     : getHealthStatus(healthData.successRate) === 'good'
       ? styles.healthRateHigh
       : getHealthStatus(healthData.successRate) === 'warning'
         ? styles.healthRateMedium
         : styles.healthRateLow;
-  const successPercent = Math.max(0, Math.min(100, hasData ? healthData.successRate : 0));
+  const successPercent = Math.max(0, Math.min(100, hasCompleteData ? healthData.successRate : 0));
 
   return (
     <Card
@@ -299,7 +307,7 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
           <div className={styles.healthMeta}>
             <span className={styles.healthWindow}>{t('service_health.window')}</span>
             <span className={`${styles.healthRate} ${rateClass}`}>
-              {loading ? '--' : hasData ? `${healthData.successRate.toFixed(1)}%` : '--'}
+              {loading || !hasCompleteData ? '--' : `${healthData.successRate.toFixed(1)}%`}
             </span>
           </div>
         ) : undefined
@@ -309,7 +317,7 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
         <div className={styles.healthStatusBarMeta}>
           <span className={styles.healthStatusBarLabel}>{t('service_health.title')}</span>
           <span className={`${styles.healthStatusBarValue} ${rateClass}`}>
-            {loading ? '--' : hasData ? `${healthData.successRate.toFixed(1)}%` : '--'}
+            {loading || !hasCompleteData ? '--' : `${healthData.successRate.toFixed(1)}%`}
           </span>
         </div>
         <div className={styles.healthProgressTrack} aria-hidden="true">

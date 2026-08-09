@@ -1,6 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatCompactNumber, formatUsd, collectUsageDetails, extractTotalTokens, calculateCost } from '@/utils/usage';
+import {
+  formatCompactNumber,
+  formatUsd,
+  collectUsageDetails,
+  extractTotalTokens,
+  calculateCost,
+} from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
 import type { ModelPrice } from '@/utils/usage';
 import { Skeleton, SkeletonBlock } from '@/components/ui/Skeleton';
@@ -36,12 +42,35 @@ interface PeriodStats {
   cost: number;
   tokens: number;
   requests: number;
+  detailRequests: number;
 }
 
 const EMPTY_PERIOD_STATS: PeriodStats = {
   cost: 0,
   tokens: 0,
   requests: 0,
+  detailRequests: 0,
+};
+
+const formatLocalDateKey = (timestampMs: number): string => {
+  const date = new Date(timestampMs);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDailyAggregate = (
+  usage: UsagePayload,
+  field: 'requests_by_day' | 'tokens_by_day',
+  dayKey: string
+): number | null => {
+  const rawMap = usage[field];
+  if (!rawMap || typeof rawMap !== 'object' || Array.isArray(rawMap)) {
+    return null;
+  }
+  const value = Number((rawMap as Record<string, unknown>)[dayKey]);
+  return Number.isFinite(value) ? Math.max(value, 0) : null;
 };
 
 const buildTrend = (current: number, previous: number, compareLabel: string): SummaryTrend => {
@@ -62,20 +91,47 @@ const getTrendClassName = (direction: TrendDirection): string => {
 };
 
 const IconDollar = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <line x1="12" y1="1" x2="12" y2="23" />
     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
   </svg>
 );
 
 const IconToken = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
 
 const IconCount = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M3 3v18h18" />
     <path d="M18 17V9" />
     <path d="M13 17V5" />
@@ -85,24 +141,6 @@ const IconCount = () => (
 
 export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps) {
   const { t } = useTranslation();
-
-  // Show skeleton when loading
-  if (loading) {
-    return (
-      <div className={styles.summaryCards}>
-        {[1, 2, 3].map((i) => (
-          <div key={i} className={styles.summaryCard}>
-            <Skeleton width={40} height={40} borderRadius={8} />
-            <div className={styles.summaryCardContent}>
-              <SkeletonBlock width={80} height={12} />
-              <SkeletonBlock width={120} height={24} className={styles.mt8} />
-              <SkeletonBlock width={100} height={10} className={styles.mt8} />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   const stats = useMemo(() => {
     if (!usage) {
@@ -115,10 +153,26 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
     }
 
     const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      0,
+      0,
+      0,
+      0
+    ).getTime();
     const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).getTime();
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0).getTime();
+    const previousMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      1,
+      0,
+      0,
+      0,
+      0
+    ).getTime();
 
     const today: PeriodStats = { ...EMPTY_PERIOD_STATS };
     const yesterday: PeriodStats = { ...EMPTY_PERIOD_STATS };
@@ -138,27 +192,58 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
         today.cost += cost;
         today.tokens += totalTokens;
         today.requests += 1;
+        today.detailRequests += 1;
       } else if (timestampMs >= yesterdayStart && timestampMs < todayStart) {
         yesterday.cost += cost;
         yesterday.tokens += totalTokens;
         yesterday.requests += 1;
+        yesterday.detailRequests += 1;
       }
 
       if (timestampMs >= monthStart) {
         month.cost += cost;
         month.tokens += totalTokens;
         month.requests += 1;
+        month.detailRequests += 1;
       } else if (timestampMs >= previousMonthStart && timestampMs < monthStart) {
         previousMonth.cost += cost;
         previousMonth.tokens += totalTokens;
         previousMonth.requests += 1;
+        previousMonth.detailRequests += 1;
       }
     }
+
+    const todayKey = formatLocalDateKey(todayStart);
+    const yesterdayKey = formatLocalDateKey(yesterdayStart);
+    today.requests = getDailyAggregate(usage, 'requests_by_day', todayKey) ?? today.requests;
+    today.tokens = getDailyAggregate(usage, 'tokens_by_day', todayKey) ?? today.tokens;
+    yesterday.requests =
+      getDailyAggregate(usage, 'requests_by_day', yesterdayKey) ?? yesterday.requests;
+    yesterday.tokens = getDailyAggregate(usage, 'tokens_by_day', yesterdayKey) ?? yesterday.tokens;
 
     return { today, yesterday, month, previousMonth };
   }, [usage, modelPrices]);
 
+  if (loading) {
+    return (
+      <div className={styles.summaryCards}>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className={styles.summaryCard}>
+            <Skeleton width={40} height={40} borderRadius={8} />
+            <div className={styles.summaryCardContent}>
+              <SkeletonBlock width={80} height={12} />
+              <SkeletonBlock width={120} height={24} className={styles.mt8} />
+              <SkeletonBlock width={100} height={10} className={styles.mt8} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   const compareYesterday = t('usage_stats.vs_yesterday', 'vs 昨日');
+  const todayCostComplete = stats.today.detailRequests >= stats.today.requests;
+  const yesterdayCostComplete = stats.yesterday.detailRequests >= stats.yesterday.requests;
 
   const cards = [
     {
@@ -182,11 +267,15 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
     {
       key: 'todayCost',
       label: t('usage_stats.today_cost') || '今日花费',
-      num: formatUsd(stats.today.cost),
+      num: todayCostComplete ? formatUsd(stats.today.cost) : '--',
       unit: '',
       icon: <IconDollar />,
       accent: '#10b981',
-      trend: buildTrend(stats.today.cost, stats.yesterday.cost, compareYesterday),
+      trend: buildTrend(
+        todayCostComplete ? stats.today.cost : Number.NaN,
+        yesterdayCostComplete ? stats.yesterday.cost : Number.NaN,
+        compareYesterday
+      ),
     },
   ];
 
@@ -194,7 +283,10 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
     <div className={styles.summaryCards}>
       {cards.map((card) => (
         <div key={card.key} className={styles.summaryCard}>
-          <div className={styles.summaryCardIcon} style={{ backgroundColor: card.accent + '20', color: card.accent }}>
+          <div
+            className={styles.summaryCardIcon}
+            style={{ backgroundColor: card.accent + '20', color: card.accent }}
+          >
             {card.icon}
           </div>
           <div className={styles.summaryCardContent}>
@@ -202,7 +294,9 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
             <div className={styles.summaryCardValue}>
               <span className={styles.summaryCardNumber}>{card.num}</span>
             </div>
-            <div className={`${styles.summaryCardTrend} ${getTrendClassName(card.trend.direction)}`}>
+            <div
+              className={`${styles.summaryCardTrend} ${getTrendClassName(card.trend.direction)}`}
+            >
               {card.trend.label}
             </div>
           </div>
