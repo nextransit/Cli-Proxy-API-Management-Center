@@ -118,16 +118,33 @@ export interface DashboardViewResponse {
   generated_at: string;
 }
 
+export interface DashboardViewFetchResult {
+  status: number;
+  etag: string | null;
+  data: DashboardViewResponse | null;
+}
+
 /**
  * Lightweight dashboard-shaped view of usage stats. The management home page
  * uses this endpoint instead of the full /usage payload to keep the click and
  * refresh path cheap on busy servers.
  */
 export const dashboardApi = {
-  getDashboardView: (options?: { window?: string; signal?: AbortSignal }) =>
-    apiClient.get<DashboardViewResponse>('/usage/dashboard', {
+  getDashboardView: async (options?: { window?: string; signal?: AbortSignal; etag?: string | null }): Promise<DashboardViewFetchResult> => {
+    const response = await apiClient.requestRaw({
+      url: '/usage/dashboard',
       timeout: 15_000,
       signal: options?.signal,
       params: options?.window ? { window: options.window } : undefined,
-    }),
+      headers: options?.etag ? { 'If-None-Match': options.etag } : undefined,
+      // Accept 304 Not Modified so callers can reuse the cached view.
+      validateStatus: (status: number) => status === 200 || status === 304,
+    });
+    const etag = typeof response.headers?.etag === 'string' ? response.headers.etag : null;
+    return {
+      status: response.status,
+      etag,
+      data: response.data as DashboardViewResponse | null,
+    };
+  },
 };

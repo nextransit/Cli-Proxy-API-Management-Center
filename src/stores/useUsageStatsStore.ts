@@ -115,16 +115,11 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
       return;
     }
 
-    if (scopeChanged) {
-      set({
-        usage: null,
-        keyStats: createEmptyKeyStats(),
-        usageDetails: [],
-        error: null,
-        lastRefreshedAt: null,
-        scopeKey
-      });
-    }
+    // Note: switching windows deliberately keeps the previous usage view in
+    // place until the new snapshot arrives (stale-while-revalidate). Clearing
+    // it here would flash the empty state and stall the page while a large
+    // window (e.g. "all") parses and aggregates; keeping the old data lets
+    // the UI stay interactive under `isRefreshing`.
 
     const requestId = (usageRequestToken += 1);
     const abortController = new AbortController();

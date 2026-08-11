@@ -3,7 +3,7 @@ import { subscribeUsageStream } from '@/services/api/usageStream';
 import { useDashboardViewStore } from '@/stores/useDashboardViewStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 
-const DASHBOARD_SSE_THROTTLE_MS = 3_000;
+const DASHBOARD_SSE_THROTTLE_MS = 1_000;
 
 /**
  * Subscribes to the usage SSE stream and incrementally merges each new event

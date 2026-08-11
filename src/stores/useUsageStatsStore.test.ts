@@ -107,6 +107,32 @@ describe('useUsageStatsStore foreground refresh', () => {
 
     expect(useUsageStatsStore.getState().usage).toEqual({ total_requests: 1 });
   });
+
+  it('keeps the previous window view while a new scope loads', async () => {
+    mocks.getUsage.mockResolvedValueOnce({ total_requests: 1 });
+
+    await useUsageStatsStore.getState().loadUsageStats({
+      force: true,
+      timeRange: '24h',
+    });
+    expect(useUsageStatsStore.getState().usage).toEqual({ total_requests: 1 });
+
+    const secondRequest = createDeferred<Record<string, unknown>>();
+    mocks.getUsage.mockReturnValueOnce(secondRequest.promise);
+
+    const switchLoad = useUsageStatsStore.getState().loadUsageStats({
+      force: true,
+      timeRange: 'all',
+    });
+    // The previous window's view must stay visible while the new snapshot
+    // is still in flight (no flash to the empty state on heavy windows).
+    expect(useUsageStatsStore.getState().usage).toEqual({ total_requests: 1 });
+
+    secondRequest.resolve({ total_requests: 2 });
+    await switchLoad;
+
+    expect(useUsageStatsStore.getState().usage).toEqual({ total_requests: 2 });
+  });
 });
 
 interface UsageEventDetail {

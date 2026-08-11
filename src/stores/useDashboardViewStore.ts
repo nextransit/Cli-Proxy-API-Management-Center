@@ -19,7 +19,7 @@ export interface DashboardIncrementalEvent {
 }
 import { useAuthStore } from '@/stores/useAuthStore';
 
-export const DASHBOARD_VIEW_STALE_TIME_MS = 5_000;
+export const DASHBOARD_VIEW_STALE_TIME_MS = 2_000;
 
 export type LoadDashboardViewOptions = {
   force?: boolean;
@@ -34,6 +34,7 @@ type DashboardViewState = {
   error: string | null;
   lastRefreshedAt: number | null;
   lastEventId: number;
+  lastEtag: string | null;
   scopeKey: string;
   loadDashboardView: (options?: LoadDashboardViewOptions) => Promise<void>;
   applyIncrementalEvent: (detail: DashboardIncrementalEvent) => void;
@@ -80,6 +81,7 @@ export const useDashboardViewStore = create<DashboardViewState>((set, get) => ({
   error: null,
   lastRefreshedAt: null,
   lastEventId: 0,
+  lastEtag: null,
   scopeKey: '',
 
   loadDashboardView: async (options = {}) => {
@@ -116,12 +118,29 @@ export const useDashboardViewStore = create<DashboardViewState>((set, get) => ({
 
     const promise = (async () => {
       try {
-        const response = await dashboardApi.getDashboardView({ window, signal: abortController.signal });
+        const response = await dashboardApi.getDashboardView({
+          window,
+          signal: abortController.signal,
+          etag: state.lastEtag,
+        });
         if (requestId !== requestToken) return;
-        const payload: DashboardViewResponse = response;
+        if (response.status === 304) {
+          // Not modified: keep the cached view, just refresh the freshness
+          // marker and remember the (possibly renewed) ETag for the next poll.
+          set({
+            lastRefreshedAt: Date.now(),
+            lastEtag: response.etag,
+            loading: false,
+            error: null,
+            scopeKey,
+          });
+          return;
+        }
+        const payload = response.data as DashboardViewResponse;
         set({
           view: payload.dashboard,
           lastRefreshedAt: Date.now(),
+          lastEtag: response.etag,
           lastEventId: toEventId(payload.dashboard.latest_event_id) || state.lastEventId,
           loading: false,
           error: null,
@@ -252,6 +271,7 @@ export const useDashboardViewStore = create<DashboardViewState>((set, get) => ({
       error: null,
       lastRefreshedAt: null,
       lastEventId: 0,
+      lastEtag: null,
       scopeKey: '',
     });
   },

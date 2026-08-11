@@ -6,10 +6,23 @@ import { useAuthStore } from '@/stores/useAuthStore';
 const USAGE_POLL_FALLBACK_MS = 30_000;
 const FOREGROUND_REFRESH_DEDUPE_MS = 250;
 const SILENT_REFRESH_DEBOUNCE_MS = 2_000;
-const SILENT_REFRESH_THROTTLE_MS = 3_000;
+// Full-aggregate refreshes are expensive on long-running servers (every
+// retained RequestDetail is re-serialized). Under continuous traffic the SSE
+// event stream fires triggerSilentRefresh constantly, so keep the throttle
+// generous: 15s keeps the aggregates aligned while avoiding refresh storms
+// that freeze the UI on large windows. SSE events still drive incremental
+// recentDetails updates between refreshes.
+const SILENT_REFRESH_THROTTLE_MS = 15_000;
+// Windows whose full snapshots are huge (every retained RequestDetail is
+// serialized, then parsed and aggregated in the browser). Background full
+// refreshes are skipped entirely for these: the SSE stream still applies
+// incremental recentDetails updates, and fresh aggregates only arrive on the
+// initial load or an explicit foreground/scope change.
+const HEAVY_FULL_REFRESH_WINDOWS = ['all', '30d'];
 
 export function useUsageLiveRefresh(timeRange: string, enabled = true) {
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
+  const isHeavyWindow = HEAVY_FULL_REFRESH_WINDOWS.includes(timeRange);
 
   // Tab visibility / focus: trigger a forced refetch on foreground.
   useEffect(() => {
@@ -17,6 +30,7 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     let lastForegroundRefreshAt = 0;
     const refreshOnForeground = () => {
       if (document.visibilityState === 'hidden') return;
+      if (isHeavyWindow) return;
       const now = Date.now();
       if (now - lastForegroundRefreshAt < FOREGROUND_REFRESH_DEDUPE_MS) return;
       lastForegroundRefreshAt = now;
@@ -38,7 +52,7 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       window.removeEventListener('focus', refreshOnForeground);
       window.removeEventListener('pageshow', handlePageShow);
     };
-  }, [enabled, loadUsageStats, timeRange]);
+  }, [enabled, loadUsageStats, timeRange, isHeavyWindow]);
 
   // SSE + 30s polling fallback (down from 1s to stop refresh storms while
   // the SSE stream is reconnecting) + debounced silent background refresh.
@@ -52,6 +66,7 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         return;
       }
+      if (isHeavyWindow) return;
       void loadUsageStats({
         force: true,
         staleTimeMs: USAGE_STATS_STALE_TIME_MS,
@@ -60,6 +75,7 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     };
 
     const triggerSilentRefresh = () => {
+      if (isHeavyWindow) return;
       const now = Date.now();
       if (now - lastSilentRefreshAt < SILENT_REFRESH_THROTTLE_MS) {
         // Already refreshed recently, just debounce-reset for the next batch
@@ -137,5 +153,5 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       stopPolling();
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [enabled, loadUsageStats, timeRange]);
+  }, [enabled, loadUsageStats, timeRange, isHeavyWindow]);
 }
