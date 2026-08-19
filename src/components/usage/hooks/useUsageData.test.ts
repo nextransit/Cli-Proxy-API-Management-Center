@@ -267,3 +267,23 @@ describe('useUsageData page visibility refresh', () => {
     vi.useRealTimers();
   });
 });
+
+it('does not refresh on visibility return for heavy windows, but still re-arms polling', async () => {
+  const { unmount } = renderHook(() => useUsageData('all'));
+
+  await waitFor(() => expect(mocks.usageStreamOptions).not.toBeNull());
+  mocks.loadUsageStats.mockClear();
+
+  act(() => {
+    setVisibilityState('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    setVisibilityState('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('focus'));
+  });
+
+  // Heavy windows must NOT trigger a foreground loadUsageStats (that
+  // would re-serialise every retained RequestDetail).
+  expect(mocks.loadUsageStats).not.toHaveBeenCalled();
+  unmount();
+});

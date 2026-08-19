@@ -39,18 +39,21 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     let lastForegroundRefreshAt = 0;
     const refreshOnForeground = () => {
       if (document.visibilityState === 'hidden') return;
-      if (isHeavyWindow) return;
       const now = Date.now();
       if (now - lastForegroundRefreshAt < FOREGROUND_REFRESH_DEDUPE_MS) return;
       lastForegroundRefreshAt = now;
-      void loadUsageStats({
-        force: true,
-        supersedeInFlight: true,
-        staleTimeMs: USAGE_STATS_STALE_TIME_MS,
-        timeRange,
-      }).catch(() => {});
-      // Re-arm the 30s polling fallback if the SSE effect had stopped it
-      // while the tab was hidden.
+      // Heavy windows ("all", "30d") skip the foreground refresh, but
+      // we still need to re-arm the 30s polling fallback that the SSE
+      // effect may have stopped while the tab was hidden — otherwise
+      // the page sits frozen until SSE itself errors.
+      if (!isHeavyWindow) {
+        void loadUsageStats({
+          force: true,
+          supersedeInFlight: true,
+          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+          timeRange,
+        }).catch(() => {});
+      }
       moduleStartPolling();
     };
     const handlePageShow = (event: PageTransitionEvent) => {
@@ -153,9 +156,15 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
         // SSE is the primary path while the tab is visible. While hidden
         // the browser may suspend the EventSource; keep the 30s polling
         // safety net armed so a foreground refresh always has a fallback.
-        if (status === 'open' && isDocumentVisible()) {
+        // Heavy windows ("all", "30d") skip the foreground refresh, so SSE
+        // is the only live path there — keep polling running even when
+        // SSE is open so backgrounding the tab doesn't freeze the page.
+        if (status === 'open' && isDocumentVisible() && !isHeavyWindow) {
           stopPolling();
         } else if (status === 'error' || status === 'closed') {
+          startPolling();
+        } else if (status === 'open' && isHeavyWindow) {
+          // Defensive: ensure polling is alive for heavy windows.
           startPolling();
         }
       },
