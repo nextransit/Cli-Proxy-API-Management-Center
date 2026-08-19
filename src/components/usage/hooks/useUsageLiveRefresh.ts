@@ -1,4 +1,7 @@
 import { useEffect } from 'react';
+
+const noop = () => {};
+let resumePollingFallback: () => void = noop;
 import { subscribeUsageStream } from '@/services/api/usageStream';
 import { USAGE_STATS_STALE_TIME_MS, useUsageStatsStore } from '@/stores';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -25,6 +28,9 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
   const isHeavyWindow = HEAVY_FULL_REFRESH_WINDOWS.includes(timeRange);
 
   // Tab visibility / focus: trigger a forced refetch on foreground.
+  // Also nudge the SSE effect to restart its 30s polling fallback, because
+  // browsers may have suspended the EventSource without firing any
+  // status change while the tab was hidden.
   useEffect(() => {
     if (!enabled) return;
     let lastForegroundRefreshAt = 0;
@@ -40,6 +46,7 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
         staleTimeMs: USAGE_STATS_STALE_TIME_MS,
         timeRange,
       }).catch(() => {});
+      resumePollingFallback();
     };
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) refreshOnForeground();
@@ -62,10 +69,11 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let lastSilentRefreshAt = 0;
 
+    const isDocumentVisible = () =>
+      typeof document === 'undefined' || document.visibilityState !== 'hidden';
+
     const refreshUsage = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
-      }
+      if (!isDocumentVisible()) return;
       if (isHeavyWindow) return;
       void loadUsageStats({
         force: true,
@@ -137,21 +145,29 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
         triggerSilentRefresh();
       },
       onStatusChange: (status) => {
-        if (status === 'open') stopPolling();
-        // Only restart polling when SSE has given up reconnecting (closed by
-        // the client side) or when the stream closed from the server. The
-        // 30s interval is a last-resort safety net, not the primary refresh
-        // path: SSE events still drive onUsageEvent updates between polls.
-        else if (status === 'error' || status === 'closed') startPolling();
+        // SSE is the primary path while the tab is visible. While hidden
+        // the browser may suspend the EventSource; keep the 30s polling
+        // safety net armed so a foreground refresh always has a fallback.
+        if (status === 'open' && isDocumentVisible()) {
+          stopPolling();
+        } else if (status === 'error' || status === 'closed') {
+          startPolling();
+        }
       },
       baseDelayMs: 1_000,
       maxDelayMs: 30_000,
     });
 
+    // Expose a way for the foreground effect to nudge the polling fallback
+    // back on when the tab returns from hidden. This avoids duplicate
+    // visibility/focus listeners between the two effects.
+    resumePollingFallback = startPolling;
+
     return () => {
       streamHandle.close();
       stopPolling();
       if (debounceTimer) clearTimeout(debounceTimer);
+      resumePollingFallback = noop;
     };
   }, [enabled, loadUsageStats, timeRange, isHeavyWindow]);
 }
