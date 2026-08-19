@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 
 const noop = () => {};
-let resumePollingFallback: () => void = noop;
+// Module-level handle so the foreground visibilitychange/focus/pageshow
+// effect can start the 30s polling fallback that the SSE effect may have
+// stopped while the tab was hidden. Initialised lazily by the SSE effect.
+let moduleStartPolling: () => void = noop;
 import { subscribeUsageStream } from '@/services/api/usageStream';
 import { USAGE_STATS_STALE_TIME_MS, useUsageStatsStore } from '@/stores';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -46,7 +49,9 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
         staleTimeMs: USAGE_STATS_STALE_TIME_MS,
         timeRange,
       }).catch(() => {});
-      resumePollingFallback();
+      // Re-arm the 30s polling fallback if the SSE effect had stopped it
+      // while the tab was hidden.
+      moduleStartPolling();
     };
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) refreshOnForeground();
@@ -158,16 +163,17 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       maxDelayMs: 30_000,
     });
 
-    // Expose a way for the foreground effect to nudge the polling fallback
-    // back on when the tab returns from hidden. This avoids duplicate
-    // visibility/focus listeners between the two effects.
-    resumePollingFallback = startPolling;
+    // Publish the polling controls so the foreground effect can start
+    // them after a visibilitychange/focus/pageshow, even if the SSE
+    // effect itself has already stopped polling while the tab was
+    // hidden.
+    moduleStartPolling = startPolling;
 
     return () => {
       streamHandle.close();
       stopPolling();
       if (debounceTimer) clearTimeout(debounceTimer);
-      resumePollingFallback = noop;
+      moduleStartPolling = noop;
     };
   }, [enabled, loadUsageStats, timeRange, isHeavyWindow]);
 }
