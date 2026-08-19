@@ -81,8 +81,14 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
     const refreshUsage = () => {
+      // The 30s polling fallback exists specifically so the page keeps
+      // refreshing even when SSE has gone quiet or been stopped. For
+      // heavy windows ("all", "30d") the SSE effect deliberately keeps
+      // polling running at all times, so refreshUsage must NOT skip
+      // heavy windows — otherwise the page freezes after every tab
+      // switch. We still skip while the document is hidden to avoid
+      // burning CPU while the tab is in the background.
       if (!isDocumentVisible()) return;
-      if (isHeavyWindow) return;
       void loadUsageStats({
         force: true,
         staleTimeMs: USAGE_STATS_STALE_TIME_MS,
