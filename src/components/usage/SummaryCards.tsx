@@ -226,16 +226,21 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
 
   if (loading) {
     return (
-      <div className={styles.summaryCards}>
+      <div className={styles.statsGrid} aria-busy="true">
         {[1, 2, 3].map((i) => (
-          <div key={i} className={styles.summaryCard}>
-            <Skeleton width={40} height={40} borderRadius={8} />
-            <div className={styles.summaryCardContent}>
-              <SkeletonBlock width={80} height={12} />
-              <SkeletonBlock width={120} height={24} className={styles.mt8} />
-              <SkeletonBlock width={100} height={10} className={styles.mt8} />
+          <section key={i} className={styles.metricCard} aria-hidden="true">
+            <div className={styles.metricCardHeader}>
+              <span className={styles.metricCardIcon}>
+                <Skeleton width={20} height={20} borderRadius={4} />
+              </span>
+              <span className={styles.metricCardTitle}>
+                <SkeletonBlock width={80} height={12} />
+              </span>
             </div>
-          </div>
+            <div className={styles.metricCardBody}>
+              <SkeletonBlock width={120} height={20} />
+            </div>
+          </section>
         ))}
       </div>
     );
@@ -250,28 +255,28 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
       key: 'todayRequests',
       label: t('usage_stats.today_requests') || '今日请求',
       num: stats.today.requests.toLocaleString(),
-      unit: '',
       icon: <IconCount />,
-      accent: '#f59e0b',
-      trend: buildTrend(stats.today.requests, stats.yesterday.requests, compareYesterday),
+      accent: '#38bdf8',
+      accentKey: 'requests',
+      subValue: buildTrend(stats.today.requests, stats.yesterday.requests, compareYesterday),
     },
     {
       key: 'todayTokens',
       label: t('usage_stats.today_tokens') || '今日 Token',
       num: formatTokenCount(stats.today.tokens),
-      unit: '',
       icon: <IconToken />,
-      accent: '#6366f1',
-      trend: buildTrend(stats.today.tokens, stats.yesterday.tokens, compareYesterday),
+      accent: '#a78bfa',
+      accentKey: 'tokens',
+      subValue: buildTrend(stats.today.tokens, stats.yesterday.tokens, compareYesterday),
     },
     {
       key: 'todayCost',
       label: t('usage_stats.today_cost') || '今日花费',
       num: todayCostComplete ? formatUsd(stats.today.cost) : '--',
-      unit: '',
       icon: <IconDollar />,
-      accent: '#10b981',
-      trend: buildTrend(
+      accent: '#34d399',
+      accentKey: 'cost',
+      subValue: buildTrend(
         todayCostComplete ? stats.today.cost : Number.NaN,
         yesterdayCostComplete ? stats.yesterday.cost : Number.NaN,
         compareYesterday
@@ -280,27 +285,33 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
   ];
 
   return (
-    <div className={styles.summaryCards}>
+    <div className={styles.statsGrid} aria-busy={loading || undefined}>
       {cards.map((card) => (
-        <div key={card.key} className={styles.summaryCard}>
-          <div
-            className={styles.summaryCardIcon}
-            style={{ backgroundColor: card.accent + '20', color: card.accent }}
-          >
-            {card.icon}
-          </div>
-          <div className={styles.summaryCardContent}>
-            <div className={styles.summaryCardLabel}>{card.label}</div>
-            <div className={styles.summaryCardValue}>
-              <span className={styles.summaryCardNumber}>{card.num}</span>
-            </div>
-            <div
-              className={`${styles.summaryCardTrend} ${getTrendClassName(card.trend.direction)}`}
+        <section
+          key={card.key}
+          className={`${styles.metricCard} ${styles.metricCardToday}`}
+          aria-label={card.label}
+          data-accent={card.accentKey}
+        >
+          <div className={styles.metricCardHeader}>
+            <span
+              className={styles.metricCardIcon}
             >
-              {card.trend.label}
+              {card.icon}
+            </span>
+            <span className={styles.metricCardTitle}>{card.label}</span>
+          </div>
+          <div className={styles.metricCardBody}>
+            <div className={styles.metricSummary}>
+              <span className={styles.metricMainValue}>{card.num}</span>
+              <span
+                className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
+              >
+                {card.subValue.label}
+              </span>
             </div>
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );

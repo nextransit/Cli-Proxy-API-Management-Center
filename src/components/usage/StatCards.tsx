@@ -318,7 +318,11 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
 
   return (
     <div className={styles.statsGrid} aria-busy={showSkeleton || undefined}>
-      <section className={styles.metricCard} aria-label={t('usage_stats.total_requests')}>
+      <section
+        className={`${styles.metricCard} ${styles.metricCardLifetime}`}
+        aria-label={t('usage_stats.total_requests')}
+        data-accent="requests"
+      >
         <div className={styles.metricCardHeader}>
           <span className={styles.metricCardIcon}>
             <IconCount />
@@ -330,7 +334,11 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         </div>
       </section>
 
-      <section className={styles.metricCard} aria-label={t('usage_stats.total_tokens')}>
+      <section
+        className={`${styles.metricCard} ${styles.metricCardLifetime}`}
+        aria-label={t('usage_stats.total_tokens')}
+        data-accent="tokens"
+      >
         <div className={styles.metricCardHeader}>
           <span className={styles.metricCardIcon}>
             <IconToken />
@@ -342,7 +350,11 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         </div>
       </section>
 
-      <section className={styles.metricCard} aria-label={t('usage_stats.total_cost')}>
+      <section
+        className={`${styles.metricCard} ${styles.metricCardLifetime}`}
+        aria-label={t('usage_stats.total_cost')}
+        data-accent="cost"
+      >
         <div className={styles.metricCardHeader}>
           <span className={styles.metricCardIcon}>
             <IconDollar />

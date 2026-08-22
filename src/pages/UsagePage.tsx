@@ -915,9 +915,10 @@ export function UsagePage() {
         modelPrices={visibleModelPrices}
       />
 
-      {renderHeavyUsageSections ? (
-        <TrendTabsCard
-          tabs={[
+      {renderHeavyUsageSections && (
+        <div className={styles.collapseRow}>
+          <TrendTabsCard
+            tabs={[
             {
               key: 'requests',
               label: t('usage_stats.requests_trend'),
@@ -1021,25 +1022,28 @@ export function UsagePage() {
                 ? ['requests', 'cost']
                 : undefined,
           }}
+          collapsible={true}
+          defaultCollapsed={true}
         />
-      ) : (
-        <TrendTabsPlaceholder title={t('usage_stats.trend_analysis')} />
+          <ModelTokenDoughnut
+            modelStats={modelStats}
+            hasPrices={hasPrices}
+            loading={isInitialLoading}
+            isDark={isDark}
+            scopedUsage={visibleScopedUsage}
+            chartPeriod={doughnutGranularity.granularity}
+            hourWindowHours={hourWindowHours}
+            modelPrices={visibleModelPrices}
+            timeRange={timeRange}
+            onChartPeriodChange={doughnutGranularity.setGranularity}
+            collapsible={true}
+            defaultCollapsed={true}
+          />
+        </div>
       )}
 
-      {/* Model Token Distribution Doughnut */}
-      {renderHeavyUsageSections && (
-        <ModelTokenDoughnut
-          modelStats={modelStats}
-          hasPrices={hasPrices}
-          loading={isInitialLoading}
-          isDark={isDark}
-          scopedUsage={visibleScopedUsage}
-          chartPeriod={doughnutGranularity.granularity}
-          hourWindowHours={hourWindowHours}
-          modelPrices={visibleModelPrices}
-          timeRange={timeRange}
-          onChartPeriodChange={doughnutGranularity.setGranularity}
-        />
+      {!renderHeavyUsageSections && (
+        <TrendTabsPlaceholder title={t('usage_stats.trend_analysis')} />
       )}
 
       {/* Request Events Details */}

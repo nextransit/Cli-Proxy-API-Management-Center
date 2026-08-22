@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { IconDownload } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { RequestTraceDrawer } from '@/components/RequestTraceDrawer';
@@ -806,30 +807,7 @@ export function RequestEventsDetailsCard({
   }, [activeToast, t]);
 
   return (
-    <Card
-      title={t('usage_stats.request_events_title')}
-      extra={
-        <div className={styles.requestEventsActions}>
-          <div className={styles.exportMenu}>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={filteredRows.length === 0}
-            >
-              {t('usage_stats.export')}
-            </Button>
-            <div className={styles.exportMenuContent}>
-              <button type="button" onClick={handleExportCsv} disabled={filteredRows.length === 0}>
-                {t('usage_stats.export_csv')}
-              </button>
-              <button type="button" onClick={handleExportJson} disabled={filteredRows.length === 0}>
-                {t('usage_stats.export_json')}
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-    >
+    <Card title={t('usage_stats.request_events_title')}>
       <div className={styles.requestEventsToolbar}>
         <div className={`${styles.requestEventsFilterItem} ${styles.requestEventsSearchItem}`}>
           <span className={styles.requestEventsFilterLabel}>
@@ -891,6 +869,47 @@ export function RequestEventsDetailsCard({
         >
           {t('usage_stats.clear_filters')}
         </Button>
+
+        <span className={styles.requestEventsToolbarDivider} aria-hidden="true" />
+
+        <div
+          className={styles.requestEventsToolbarSummary}
+          title={t('usage_stats.request_events_summary_tooltip')}
+        >
+          <span>
+            {t('usage_stats.request_events_compact_summary', {
+              total: rows.length,
+              filtered: filteredRows.length,
+            })}
+          </span>
+          {filteredRows.length > MAX_RENDERED_EVENTS && (
+            <span className={styles.requestEventsToolbarSummaryCapped}>
+              {t('usage_stats.request_events_compact_capped', {
+                shown: MAX_RENDERED_EVENTS,
+                total: filteredRows.length,
+              })}
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className={styles.requestEventsExportIconButton}
+          onClick={handleExportCsv}
+          disabled={filteredRows.length === 0}
+          title={`${t('usage_stats.export')} (CSV / JSON)`}
+          aria-label={t('usage_stats.export')}
+        >
+          <IconDownload size={14} />
+        </button>
+        <div className={styles.requestEventsExportMenu}>
+          <button type="button" onClick={handleExportCsv} disabled={filteredRows.length === 0}>
+            {t('usage_stats.export_csv')}
+          </button>
+          <button type="button" onClick={handleExportJson} disabled={filteredRows.length === 0}>
+            {t('usage_stats.export_json')}
+          </button>
+        </div>
       </div>
 
       {loading && rows.length === 0 ? (
@@ -936,23 +955,6 @@ export function RequestEventsDetailsCard({
         />
       ) : (
         <>
-          <div className={styles.requestEventsMeta}>
-            <span>
-              {t('usage_stats.request_events_total_count', { total: rows.length })}
-              {' · '}
-              {t('usage_stats.request_events_filtered_count', { filtered: filteredRows.length })}
-            </span>
-            {hasLatencyData && <span className={styles.requestEventsLimitHint}>{latencyHint}</span>}
-            {filteredRows.length > MAX_RENDERED_EVENTS && (
-              <span className={styles.requestEventsLimitHint}>
-                {t('usage_stats.request_events_limit_hint', {
-                  shown: MAX_RENDERED_EVENTS,
-                  total: filteredRows.length,
-                })}
-              </span>
-            )}
-          </div>
-
           <div ref={tableWrapperRef} className={styles.requestEventsTableWrapper}>
             <table className={styles.table}>
               <thead>

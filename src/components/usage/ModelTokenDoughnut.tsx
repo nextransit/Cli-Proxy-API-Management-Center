@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as echarts from 'echarts';
 import {
@@ -78,6 +78,8 @@ export interface ModelTokenDoughnutProps {
   modelPrices: Record<string, ModelPrice>;
   timeRange: UsageTimeRange;
   onChartPeriodChange?: (next: 'hour' | 'day') => void;
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
 }
 
 interface GradientColor {
@@ -424,6 +426,17 @@ function TokenUsageTrendChart({
   );
 }
 
+const TOKEN_DIST_INTERACTIVE_SELECTOR =
+  'button, a, input, select, textarea, label, summary, [role="button"], [role="switch"], [data-card-header-ignore-click]';
+
+function shouldIgnoreHeaderToggle(target: EventTarget | null, currentTarget: Element) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+  const interactiveElement = target.closest(TOKEN_DIST_INTERACTIVE_SELECTOR);
+  return Boolean(interactiveElement && interactiveElement !== currentTarget);
+}
+
 export function ModelTokenDoughnut({
   modelStats,
   hasPrices,
@@ -435,8 +448,57 @@ export function ModelTokenDoughnut({
   modelPrices,
   timeRange,
   onChartPeriodChange,
+  collapsible = false,
+  defaultCollapsed = false,
 }: ModelTokenDoughnutProps) {
   const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
+  const isCollapsed = !expanded;
+
+  const handleHeaderClick = useCallback(
+    (event?: MouseEvent<HTMLDivElement>) => {
+      if (!collapsible) return;
+      if (event && shouldIgnoreHeaderToggle(event.target, event.currentTarget)) {
+        return;
+      }
+      setExpanded((prev) => !prev);
+    },
+    [collapsible]
+  );
+
+  const handleHeaderKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!collapsible) return;
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (shouldIgnoreHeaderToggle(event.target, event.currentTarget)) {
+        return;
+      }
+      event.preventDefault();
+      setExpanded((prev) => !prev);
+    },
+    [collapsible]
+  );
+
+  const headerClass = [styles.tokenDistHeader, collapsible ? styles.tokenDistHeaderClickable : '', isCollapsed ? styles.tokenDistHeaderCollapsed : '']
+    .filter(Boolean)
+    .join(' ');
+  const bodyClass = [styles.tokenDistContent, isCollapsed ? styles.tokenDistContentCollapsed : '']
+    .filter(Boolean)
+    .join(' ');
+
+  const tokenDistChevron = collapsible ? (
+    <span className={`${styles.tokenDistChevron} ${isCollapsed ? styles.tokenDistChevronCollapsed : ''}`}>
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path
+          d="M4 6L8 10L12 6"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  ) : null;
 
   const { doughnutOption, totalTokens, segments } = useMemo(() => {
     const sorted = [...modelStats].sort((a, b) => b.tokens - a.tokens);
@@ -535,10 +597,20 @@ export function ModelTokenDoughnut({
   if (loading) {
     return (
       <div className={styles.tokenDistCard}>
-        <div className={styles.tokenDistHeader}>
-          <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
+        <div
+          className={headerClass}
+          onClick={handleHeaderClick}
+          onKeyDown={handleHeaderKeyDown}
+          role={collapsible ? 'button' : undefined}
+          tabIndex={collapsible ? 0 : undefined}
+          aria-expanded={collapsible ? expanded : undefined}
+        >
+          <h3 className={styles.tokenDistTitle}>
+            {tokenDistChevron}
+            {t('usage_stats.model_token_distribution')}
+          </h3>
         </div>
-        <div className={styles.tokenDistContent}>
+        <div className={bodyClass}>
           <div className={styles.tokenDistChartPlaceholder}>
             <div className={styles.tokenDistChartSkeleton} />
           </div>
@@ -558,10 +630,20 @@ export function ModelTokenDoughnut({
   if (segments.length === 0) {
     return (
       <div className={styles.tokenDistCard}>
-        <div className={styles.tokenDistHeader}>
-          <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
+        <div
+          className={headerClass}
+          onClick={handleHeaderClick}
+          onKeyDown={handleHeaderKeyDown}
+          role={collapsible ? 'button' : undefined}
+          tabIndex={collapsible ? 0 : undefined}
+          aria-expanded={collapsible ? expanded : undefined}
+        >
+          <h3 className={styles.tokenDistTitle}>
+            {tokenDistChevron}
+            {t('usage_stats.model_token_distribution')}
+          </h3>
         </div>
-        <div className={styles.tokenDistContent}>
+        <div className={bodyClass}>
           <div className={styles.hint}>{t('usage_stats.no_data')}</div>
         </div>
       </div>
@@ -570,14 +652,21 @@ export function ModelTokenDoughnut({
 
   return (
     <div className={styles.tokenDistCard}>
-      <div className={styles.tokenDistHeader}>
-        <h3 className={styles.tokenDistTitle}>{t('usage_stats.model_token_distribution')}</h3>
-        <span className={styles.tokenDistBadge}>
-          {t('usage_stats.total_tokens')}: {formatTokens(totalTokens)}
-        </span>
+      <div
+        className={headerClass}
+        onClick={handleHeaderClick}
+        onKeyDown={handleHeaderKeyDown}
+        role={collapsible ? 'button' : undefined}
+        tabIndex={collapsible ? 0 : undefined}
+        aria-expanded={collapsible ? expanded : undefined}
+      >
+        <h3 className={styles.tokenDistTitle}>
+          {tokenDistChevron}
+          {t('usage_stats.model_token_distribution')}
+        </h3>
       </div>
 
-      <div className={styles.tokenDistContent}>
+      <div className={bodyClass}>
         <div className={styles.tokenDistChart}>
           <div className={styles.tokenDistCenter}>
             <span className={styles.tokenDistTotal}>{formatTokens(totalTokens)}</span>

@@ -6,7 +6,24 @@
   --usage-accent: #06b6d4;
   --usage-accent-soft: rgba(6, 182, 212, 0.13);
   --usage-accent-border: rgba(6, 182, 212, 0.4);
-  --usage-section-gap: 24px;
+  --usage-section-gap: 6px;
+
+  // Two collapsed chart cards (trend + token-dist) live in a single row.
+  // Direct grid placement keyed by class fragment — see collapseRow below.
+  > [class*='collapseRow'] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--usage-section-gap);
+    min-width: 0;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .collapseRow {
+    min-width: 0;
+  }
 
   width: 100%;
   min-height: 100%;
@@ -14,7 +31,7 @@
   flex-direction: column;
   gap: var(--usage-section-gap);
   position: relative;
-  padding: 0 0 22px;
+  padding: 0 0 12px;
   isolation: isolate;
 
   &::before {
@@ -427,7 +444,7 @@
 // Stats grid
 .statsGrid {
   display: grid;
-  gap: 16px;
+  gap: 8px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 
   @include mobile {
@@ -442,16 +459,18 @@
 
   grid-column: span 4;
   position: relative;
-  padding: 30px;
+  padding: 8px 12px;
   background:
     radial-gradient(124% 136% at 6% 2%, var(--accent-soft) 0%, rgba(0, 0, 0, 0) 66%),
     var(--bg-primary);
-  border-radius: 16px;
+  border-radius: 10px;
   border: 1px solid var(--border-color);
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 196px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-height: 0;
   box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.07);
@@ -492,7 +511,7 @@
   grid-column: span 6;
 
   .statValue {
-    font-size: 38px;
+    font-size: 18px;
   }
 }
 
@@ -501,32 +520,33 @@
     grid-column: auto;
 
     .statValue {
-      font-size: 28px;
+      font-size: 16px;
     }
   }
 }
 
 .statCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .statLabelGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .statIconBadge {
-  width: 30px;
-  height: 30px;
-  border-radius: $radius-md;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
   display: grid;
   place-items: center;
   color: color-mix(in srgb, var(--text-secondary) 86%, #a5f3fc);
-  font-size: 12px;
+  font-size: 10px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -535,6 +555,8 @@
   svg {
     display: block;
     stroke-width: 1.7;
+    width: 12px;
+    height: 12px;
   }
 }
 
@@ -549,19 +571,20 @@
 }
 
 .statLabel {
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
   font-weight: 620;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .statValue {
-  font-size: 30px;
+  font-size: 16px;
   font-weight: 780;
   color: #fff;
-  line-height: 1.15;
-  letter-spacing: -0.04em;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   font-family: 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif;
   font-variant-numeric: tabular-nums;
   background: linear-gradient(to bottom, #ffffff, #a9a9a9);
@@ -571,32 +594,35 @@
 }
 
 .statValueRow {
-  display: flex;
-  gap: $spacing-lg;
+  display: inline-flex;
+  align-items: baseline;
+  gap: $spacing-sm;
 }
 
 .statValueSmall {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .statValueLabel {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .statValueNum {
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .statMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
 }
 
 .statSuccess {
@@ -862,7 +888,7 @@
 
   th,
   td {
-    padding: 11px 12px;
+    padding: 5px 10px;
     text-align: left;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
@@ -1444,7 +1470,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border-color);
   gap: 12px;
 
@@ -1452,6 +1478,54 @@
     flex-wrap: wrap;
     padding: 12px 14px 10px;
   }
+}
+
+.trendTabsHeaderClickable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-color, #06b6d4) 60%, transparent);
+    outline-offset: -2px;
+  }
+}
+
+.trendTabsHeaderCollapsed {
+  border-bottom-color: transparent;
+  padding: 6px 12px;
+}
+
+.trendTabsHeaderLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trendTabsChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.trendTabsChevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.trendTabsBodyCollapsed {
+  display: none;
+}
+
+// Bumped specificity: combined selector overrides the base .trendTabsBody rules
+.trendTabsBody.trendTabsBodyCollapsed {
+  display: none;
 }
 
 .trendTabsTitle {
@@ -1598,12 +1672,55 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px 10px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border-color);
+  gap: 12px;
 
   @include mobile {
-    padding: 12px 14px 8px;
+    padding: 6px 12px;
   }
+}
+
+.tokenDistHeaderClickable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-color, #06b6d4) 60%, transparent);
+    outline-offset: -2px;
+  }
+}
+
+.tokenDistHeaderCollapsed {
+  border-bottom-color: transparent;
+  padding: 6px 12px;
+}
+
+.tokenDistChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.tokenDistChevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+.tokenDistContentCollapsed {
+  display: none;
+}
+
+// Bumped specificity: combined selector overrides the base .tokenDistContent rules
+.tokenDistContent.tokenDistContentCollapsed {
+  display: none;
 }
 
 .tokenDistTitle {
@@ -1857,29 +1974,147 @@
 
 .requestEventsToolbar {
   display: flex;
-  gap: $spacing-sm;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  margin-bottom: $spacing-sm;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  min-width: 0;
+}
+
+.requestEventsToolbarSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: flex-end;
+}
+
+.requestEventsToolbarSummaryCapped {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.requestEventsToolbarDivider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-color);
+  margin: 0 2px;
+  flex: 0 0 auto;
+}
+
+.requestEventsExportIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 8%, var(--bg-primary));
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.requestEventsExportMenu {
+  position: relative;
+  display: inline-flex;
+  margin-left: 4px;
+  flex: 0 0 auto;
+}
+
+.requestEventsExportMenu > button:not(.requestEventsExportIconButton) {
+  // Hidden by default; surfaced as the parent row's last item. We keep the
+  // hidden buttons accessible for screen readers via aria-label on the icon.
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.requestEventsToolbarSummary {
+  // Lives on its own row below the filters, right-aligned. This avoids the
+  // flex-wrap-margin shenanigans of trying to share one row with the
+  // filters and keeps the toolbar height predictable.
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.requestEventsToolbarSummaryCapped {
+  color: var(--text-tertiary);
 }
 
 .requestEventsFilterItem {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+  height: 28px;
+
+  .requestEventsFilterLabel {
+    font-weight: 500;
+    color: var(--text-tertiary);
+    line-height: 1;
+  }
 }
 
 .requestEventsSearchItem {
-  flex: 1 1 260px;
-  min-width: min(100%, 260px);
+  flex: 1 1 140px;
+  min-width: 0;
 
   :global(.form-group) {
     margin: 0;
   }
 
   :global(.input) {
-    height: 40px;
+    height: 28px;
     width: 100%;
     font-size: 12px;
   }
@@ -1896,18 +2131,21 @@
 }
 
 .requestEventsSelect {
-  min-width: 180px;
+  min-width: 0;
+  width: 130px;
+  // Force the internal trigger down to 28px so all filter items share the
+  // same row height. Select.module uses 40px internally; we need !important
+  // here to win over the global selector.
+  height: 28px !important;
 }
 
-.requestEventsMeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $spacing-sm;
-  margin-bottom: $spacing-xs;
-  font-size: 12px;
-  color: var(--text-secondary);
-  flex-wrap: wrap;
+// Drill into the Select component's internal trigger so we can shrink its
+// height. Without this the trigger stays at 40px and the toolbar wraps.
+.requestEventsSelect :global(.Select-module__trigger___nKY0l),
+.requestEventsSelect button[class*='Select-module__trigger'] {
+  height: 28px !important;
+  font-size: 12px !important;
+  padding: 0 10px !important;
 }
 
 .requestEventsLimitHint {
@@ -1921,7 +2159,7 @@
   border-radius: $radius-md;
   background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
 }
-
+// Allow the request-events card to consume the remaining viewport height.
 .requestEventsTimestamp {
   white-space: nowrap;
   min-width: 160px;
@@ -1935,30 +2173,31 @@
   font-size: 11px;
   max-width: 180px;
   word-break: break-all;
+  color: var(--text-tertiary);
 }
 
 .requestEventsResultSuccess {
-  color: var(--success-badge-text, #8ff0c9);
-  background: var(--success-badge-bg, rgba(16, 185, 129, 0.12));
-  border: 1px solid color-mix(in srgb, var(--success-badge-border, #6ee7b7) 58%, transparent);
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.10);
+  border: 1px solid rgba(110, 231, 183, 0.32);
 }
 
 .requestEventsResultFailed {
-  color: var(--failure-badge-text);
-  background: var(--failure-badge-bg);
-  border: 1px solid color-mix(in srgb, var(--failure-badge-border) 74%, transparent);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.10);
+  border: 1px solid rgba(248, 113, 113, 0.32);
 }
 
 .requestEventsResultWarning {
-  color: #fde68a;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.42);
+  color: #fcd34d;
+  background: rgba(252, 211, 77, 0.10);
+  border: 1px solid rgba(252, 211, 77, 0.34);
 }
 
 .requestEventsResultUnknown {
-  color: #cbd5e1;
-  background: rgba(148, 163, 184, 0.1);
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  color: var(--text-tertiary);
+  background: rgba(148, 163, 184, 0.10);
+  border: 1px solid rgba(148, 163, 184, 0.24);
 }
 
 .requestEventsResultSuccess,
@@ -1995,11 +2234,11 @@
 
 .requestEventsModelButton {
   max-width: 180px;
-  border: 1px solid rgba(56, 189, 248, 0.28);
+  border: 1px solid rgba(125, 211, 252, 0.24);
   border-radius: $radius-full;
-  padding: 3px 9px;
-  background: rgba(14, 165, 233, 0.1);
-  color: #7dd3fc;
+  padding: 2px 9px;
+  background: rgba(125, 211, 252, 0.06);
+  color: #93c5fd;
   font:
     600 11px/1.25 ui-monospace,
     SFMono-Regular,
@@ -2996,11 +3235,6 @@
   }
 }
 
-// 卡片最小高度，防止刷新时高度塌陷
-.statCard {
-  min-height: 196px;
-}
-
 .detailsFixedCard {
   min-height: 400px;
 }
@@ -3150,9 +3384,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   flex-shrink: 0;
 }
 
@@ -3160,8 +3394,10 @@
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .summaryCardLabel {
@@ -3173,9 +3409,9 @@
 }
 
 .summaryCardValue {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  gap: 4px;
+  gap: 3px;
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -3185,14 +3421,14 @@
 }
 
 .summaryCardNumber {
-  font-size: 36px;
+  font-size: 15px;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
 .summaryCardUnit {
-  font-size: 18px;
+  font-size: 11px;
   font-weight: 600;
   opacity: 0.6;
 }
@@ -3261,11 +3497,6 @@
   opacity: 0.6;
   filter: blur(0.5px);
   transition: all 0.3s ease;
-}
-
-// 卡片最小高度锁定，防止刷新时高度塌陷
-.statCard {
-  min-height: 196px;
 }
 
 .summaryCard {
@@ -3538,12 +3769,6 @@
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
 }
 
-// 固定容器高度，防止布局塌陷
-.statCard {
-  min-height: 196px;
-  transition: min-height 0.3s ease;
-}
-
 .summaryCard {
   min-height: 80px;
   transition: min-height 0.3s ease;
@@ -3643,7 +3868,7 @@
       color: #111827 !important;
       font-weight: 600;
       border-bottom: 2px solid #e5e7eb !important;
-      padding: 12px 16px;
+      padding: 6px 10px;
     }
 
     tbody tr:nth-child(odd) {
@@ -3659,7 +3884,7 @@
     }
 
     td {
-      padding: 12px 16px;
+      padding: 4px 10px;
       border-bottom: 1px solid #f3f4f6;
       color: #374151;
     }
@@ -5054,7 +5279,7 @@ $navy-blue: #2A7B9B;
       text-transform: uppercase;
       font-size: 10px;
       letter-spacing: 0.8px;
-      padding: 12px 16px;
+      padding: 6px 10px;
       background: rgba(0, 0, 0, 0.2);
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       position: sticky;
@@ -5063,7 +5288,7 @@ $navy-blue: #2A7B9B;
     }
     
     td {
-      padding: 12px 16px;
+      padding: 4px 10px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
       vertical-align: middle;
       transition: all 0.15s ease;
@@ -5352,7 +5577,7 @@ $navy-blue: #2A7B9B;
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      padding: 12px 16px;
+      padding: 6px 10px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       white-space: nowrap;
     }
@@ -5962,37 +6187,6 @@ $navy-blue: #2A7B9B;
   }
 }
 
-// ============================================
-// 只显示：总请求数 + 总Token数 + 总花费
-// ============================================
-[data-theme='dark'] {
-  // StatCards uses .metricCard class
-  .metricCard {
-    // 三个卡片并排显示
-    &:nth-child(1),
-    &:nth-child(2),
-    &:nth-child(3) {
-      flex: 1;
-    }
-  }
-
-  .statsGrid {
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 12px;
-
-    @media (max-width: 768px) {
-      flex-direction: column;
-    }
-  }
-  
-  .metricCard {
-    flex: 1 !important;
-    min-width: 0;
-  }
-}
-
-// ============================================
 // 确保绿灯可见
 // ============================================
 [data-theme='dark'] {
@@ -6614,7 +6808,7 @@ $navy-blue: #2A7B9B;
   margin-bottom: 0;
 
   :global(.card) {
-    padding: 18px 20px;
+    padding: 6px 12px;
     border-radius: 10px;
   }
 }
@@ -6690,12 +6884,14 @@ $navy-blue: #2A7B9B;
 
 .metricCardBody {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
 }
 
 .statsGrid {
-  gap: 18px;
+  gap: 8px;
   background: transparent;
   overflow: visible;
 }
@@ -6722,12 +6918,7 @@ $navy-blue: #2A7B9B;
   border-radius: 12px;
 }
 
-:global([data-theme='white']) .metricMainValue,
-:global([data-theme='light']) .metricMainValue,
-:root:not([data-theme]) .metricMainValue {
-  color: var(--text-primary);
-  text-shadow: none;
-}
+
 
 :global([data-theme='white']) .metricSubLine,
 :global([data-theme='light']) .metricSubLine,
@@ -6737,20 +6928,21 @@ $navy-blue: #2A7B9B;
 
 .metricSummary {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
   width: 100%;
   min-width: 0;
-  gap: 10px;
+  gap: 6px;
 }
 
 .metricMainValue {
   color: #ffffff;
   font-family: 'JetBrains Mono', 'Roboto Mono', 'SF Mono', 'Cascadia Mono', monospace;
-  font-size: clamp(28px, 3.1vw, 38px);
+  font-size: 16px;
   font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -0.035em;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 14px rgba(255, 255, 255, 0.12);
 }
@@ -6769,9 +6961,10 @@ $navy-blue: #2A7B9B;
 
 .metricSubLine {
   color: rgba(255, 255, 255, 0.48);
-  font-size: 12.5px;
-  line-height: 1.25;
+  font-size: 11px;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .dataCapsule {
@@ -6859,11 +7052,11 @@ $navy-blue: #2A7B9B;
 }
 
 .summaryCardTrend {
-  margin-top: 5px;
   font-size: 11px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .summaryCardTrendUp {
@@ -6939,8 +7132,11 @@ $navy-blue: #2A7B9B;
 }
 
 .requestEventsClearButton {
-  align-self: flex-end;
-  min-height: 40px;
+  align-self: center;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
 }
 
 .exportMenu {
@@ -7907,45 +8103,6 @@ $navy-blue: #2A7B9B;
   word-break: break-word;
 }
 
-.metricCard {
-  grid-column: span 4 !important;
-  min-width: 0;
-  min-height: 164px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(120% 120% at 0% 0%, rgba(88, 166, 255, 0.08) 0%, transparent 56%),
-    rgba(22, 27, 34, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.28),
-    var(--inner-glow);
-  overflow: hidden;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: rgba(88, 166, 255, 0.3);
-    box-shadow:
-      0 12px 32px rgba(0, 0, 0, 0.35),
-      var(--inner-glow-strong),
-      0 0 20px rgba(88, 166, 255, 0.1);
-    transform: translateY(-2px);
-  }
-}
-
-.statsGrid > .metricCard {
-  grid-column: span 4 !important;
-  background:
-    radial-gradient(120% 120% at 0% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 56%),
-    var(--bg-primary) !important;
-}
-
 .metricCardHeader {
   display: flex;
   align-items: center;
@@ -7974,6 +8131,7 @@ $navy-blue: #2A7B9B;
 
 .metricCardBody {
   min-width: 0;
+  display: contents;
 }
 
 .metricUnit {
@@ -8017,17 +8175,6 @@ $navy-blue: #2A7B9B;
   align-items: stretch !important;
 }
 
-:global([data-theme='white']) .metricCard,
-:global([data-theme='light']) .metricCard,
-:root:not([data-theme]) .metricCard {
-  grid-column: auto !important;
-  min-width: 0 !important;
-  min-height: 164px !important;
-  background: #ffffff !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
-}
-
 :global([data-theme='white']) .statsGrid > .metricCard,
 :global([data-theme='light']) .statsGrid > .metricCard,
 :root:not([data-theme]) .statsGrid > .metricCard {
@@ -8035,34 +8182,9 @@ $navy-blue: #2A7B9B;
   background: #ffffff !important;
 }
 
-:global([data-theme='white']) .metricCardTitle,
-:global([data-theme='light']) .metricCardTitle,
-:root:not([data-theme]) .metricCardTitle {
-  color: #6b7280 !important;
-}
 
-:global([data-theme='white']) .metricCardIcon,
-:global([data-theme='light']) .metricCardIcon,
-:root:not([data-theme]) .metricCardIcon {
-  background: rgba(99, 102, 241, 0.1) !important;
-  color: #6366f1 !important;
-}
 
-:global([data-theme='white']) .metricMainValue,
-:global([data-theme='light']) .metricMainValue,
-:root:not([data-theme]) .metricMainValue {
-  max-width: 100%;
-  overflow: visible;
-  color: #111827 !important;
-  font-size: clamp(28px, 3vw, 38px);
-  text-shadow: none !important;
-}
 
-:global([data-theme='white']) .metricCostValue,
-:global([data-theme='light']) .metricCostValue,
-:root:not([data-theme]) .metricCostValue {
-  color: #047857 !important;
-}
 
 :global([data-theme='white']) .chartLineDock,
 :global([data-theme='light']) .chartLineDock,
@@ -8108,17 +8230,6 @@ $navy-blue: #2A7B9B;
   align-items: stretch !important;
 }
 
-.statsGrid > .metricCard {
-  grid-column: auto !important;
-  min-width: 0 !important;
-  min-height: 120px !important;
-  padding: 18px 20px !important;
-}
-
-.metricCard {
-  min-height: 120px !important;
-}
-
 .metricMainValue {
   max-width: 100%;
   overflow: visible;
@@ -8150,17 +8261,6 @@ $navy-blue: #2A7B9B;
   display: grid !important;
   grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   gap: 18px !important;
-}
-
-:global([data-theme='white']) .statsGrid > .metricCard,
-:global([data-theme='light']) .statsGrid > .metricCard,
-:root:not([data-theme]) .statsGrid > .metricCard {
-  grid-column: auto !important;
-  min-width: 0 !important;
-  min-height: 120px !important;
-  background: #ffffff !important;
-  border: 1px solid rgba(0, 0, 0, 0.05) !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
 }
 
 :global([data-theme='white']) .metricSubLine,
@@ -8333,4 +8433,304 @@ $navy-blue: #2A7B9B;
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+
+// ============================================
+// Unified metric-card system (FINAL OVERRIDES)
+// Two tiers are supported, applied via the card variant:
+//   .metricCardToday    — first row: live signal (today's window). Bright text,
+//                         3px accent-coloured left border, soft horizontal glow.
+//   .metricCardLifetime — second row: cumulative baseline. Lower-emphasis text,
+//                         dimmer border, no left accent — reads as "background".
+// The icon area becomes background-less; the per-card accent colour is applied
+// to the underlying SVG only via `currentColor`. Cards stay on the same
+// dark surface colour as the rest of the dashboard so the page reads as one
+// cohesive dark console rather than a row of neon tiles.
+// ============================================
+
+.statsGrid {
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metricCard {
+  min-width: 0;
+  height: 60px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #151922;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.18s ease;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  // Accent variants — chosen per-card by the component via inline style.
+  &[data-accent='requests'] {
+    border-left: 3px solid #38bdf8;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, #151922 38%);
+  }
+  &[data-accent='tokens'] {
+    border-left: 3px solid #a78bfa;
+    background: linear-gradient(90deg, rgba(167, 139, 250, 0.08) 0%, #151922 38%);
+  }
+  &[data-accent='cost'] {
+    border-left: 3px solid #34d399;
+    background: linear-gradient(90deg, rgba(52, 211, 153, 0.08) 0%, #151922 38%);
+  }
+
+  // Today row uses brighter main-value text and a slightly lifted bg so the
+  // first row reads as the primary signal.
+  &.metricCardToday {
+    .metricMainValue {
+      color: #f8fafc;
+      font-weight: 700;
+    }
+  }
+
+  // Lifetime (cumulative) tier — same shell, quieter content.
+  &.metricCardLifetime {
+    border-left-color: transparent;
+    border-color: rgba(255, 255, 255, 0.05);
+    background: #11151c;
+
+    .metricCardTitle {
+      color: var(--text-tertiary);
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    .metricMainValue {
+      color: #cbd5e1;
+      font-weight: 600;
+    }
+    .metricCardIcon {
+      color: var(--text-tertiary);
+      opacity: 0.75;
+    }
+  }
+}
+
+.metricCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+// Background-less icon: the colour comes from `currentColor` which is set by
+// the card variant. We removed the solid coloured square — the icon now sits
+// directly on the card surface with an 85% opacity for a calmer look.
+.metricCardIcon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.9;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.metricCardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.metricCardBody {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.metricSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.metricMainValue {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metricSubLine {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricCostValue {
+  // The main value itself already shows in emerald via .metricCard[data-accent='cost'].
+  // Keep the secondary tone consistent with the rest of the row.
+  color: inherit;
+}
+
+// Suppress the rich second-tier elements that don't fit the 60px row anymore.
+// StatCards' previous rich variants (subDetails, mini progress, tokenRatioTrack)
+// are kept in the markup for accessibility/title but visually hidden in compact
+// mode. We keep the elements rendered so users can still see the precise counts
+// via the title-attribute tooltip.
+.metricSubDetails,
+.metricMiniProgress,
+.tokenRatioTrack {
+  display: none;
+}
+
+// Hide summaryCard / summaryCards entirely — they have been migrated to metricCard.
+// This avoids duplicate renders if anything still references them.
+.summaryCards,
+.summaryCard,
+.summaryCardIcon,
+.summaryCardContent,
+.summaryCardLabel,
+.summaryCardValue,
+.summaryCardNumber,
+.summaryCardUnit,
+.summaryCardTrend,
+.summaryCardTrendUp,
+.summaryCardTrendDown,
+.summaryCardTrendFlat {
+  display: none;
+}
+
+
+// Force metric card chrome on every theme. The dark console look the user is
+// asking for should survive even when the rest of the app is in light mode.
+// Use a scoped selector that matches the specificity of the white-theme
+// overrides (.container .statsGrid > .metricCard = 0,3,0).
+.container .statsGrid > .metricCard {
+  background: #151922 !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  color: #f8fafc;
+
+  &[data-accent='requests'] {
+    border-left: 3px solid #38bdf8 !important;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.10) 0%, #151922 38%) !important;
+  }
+  &[data-accent='tokens'] {
+    border-left: 3px solid #a78bfa !important;
+    background: linear-gradient(90deg, rgba(167, 139, 250, 0.10) 0%, #151922 38%) !important;
+  }
+  &[data-accent='cost'] {
+    border-left: 3px solid #34d399 !important;
+    background: linear-gradient(90deg, rgba(52, 211, 153, 0.10) 0%, #151922 38%) !important;
+  }
+}
+
+.container .statsGrid > .metricCard .metricCardTitle {
+  color: #cbd5e1;
+}
+
+.container .statsGrid > .metricCard .metricMainValue {
+  color: #f8fafc !important;
+}
+
+// Background-less icon square. The colour is set inline by the component via
+// style={{ color: card.accent }}; we just ensure there's no background pill.
+.container .statsGrid > .metricCard .metricCardIcon {
+  background: transparent !important;
+}
+
+// Lifetime tier — same shell, quieter content.
+.container .statsGrid > .metricCard.metricCardLifetime {
+  border-left: 3px solid transparent !important;
+  background: #11151c !important;
+  border-color: rgba(255, 255, 255, 0.05) !important;
+
+  .metricMainValue {
+    color: #cbd5e1 !important;
+    font-weight: 600 !important;
+  }
+
+  .metricCardTitle {
+    color: var(--text-tertiary, #64748b);
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+}
+
+// -------------------------------------------------------------------------
+// Per-accent text/icon colours (FINAL OVERRIDES)
+// The container's white-theme override sets `color: var(--text-primary)` on
+// every descendant via `[data-theme=white] .container *:not(...):not(...)`
+// with !important. To win the cascade we MUST match or beat that specificity
+// AND keep !important. The selector below uses three classes plus the
+// [data-accent=...] attribute selector, giving specificity (0,4,0) and
+// `!important` so it always wins. We deliberately do NOT rely on inline
+// style — the icon span is now driven by data-accent and SCSS owns the
+// colour, which is immune to the `*` override.
+// -------------------------------------------------------------------------
+
+// Today row (metricCardToday): icon = accent colour, title = bright slate,
+// value = high-contrast white.
+.container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricCardIcon {
+  color: #38bdf8 !important;
+}
+.container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricCardIcon {
+  color: #a78bfa !important;
+}
+.container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricCardIcon {
+  color: #34d399 !important;
+}
+
+.container .statsGrid > .metricCard.metricCardToday .metricCardTitle {
+  color: #cbd5e1 !important;
+}
+.container .statsGrid > .metricCard.metricCardToday .metricMainValue {
+  color: #f8fafc !important;
+}
+
+// Lifetime row (metricCardLifetime): icon = muted slate (so the accent
+// remains reserved for the today row), title = dim, value = softer white.
+.container .statsGrid > .metricCard.metricCardLifetime .metricCardIcon {
+  color: #94a3b8 !important;
+  opacity: 0.85;
+}
+.container .statsGrid > .metricCard.metricCardLifetime .metricCardTitle {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+.container .statsGrid > .metricCard.metricCardLifetime .metricMainValue {
+  color: #cbd5e1 !important;
+  font-weight: 600 !important;
 }
