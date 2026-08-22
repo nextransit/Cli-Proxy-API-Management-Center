@@ -8701,27 +8701,96 @@ $navy-blue: #2A7B9B;
 // colour, which is immune to the `*` override.
 // -------------------------------------------------------------------------
 
-// Today row (metricCardToday): icon = accent colour, title = bright slate,
-// value = high-contrast white.
-.container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricCardIcon {
+// -------------------------------------------------------------------------
+// Per-accent text/icon/value colours — FINAL OVERRIDES
+// Two themes:
+//   * Dark (`html[data-theme="dark"]` or unset dark surface) — high-contrast
+//     white value, micro-glow on the left border.
+//   * Light (`html[data-theme="white"]` / "light" / unset default) — white
+//     card surface, darker text, softer gradient.
+//
+// Numbers get a per-accent tint in both themes:
+//   requests -> sky, tokens -> indigo/violet, cost -> emerald.
+// Lifetime tier reuses the same accents but at lower contrast (muted
+// slate for icon, deeper neutral for value) so the today row keeps the
+// accent as the primary signal.
+// -------------------------------------------------------------------------
+
+// ---------- Today row, dark theme -----------------------------------------
+.container .statsGrid > .metricCard.metricCardToday[data-theme-mode='dark'][data-accent='requests'] .metricCardIcon,
+:global([data-theme='dark']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricCardIcon,
+.container .statsGrid > .metricCard.metricCardToday[data-accent='requests']:not([data-theme-mode='light']) .metricCardIcon {
   color: #38bdf8 !important;
 }
-.container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricCardIcon {
+.container .statsGrid > .metricCard.metricCardToday[data-accent='tokens']:not([data-theme-mode='light']) .metricCardIcon {
   color: #a78bfa !important;
 }
-.container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricCardIcon {
+.container .statsGrid > .metricCard.metricCardToday[data-accent='cost']:not([data-theme-mode='light']) .metricCardIcon {
   color: #34d399 !important;
 }
 
 .container .statsGrid > .metricCard.metricCardToday .metricCardTitle {
   color: #cbd5e1 !important;
 }
-.container .statsGrid > .metricCard.metricCardToday .metricMainValue {
-  color: #f8fafc !important;
+.container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue {
+  color: #38bdf8 !important;
+}
+.container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue {
+  color: #a78bfa !important;
+}
+.container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue {
+  color: #34d399 !important;
 }
 
-// Lifetime row (metricCardLifetime): icon = muted slate (so the accent
-// remains reserved for the today row), title = dim, value = softer white.
+// ---------- Today row, light theme ----------------------------------------
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'],
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'],
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] {
+  border-left: 3px solid #0ea5e9 !important;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.10) 0%, #ffffff 38%) !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'],
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'],
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] {
+  border-left: 3px solid #7c3aed !important;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.08) 0%, #ffffff 38%) !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'],
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'],
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] {
+  border-left: 3px solid #059669 !important;
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.10) 0%, #ffffff 38%) !important;
+}
+
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday .metricCardTitle,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday .metricCardTitle,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday .metricCardTitle {
+  color: #475569 !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue {
+  color: #0369a1 !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue {
+  color: #6d28d9 !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue {
+  color: #047857 !important;
+}
+
+// ---------- Lifetime row, dark theme --------------------------------------
 .container .statsGrid > .metricCard.metricCardLifetime .metricCardIcon {
   color: #94a3b8 !important;
   opacity: 0.85;
@@ -8730,7 +8799,73 @@ $navy-blue: #2A7B9B;
   color: #64748b !important;
   font-weight: 500 !important;
 }
-.container .statsGrid > .metricCard.metricCardLifetime .metricMainValue {
-  color: #cbd5e1 !important;
+.container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue {
+  color: #7dd3fc !important;
+  font-weight: 600 !important;
+}
+.container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue {
+  color: #c4b5fd !important;
+  font-weight: 600 !important;
+}
+.container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue {
+  color: #6ee7b7 !important;
+  font-weight: 600 !important;
+}
+
+// ---------- Lifetime row, light theme -------------------------------------
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'],
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'],
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] {
+  border-left: 3px solid #0ea5e9 !important;
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.06) 0%, #f8fafc 38%) !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'],
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'],
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] {
+  border-left: 3px solid #7c3aed !important;
+  background: linear-gradient(90deg, rgba(124, 58, 237, 0.05) 0%, #f8fafc 38%) !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'],
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'],
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] {
+  border-left: 3px solid #059669 !important;
+  background: linear-gradient(90deg, rgba(5, 150, 105, 0.06) 0%, #f8fafc 38%) !important;
+}
+
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime .metricCardTitle,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime .metricCardTitle,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime .metricCardTitle {
+  color: #64748b !important;
+  font-weight: 500 !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime .metricCardIcon,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime .metricCardIcon,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime .metricCardIcon {
+  color: #475569 !important;
+  opacity: 0.85;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue {
+  color: #0369a1 !important;
+  font-weight: 600 !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue {
+  color: #6d28d9 !important;
+  font-weight: 600 !important;
+}
+:global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue,
+:global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue,
+:root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue {
+  color: #047857 !important;
   font-weight: 600 !important;
 }
