@@ -6,6 +6,7 @@ import { modelPricesApi } from '@/services/api/modelPrices';
 import { downloadBlob } from '@/utils/download';
 import { loadModelPrices, saveModelPrices, type ModelPrice } from '@/utils/usage';
 import { useUsageLiveRefresh } from './useUsageLiveRefresh';
+import type { UsageEventDetail } from '@/stores/useUsageStatsStore';
 
 export interface UsagePayload {
   total_requests?: number;
@@ -21,6 +22,7 @@ export interface UseUsageDataReturn {
   loading: boolean;
   error: string;
   lastRefreshedAt: Date | null;
+  recentDetails: UsageEventDetail[];
   modelPrices: Record<string, ModelPrice>;
   setModelPrices: (prices: Record<string, ModelPrice>) => void;
   loadUsage: () => Promise<void>;
@@ -39,6 +41,7 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
   const loading = useUsageStatsStore((state) => state.loading);
   const storeError = useUsageStatsStore((state) => state.error);
   const lastRefreshedAtTs = useUsageStatsStore((state) => state.lastRefreshedAt);
+  const recentDetails = useUsageStatsStore((state) => state.recentDetails);
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
 
   const [modelPrices, setModelPrices] = useState<Record<string, ModelPrice>>({});
@@ -178,6 +181,7 @@ export function useUsageData(timeRange = 'all'): UseUsageDataReturn {
     loading,
     error,
     lastRefreshedAt,
+    recentDetails,
     modelPrices,
     setModelPrices: handleSetModelPrices,
     loadUsage,

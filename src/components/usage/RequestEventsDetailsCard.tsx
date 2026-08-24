@@ -18,6 +18,7 @@ import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, ProviderKeyConfig, OpenAIProviderConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
+import type { UsageEventDetail } from '@/stores/useUsageStatsStore';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
 import { parseTimestampMs } from '@/utils/timestamp';
 import {
@@ -27,6 +28,7 @@ import {
   formatDurationMs,
   LATENCY_SOURCE_FIELD,
   normalizeAuthIndex,
+  type UsageDetailWithEndpoint,
   type UsageModelInfo,
   type UsageRequestInfo,
   type UsageThinking,
@@ -163,6 +165,7 @@ type RequestEventRow = {
 
 export interface RequestEventsDetailsCardProps {
   usage: unknown;
+  recentDetails?: UsageEventDetail[];
   loading: boolean;
   geminiKeys: GeminiKeyConfig[];
   claudeConfigs: ProviderKeyConfig[];
@@ -266,6 +269,7 @@ const encodeCsv = (value: string | number): string => {
 
 export function RequestEventsDetailsCard({
   usage,
+  recentDetails = [],
   loading,
   geminiKeys,
   claudeConfigs,
@@ -406,7 +410,38 @@ export function RequestEventsDetailsCard({
   );
 
   const rows = useMemo<RequestEventRow[]>(() => {
-    const details = collectUsageDetailsWithEndpoint(usage);
+    const liveDetails: UsageDetailWithEndpoint[] = recentDetails.map((event) => {
+      const timestamp = event.requested_at || '';
+      const timestampMs = parseTimestampMs(timestamp);
+      return {
+        event_id: event.id,
+        timestamp,
+        source: event.source || '',
+        auth_index: event.auth_index ?? null,
+        request_id: event.request_id,
+        latency_ms: event.duration_ms,
+        tokens: {
+          input_tokens: event.tokens?.input ?? 0,
+          output_tokens: event.tokens?.output ?? 0,
+          reasoning_tokens: event.tokens?.reasoning ?? 0,
+          cached_tokens: event.tokens?.cached ?? 0,
+          total_tokens: event.tokens?.total ?? 0,
+        },
+        thinking: event.thinking ?? null,
+        status_code: event.status_code,
+        failed: event.failed === true,
+        __modelName: event.model || 'unknown',
+        __endpoint: event.api_key || '',
+        __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
+      };
+    });
+    const seenEventIds = new Set<number>();
+    const details = [...liveDetails, ...collectUsageDetailsWithEndpoint(usage)].filter((detail) => {
+      if (typeof detail.event_id !== 'number' || detail.event_id <= 0) return true;
+      if (seenEventIds.has(detail.event_id)) return false;
+      seenEventIds.add(detail.event_id);
+      return true;
+    });
 
     const baseRows = details.map((detail, index) => {
       const timestamp = detail.timestamp;
@@ -453,7 +488,10 @@ export function RequestEventsDetailsCard({
         '-';
 
       return {
-        id: `${timestamp}-${model}-${sourceKey}-${authIndex}-${index}`,
+        id:
+          typeof detail.event_id === 'number' && detail.event_id > 0
+            ? `event-${detail.event_id}`
+            : `${timestamp}-${model}-${sourceKey}-${authIndex}-${index}`,
         timestamp,
         timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
         timestampLabel: formatEventTimestamp(date, timestamp),
@@ -517,7 +555,7 @@ export function RequestEventsDetailsCard({
         source: buildDisambiguatedSourceLabel(row),
       }))
       .sort((a, b) => b.timestampMs - a.timestampMs);
-  }, [authFileMap, sourceInfoMap, usage]);
+  }, [authFileMap, recentDetails, sourceInfoMap, usage]);
 
   const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
 

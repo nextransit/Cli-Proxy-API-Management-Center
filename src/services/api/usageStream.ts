@@ -25,6 +25,7 @@ export type StreamStatus = 'connecting' | 'open' | 'closed' | 'error';
 
 export interface UsageStreamHandle {
   status: () => StreamStatus;
+  restart: () => void;
   close: () => void;
 }
 
@@ -55,17 +56,19 @@ export function subscribeUsageStream(
   let attempt = 0;
   let closed = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let activeController: AbortController | null = null;
+  let connectionGeneration = 0;
 
   const setStatus = (next: StreamStatus) => {
     status = next;
     opts.onStatusChange?.(next);
   };
 
-  const scheduleReconnect = () => {
-    if (closed) return;
+  const scheduleReconnect = (generation: number) => {
+    if (closed || generation !== connectionGeneration) return;
     const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
     attempt++;
-    reconnectTimer = setTimeout(connect, delay);
+    reconnectTimer = setTimeout(() => connect(), delay);
   };
 
   const parseBlock = (block: string) => {
@@ -95,6 +98,9 @@ export function subscribeUsageStream(
 
   const connect = () => {
     if (closed) return;
+    const generation = ++connectionGeneration;
+    const controller = new AbortController();
+    activeController = controller;
     setStatus('connecting');
 
     const headers: Record<string, string> = { Accept: 'text/event-stream' };
@@ -107,11 +113,13 @@ export function subscribeUsageStream(
       method: 'GET',
       headers,
       credentials: 'same-origin',
+      signal: controller.signal,
     })
       .then(async (response) => {
+        if (closed || generation !== connectionGeneration) return;
         if (!response.ok || !response.body) {
           setStatus('error');
-          scheduleReconnect();
+          scheduleReconnect(generation);
           return;
         }
         setStatus('open');
@@ -125,6 +133,7 @@ export function subscribeUsageStream(
           while (!closed) {
             const { done, value } = await reader.read();
             if (done) break;
+            if (generation !== connectionGeneration) return;
             buffer += decoder.decode(value, { stream: true });
             let sep: number;
             while ((sep = buffer.indexOf('\n\n')) >= 0) {
@@ -137,11 +146,12 @@ export function subscribeUsageStream(
           /* network errors during read */
         }
 
-        if (!closed) scheduleReconnect();
+        if (!closed && generation === connectionGeneration) scheduleReconnect(generation);
       })
       .catch(() => {
+        if (closed || generation !== connectionGeneration) return;
         setStatus('error');
-        scheduleReconnect();
+        scheduleReconnect(generation);
       });
   };
 
@@ -149,9 +159,27 @@ export function subscribeUsageStream(
 
   return {
     status: () => status,
+    restart: () => {
+      if (closed) return;
+      connectionGeneration++;
+      activeController?.abort();
+      activeController = null;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      attempt = 0;
+      connect();
+    },
     close: () => {
       closed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
+      connectionGeneration++;
+      activeController?.abort();
+      activeController = null;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
       setStatus('closed');
     },
   };

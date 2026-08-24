@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RequestEventsDetailsCard } from './RequestEventsDetailsCard';
+import type { UsageEventDetail } from '@/stores/useUsageStatsStore';
 
 vi.mock('react-i18next', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-i18next')>();
@@ -53,9 +54,10 @@ const buildDetail = (timestamp: string, latencyMs: number) => ({
   },
 });
 
-const renderCard = (usage: unknown) => (
+const renderCard = (usage: unknown, recentDetails: UsageEventDetail[] = []) => (
   <RequestEventsDetailsCard
     usage={usage}
+    recentDetails={recentDetails}
     loading={false}
     geminiKeys={[]}
     claudeConfigs={[]}
@@ -90,6 +92,28 @@ describe('<RequestEventsDetailsCard /> live updates', () => {
 
     await waitFor(() => {
       expect(tableWrapper.scrollTop).toBe(0);
+    });
+  });
+
+  it('renders SSE events that are newer than the last full snapshot', async () => {
+    render(
+      renderCard(buildUsage([]), [
+        {
+          id: 42,
+          model: 'gpt-live',
+          source: 'codex',
+          auth_index: 'account-live',
+          requested_at: '2026-08-24T03:50:00Z',
+          status_code: 200,
+          failed: false,
+          tokens: { input: 10, output: 5, total: 15 },
+        },
+      ])
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('gpt-live')).toBeInTheDocument();
+      expect(screen.getByText('account-live')).toBeInTheDocument();
     });
   });
 });

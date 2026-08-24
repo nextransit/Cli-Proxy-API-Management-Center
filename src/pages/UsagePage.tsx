@@ -333,6 +333,7 @@ export function UsagePage() {
     loading,
     error,
     lastRefreshedAt,
+    recentDetails,
     modelPrices,
     setModelPrices,
     loadUsage,
@@ -1050,6 +1051,7 @@ export function UsagePage() {
       {renderHeavyUsageSections && (
         <RequestEventsDetailsCard
           usage={visibleScopedUsage}
+          recentDetails={recentDetails}
           loading={isInitialLoading}
           geminiKeys={config?.geminiApiKeys || []}
           claudeConfigs={config?.claudeApiKeys || []}

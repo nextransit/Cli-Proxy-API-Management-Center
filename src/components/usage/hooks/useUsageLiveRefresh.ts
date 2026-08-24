@@ -1,14 +1,9 @@
-import { useEffect } from 'react';
-
-const noop = () => {};
-// Module-level handle so the foreground visibilitychange/focus/pageshow
-// effect can start the 30s polling fallback that the SSE effect may have
-// stopped while the tab was hidden. Initialised lazily by the SSE effect.
-let moduleStartPolling: () => void = noop;
+import { useEffect, useRef } from 'react';
 import { subscribeUsageStream } from '@/services/api/usageStream';
 import { USAGE_STATS_STALE_TIME_MS, useUsageStatsStore } from '@/stores';
 import { useAuthStore } from '@/stores/useAuthStore';
 
+const noop = () => {};
 const USAGE_POLL_FALLBACK_MS = 30_000;
 const FOREGROUND_REFRESH_DEDUPE_MS = 250;
 const SILENT_REFRESH_DEBOUNCE_MS = 2_000;
@@ -28,12 +23,11 @@ const HEAVY_FULL_REFRESH_WINDOWS = ['all', '30d'];
 
 export function useUsageLiveRefresh(timeRange: string, enabled = true) {
   const loadUsageStats = useUsageStatsStore((state) => state.loadUsageStats);
+  const cancelUsageStatsLoad = useUsageStatsStore((state) => state.cancelUsageStatsLoad);
   const isHeavyWindow = HEAVY_FULL_REFRESH_WINDOWS.includes(timeRange);
+  const restartStreamRef = useRef<() => void>(noop);
 
-  // Tab visibility / focus: trigger a forced refetch on foreground.
-  // Also nudge the SSE effect to restart its 30s polling fallback, because
-  // browsers may have suspended the EventSource without firing any
-  // status change while the tab was hidden.
+  // Replace requests and streams that browsers may have suspended while hidden.
   useEffect(() => {
     if (!enabled) return;
     let lastForegroundRefreshAt = 0;
@@ -42,19 +36,17 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       const now = Date.now();
       if (now - lastForegroundRefreshAt < FOREGROUND_REFRESH_DEDUPE_MS) return;
       lastForegroundRefreshAt = now;
-      // Heavy windows ("all", "30d") skip the foreground refresh, but
-      // we still need to re-arm the 30s polling fallback that the SSE
-      // effect may have stopped while the tab was hidden — otherwise
-      // the page sits frozen until SSE itself errors.
-      if (!isHeavyWindow) {
-        void loadUsageStats({
-          force: true,
-          supersedeInFlight: true,
-          staleTimeMs: USAGE_STATS_STALE_TIME_MS,
-          timeRange,
-        }).catch(() => {});
+      restartStreamRef.current();
+      if (isHeavyWindow) {
+        cancelUsageStatsLoad();
+        return;
       }
-      moduleStartPolling();
+      void loadUsageStats({
+        force: true,
+        supersedeInFlight: true,
+        staleTimeMs: USAGE_STATS_STALE_TIME_MS,
+        timeRange,
+      }).catch(() => {});
     };
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) refreshOnForeground();
@@ -67,10 +59,9 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       window.removeEventListener('focus', refreshOnForeground);
       window.removeEventListener('pageshow', handlePageShow);
     };
-  }, [enabled, loadUsageStats, timeRange, isHeavyWindow]);
+  }, [cancelUsageStatsLoad, enabled, isHeavyWindow, loadUsageStats, timeRange]);
 
-  // SSE + 30s polling fallback (down from 1s to stop refresh storms while
-  // the SSE stream is reconnecting) + debounced silent background refresh.
+  // SSE + a 30s polling fallback while the stream is unavailable.
   useEffect(() => {
     if (!enabled) return;
     let pollingTimer: ReturnType<typeof setInterval> | null = null;
@@ -81,13 +72,8 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       typeof document === 'undefined' || document.visibilityState !== 'hidden';
 
     const refreshUsage = () => {
-      // The 30s polling fallback exists specifically so the page keeps
-      // refreshing even when SSE has gone quiet or been stopped. For
-      // heavy windows ("all", "30d") the SSE effect deliberately keeps
-      // polling running at all times, so refreshUsage must NOT skip
-      // heavy windows — otherwise the page freezes after every tab
-      // switch. We still skip while the document is hidden to avoid
-      // burning CPU while the tab is in the background.
+      // Poll only while SSE is unavailable. Heavy windows are included here
+      // so a real stream failure still has a recovery path.
       if (!isDocumentVisible()) return;
       void loadUsageStats({
         force: true,
@@ -153,24 +139,12 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
         triggerSilentRefresh();
       },
       onSummary: (s) => {
-        // Reconnect summary: server already replayed missed events.
-        // Just align the high-water-mark.
-        useUsageStatsStore.setState({ lastEventId: s.latest_event_id });
-        triggerSilentRefresh();
+        useUsageStatsStore.getState().applyStreamSummary(s);
       },
       onStatusChange: (status) => {
-        // SSE is the primary path while the tab is visible. While hidden
-        // the browser may suspend the EventSource; keep the 30s polling
-        // safety net armed so a foreground refresh always has a fallback.
-        // Heavy windows ("all", "30d") skip the foreground refresh, so SSE
-        // is the only live path there — keep polling running even when
-        // SSE is open so backgrounding the tab doesn't freeze the page.
-        if (status === 'open' && isDocumentVisible() && !isHeavyWindow) {
+        if (status === 'open') {
           stopPolling();
         } else if (status === 'error' || status === 'closed') {
-          startPolling();
-        } else if (status === 'open' && isHeavyWindow) {
-          // Defensive: ensure polling is alive for heavy windows.
           startPolling();
         }
       },
@@ -178,17 +152,13 @@ export function useUsageLiveRefresh(timeRange: string, enabled = true) {
       maxDelayMs: 30_000,
     });
 
-    // Publish the polling controls so the foreground effect can start
-    // them after a visibilitychange/focus/pageshow, even if the SSE
-    // effect itself has already stopped polling while the tab was
-    // hidden.
-    moduleStartPolling = startPolling;
+    restartStreamRef.current = streamHandle.restart;
 
     return () => {
       streamHandle.close();
       stopPolling();
       if (debounceTimer) clearTimeout(debounceTimer);
-      moduleStartPolling = noop;
+      restartStreamRef.current = noop;
     };
   }, [enabled, loadUsageStats, timeRange, isHeavyWindow]);
 }

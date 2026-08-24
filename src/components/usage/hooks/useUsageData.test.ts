@@ -5,16 +5,21 @@ import { useUsageData } from './useUsageData';
 
 const mocks = vi.hoisted(() => {
   const loadUsageStats = vi.fn(async () => {});
+  const cancelUsageStatsLoad = vi.fn();
   const setUsageState = vi.fn();
   const applyIncrementalEvent = vi.fn();
+  const applyStreamSummary = vi.fn();
   const usageStoreState = {
     usage: null,
     loading: false,
     error: null,
     lastRefreshedAt: null,
+    recentDetails: [],
     lastEventId: 0,
     loadUsageStats,
+    cancelUsageStatsLoad,
     applyIncrementalEvent,
+    applyStreamSummary,
   };
 
   const getState = () => usageStoreState;
@@ -25,10 +30,13 @@ const mocks = vi.hoisted(() => {
 
   return {
     loadUsageStats,
+    cancelUsageStatsLoad,
     setUsageState,
     applyIncrementalEvent,
+    applyStreamSummary,
     useUsageStatsStore,
     closeUsageStream: vi.fn(),
+    restartUsageStream: vi.fn(),
     getModelPrices: vi.fn(async () => ({ prices: {} })),
     usageStreamOptions: null as UsageStreamOptions | null,
   };
@@ -59,6 +67,7 @@ vi.mock('@/services/api/usageStream', () => ({
     mocks.usageStreamOptions = options;
     return {
       status: () => 'open',
+      restart: mocks.restartUsageStream,
       close: mocks.closeUsageStream,
     };
   },
@@ -120,6 +129,7 @@ describe('useUsageData page visibility refresh', () => {
         timeRange: '24h',
       });
     });
+    expect(mocks.restartUsageStream).toHaveBeenCalledOnce();
 
     unmount();
     expect(mocks.closeUsageStream).toHaveBeenCalledOnce();
@@ -218,21 +228,21 @@ describe('useUsageData page visibility refresh', () => {
     unmount();
   });
 
-  it('aligns lastEventId via SSE onSummary callback', async () => {
+  it('applies aggregate counters via SSE onSummary callback', async () => {
     const { unmount } = renderHook(() => useUsageData('7d'));
 
     await waitFor(() => {
       expect(mocks.usageStreamOptions).not.toBeNull();
     });
     mocks.loadUsageStats.mockClear();
-    mocks.setUsageState.mockClear();
+    mocks.applyStreamSummary.mockClear();
 
     const summary = { latest_event_id: 99, total_requests: 10, total_tokens: 500 };
     act(() => {
       mocks.usageStreamOptions?.onSummary?.(summary);
     });
 
-    expect(mocks.setUsageState).toHaveBeenCalledWith({ lastEventId: 99 });
+    expect(mocks.applyStreamSummary).toHaveBeenCalledWith(summary);
 
     unmount();
   });
@@ -266,13 +276,35 @@ describe('useUsageData page visibility refresh', () => {
     unmount();
     vi.useRealTimers();
   });
+
+  it('does not poll heavy full snapshots while the usage stream is open', async () => {
+    vi.useFakeTimers();
+    const { unmount } = renderHook(() => useUsageData('all'));
+
+    await vi.waitFor(() => {
+      expect(mocks.usageStreamOptions).not.toBeNull();
+    });
+    mocks.loadUsageStats.mockClear();
+
+    await act(async () => {
+      mocks.usageStreamOptions?.onStatusChange?.('open');
+      vi.advanceTimersByTime(60_000);
+      await Promise.resolve();
+    });
+
+    expect(mocks.loadUsageStats).not.toHaveBeenCalled();
+
+    unmount();
+    vi.useRealTimers();
+  });
 });
 
-it('does not refresh on visibility return for heavy windows, but still re-arms polling', async () => {
+it('cancels suspended full snapshots and restarts the stream for heavy windows', async () => {
   const { unmount } = renderHook(() => useUsageData('all'));
 
   await waitFor(() => expect(mocks.usageStreamOptions).not.toBeNull());
   mocks.loadUsageStats.mockClear();
+  mocks.cancelUsageStatsLoad.mockClear();
 
   act(() => {
     setVisibilityState('hidden');
@@ -282,8 +314,8 @@ it('does not refresh on visibility return for heavy windows, but still re-arms p
     window.dispatchEvent(new Event('focus'));
   });
 
-  // Heavy windows must NOT trigger a foreground loadUsageStats (that
-  // would re-serialise every retained RequestDetail).
+  expect(mocks.restartUsageStream).toHaveBeenCalledOnce();
+  expect(mocks.cancelUsageStatsLoad).toHaveBeenCalledOnce();
   expect(mocks.loadUsageStats).not.toHaveBeenCalled();
   unmount();
 });

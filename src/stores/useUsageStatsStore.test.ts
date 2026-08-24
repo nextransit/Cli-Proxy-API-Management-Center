@@ -133,6 +133,48 @@ describe('useUsageStatsStore foreground refresh', () => {
 
     expect(useUsageStatsStore.getState().usage).toEqual({ total_requests: 2 });
   });
+
+  it('preserves the SSE high-water mark when a full snapshot finishes', async () => {
+    mocks.getUsage.mockResolvedValueOnce({ total_requests: 1 });
+    const liveEvent = { id: 42, model: 'gpt-live' };
+    useUsageStatsStore.setState({
+      lastEventId: 42,
+      recentDetails: [liveEvent],
+    });
+
+    await useUsageStatsStore.getState().loadUsageStats({
+      force: true,
+      timeRange: 'all',
+    });
+
+    expect(useUsageStatsStore.getState().lastEventId).toBe(42);
+    expect(useUsageStatsStore.getState().recentDetails).toEqual([liveEvent]);
+  });
+
+  it('cancels a suspended request without surfacing an error', async () => {
+    const request = createDeferred<Record<string, unknown>>();
+    let requestSignal: AbortSignal | undefined;
+    mocks.getUsage.mockImplementationOnce((options: { signal?: AbortSignal }) => {
+      requestSignal = options.signal;
+      options.signal?.addEventListener('abort', () => {
+        request.reject(new Error('aborted'));
+      });
+      return request.promise;
+    });
+
+    const load = useUsageStatsStore.getState().loadUsageStats({
+      force: true,
+      timeRange: 'all',
+    });
+    useUsageStatsStore.getState().cancelUsageStatsLoad();
+
+    await expect(load).resolves.toBeUndefined();
+    expect(requestSignal?.aborted).toBe(true);
+    expect(useUsageStatsStore.getState()).toMatchObject({
+      loading: false,
+      error: null,
+    });
+  });
 });
 
 interface UsageEventDetail {
@@ -158,6 +200,7 @@ describe('applyIncrementalEvent', () => {
     const s = useUsageStatsStore.getState();
     expect(s.recentDetails[0]).toMatchObject({ id: 1, model: 'gpt-4o' });
     expect(s.lastEventId).toBe(1);
+    expect(s.lastRefreshedAt).not.toBeNull();
   });
 
   it('deduplicates by id', () => {
@@ -179,6 +222,90 @@ describe('applyIncrementalEvent', () => {
     expect(s.recentDetails).toHaveLength(200);
     expect(s.recentDetails[0].id).toBe(250);
     expect(s.recentDetails[199].id).toBe(51);
+  });
+});
+
+describe('applyStreamSummary', () => {
+  beforeEach(() => {
+    useUsageStatsStore.getState().clearUsageStats();
+  });
+
+  it('updates all-time totals and refresh timestamp without replacing details', () => {
+    const usage = {
+      total_requests: 10,
+      total_tokens: 100,
+      success_count: 9,
+      failure_count: 1,
+      apis: { key: { models: {} } },
+    };
+    useUsageStatsStore.setState({
+      usage,
+      scopeKey: 'http://127.0.0.1:8317::test-key::usage:all',
+    });
+
+    useUsageStatsStore.getState().applyStreamSummary({
+      total_requests: 12,
+      total_tokens: 130,
+      success_count: 10,
+      failure_count: 2,
+      latest_event_id: 77,
+    });
+
+    const state = useUsageStatsStore.getState();
+    expect(state.usage).toEqual({
+      ...usage,
+      total_requests: 12,
+      total_tokens: 130,
+      success_count: 10,
+      failure_count: 2,
+    });
+    expect(state.lastEventId).toBe(77);
+    expect(state.lastRefreshedAt).not.toBeNull();
+  });
+
+  it('hydrates an empty all-time snapshot from the stream summary', () => {
+    useUsageStatsStore.setState({
+      usage: null,
+      scopeKey: 'http://127.0.0.1:8317::test-key::usage:all',
+    });
+
+    useUsageStatsStore.getState().applyStreamSummary({
+      total_requests: 12,
+      total_tokens: 130,
+      success_count: 10,
+      failure_count: 2,
+      latest_event_id: 77,
+    });
+
+    expect(useUsageStatsStore.getState()).toMatchObject({
+      usage: {
+        total_requests: 12,
+        total_tokens: 130,
+        success_count: 10,
+        failure_count: 2,
+      },
+      lastEventId: 77,
+      error: null,
+    });
+    expect(useUsageStatsStore.getState().lastRefreshedAt).not.toBeNull();
+  });
+
+  it('does not apply lifetime totals to a bounded time range', () => {
+    const usage = { total_requests: 10, total_tokens: 100 };
+    useUsageStatsStore.setState({
+      usage,
+      scopeKey: 'http://127.0.0.1:8317::test-key::usage:24h',
+    });
+
+    useUsageStatsStore.getState().applyStreamSummary({
+      total_requests: 999,
+      total_tokens: 9999,
+      latest_event_id: 88,
+    });
+
+    const state = useUsageStatsStore.getState();
+    expect(state.usage).toBe(usage);
+    expect(state.lastEventId).toBe(88);
   });
 });
 

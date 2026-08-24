@@ -80,6 +80,7 @@ export interface ModelPrice {
 }
 
 export interface UsageDetail {
+  event_id?: number;
   timestamp: string;
   source: string;
   auth_index: string | number | null;
@@ -791,6 +792,7 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
         const tokensRaw = isRecord(detailRaw.tokens) ? detailRaw.tokens : {};
         const latencyMs = extractLatencyMs(detailRaw);
         details.push({
+          event_id: typeof detailRaw.event_id === 'number' ? detailRaw.event_id : undefined,
           timestamp,
           source: normalizeSource(detailRaw.source),
           auth_index: (detailRaw?.auth_index ??
@@ -888,6 +890,7 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
         const tokensRaw = isRecord(detailRaw.tokens) ? detailRaw.tokens : {};
         const latencyMs = extractLatencyMs(detailRaw);
         details.push({
+          event_id: typeof detailRaw.event_id === 'number' ? detailRaw.event_id : undefined,
           timestamp,
           source: normalizeSource(detailRaw.source),
           auth_index: (detailRaw?.auth_index ??

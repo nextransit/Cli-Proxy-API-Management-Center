@@ -202,4 +202,33 @@ describe('subscribeUsageStream', () => {
     handle.close();
     expect(statusChanges[statusChanges.length - 1]).toBe('closed');
   });
+
+  it('aborts the suspended stream and reconnects immediately on restart', async () => {
+    const signals: AbortSignal[] = [];
+    globalThis.fetch = vi.fn(async (_url, init) => {
+      const signal = init?.signal as AbortSignal;
+      signals.push(signal);
+      return await new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+      });
+    }) as unknown as typeof fetch;
+
+    const handle = subscribeUsageStream({
+      getManagementKey: () => 'k',
+      baseDelayMs: 100,
+      maxDelayMs: 1000,
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+    handle.restart();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(signals[0].aborted).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+    handle.close();
+    expect(signals[1].aborted).toBe(true);
+  });
 });

@@ -12,12 +12,30 @@ export interface UsageEventDetail {
   id: number;
   api_key?: string;
   model?: string;
+  source?: string;
+  auth_index?: string;
+  request_id?: string;
   failed?: boolean;
-  tokens?: { input: number; output: number; total: number };
+  tokens?: {
+    input: number;
+    output: number;
+    reasoning?: number;
+    cached?: number;
+    total: number;
+  };
   requested_at?: string;
   duration_ms?: number;
   status_code?: number;
+  thinking?: UsageDetail['thinking'];
   [key: string]: unknown;
+}
+
+export interface UsageStreamSummary {
+  total_requests?: number;
+  total_tokens?: number;
+  success_count?: number;
+  failure_count?: number;
+  latest_event_id: number;
 }
 
 export type LoadUsageStatsOptions = {
@@ -41,8 +59,10 @@ type UsageStatsState = {
   lastRefreshedAt: number | null;
   scopeKey: string;
   loadUsageStats: (options?: LoadUsageStatsOptions) => Promise<void>;
+  cancelUsageStatsLoad: () => void;
   clearUsageStats: () => void;
   applyIncrementalEvent: (detail: UsageEventDetail) => void;
+  applyStreamSummary: (summary: UsageStreamSummary) => void;
   applyBulkEvents: (events: UsageEventDetail[]) => void;
   resetRecent: () => void;
 };
@@ -151,8 +171,6 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
           scopeKey,
         };
         if (!silent) {
-          update.recentDetails = [];
-          update.lastEventId = 0;
           update.loading = false;
         }
         set(update as UsageStatsState);
@@ -179,12 +197,46 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
     await requestPromise;
   },
 
+  cancelUsageStatsLoad: () => {
+    invalidateInFlightUsageRequest();
+    set({ loading: false, error: null });
+  },
+
   applyIncrementalEvent: (detail: UsageEventDetail) => {
     const { recentDetails, lastEventId } = get();
     if (detail.id <= lastEventId) return;
     const next = [detail, ...recentDetails];
     if (next.length > MAX_RECENT_DETAILS) next.length = MAX_RECENT_DETAILS;
-    set({ recentDetails: next, lastEventId: detail.id });
+    set({ recentDetails: next, lastEventId: detail.id, lastRefreshedAt: Date.now(), error: null });
+  },
+
+  applyStreamSummary: (summary: UsageStreamSummary) => {
+    const state = get();
+    const update: Partial<UsageStatsState> = {
+      lastEventId: Math.max(state.lastEventId, summary.latest_event_id),
+      error: null,
+    };
+
+    if (state.scopeKey.endsWith(':usage:all')) {
+      update.usage = {
+        ...(state.usage ?? {}),
+        ...(typeof summary.total_requests === 'number'
+          ? { total_requests: summary.total_requests }
+          : {}),
+        ...(typeof summary.total_tokens === 'number'
+          ? { total_tokens: summary.total_tokens }
+          : {}),
+        ...(typeof summary.success_count === 'number'
+          ? { success_count: summary.success_count }
+          : {}),
+        ...(typeof summary.failure_count === 'number'
+          ? { failure_count: summary.failure_count }
+          : {}),
+      };
+      update.lastRefreshedAt = Date.now();
+    }
+
+    set(update as UsageStatsState);
   },
 
   applyBulkEvents: (events: UsageEventDetail[]) => {
@@ -206,6 +258,8 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
       usage: null,
       keyStats: createEmptyKeyStats(),
       usageDetails: [],
+      recentDetails: [],
+      lastEventId: 0,
       loading: false,
       error: null,
       lastRefreshedAt: null,
