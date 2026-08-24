@@ -9,7 +9,7 @@ import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useGranularity } from '@/hooks/useGranularity';
 import { apiKeysApi, providersApi, type APIKeyEntry } from '@/services/api';
 import { useThemeStore, useConfigStore } from '@/stores';
-import type { OpenAIProviderConfig } from '@/types';
+import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import {
   SummaryCards,
   StatCards,
@@ -17,11 +17,11 @@ import {
   PriceSettingsCard,
   CredentialStatsCard,
   RequestEventsDetailsCard,
-  ServiceHealthCard,
   ModelTokenDoughnut,
   TrendTabsCard,
   useUsageData,
 } from '@/components/usage';
+import { useServerHealth } from '@/hooks/useServerHealth';
 import {
   calculateCost,
   getModelStats,
@@ -306,10 +306,17 @@ export function UsagePage() {
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
   const isDark = resolvedTheme === 'dark';
   const config = useConfigStore((state) => state.config);
+  const geminiApiKeysConfig = config?.geminiApiKeys;
+  const claudeApiKeysConfig = config?.claudeApiKeys;
+  const codexApiKeysConfig = config?.codexApiKeys;
+  const vertexApiKeysConfig = config?.vertexApiKeys;
   const openaiCompatibilityConfig = config?.openaiCompatibility;
-  const [openaiProvidersWithAuthIndex, setOpenaiProvidersWithAuthIndex] = useState<{
-    source: OpenAIProviderConfig[] | undefined;
-    providers: OpenAIProviderConfig[];
+  const [providerConfigsWithAuthIndex, setProviderConfigsWithAuthIndex] = useState<{
+    gemini: GeminiKeyConfig[];
+    claude: ProviderKeyConfig[];
+    codex: ProviderKeyConfig[];
+    vertex: ProviderKeyConfig[];
+    openai: OpenAIProviderConfig[];
   } | null>(null);
   const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -344,6 +351,14 @@ export function UsagePage() {
     exporting,
     importing,
   } = useUsageData(timeRange);
+
+  const serverHealth = useServerHealth();
+  // Inline success / failure counters derived from the usage payload so the
+  // header bar can mirror the previously standalone ServiceHealthCard.
+  const successRequestsInline = Number(usage?.success_count ?? 0);
+  const failureRequestsInline = Number(usage?.failure_count ?? 0);
+  const serverHealthInlineLatency = serverHealth.latencyMs;
+  const serverHealthInlineState = serverHealth.state;
   const isInitialLoading = loading && !usage;
   const isRefreshing = loading && Boolean(usage);
   const [showRefreshFeedback, setShowRefreshFeedback] = useState(false);
@@ -367,29 +382,41 @@ export function UsagePage() {
 
   useEffect(() => {
     let cancelled = false;
-    const source = openaiCompatibilityConfig;
 
-    providersApi
-      .getOpenAIProviders()
-      .then((providers) => {
+    Promise.allSettled([
+      providersApi.getGeminiKeys(),
+      providersApi.getClaudeConfigs(),
+      providersApi.getCodexConfigs(),
+      providersApi.getVertexConfigs(),
+      providersApi.getOpenAIProviders(),
+    ]).then(([gemini, claude, codex, vertex, openai]) => {
         if (cancelled) return;
-        setOpenaiProvidersWithAuthIndex({ source, providers: providers || [] });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setOpenaiProvidersWithAuthIndex(null);
+        setProviderConfigsWithAuthIndex({
+          gemini: gemini.status === 'fulfilled' ? gemini.value : (geminiApiKeysConfig ?? []),
+          claude: claude.status === 'fulfilled' ? claude.value : (claudeApiKeysConfig ?? []),
+          codex: codex.status === 'fulfilled' ? codex.value : (codexApiKeysConfig ?? []),
+          vertex: vertex.status === 'fulfilled' ? vertex.value : (vertexApiKeysConfig ?? []),
+          openai: openai.status === 'fulfilled' ? openai.value : (openaiCompatibilityConfig ?? []),
+        });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [openaiCompatibilityConfig]);
+  }, [
+    claudeApiKeysConfig,
+    codexApiKeysConfig,
+    geminiApiKeysConfig,
+    openaiCompatibilityConfig,
+    vertexApiKeysConfig,
+  ]);
 
-  const openaiProviderState = openaiProvidersWithAuthIndex;
+  const geminiKeysForUsage = providerConfigsWithAuthIndex?.gemini ?? geminiApiKeysConfig ?? [];
+  const claudeConfigsForUsage = providerConfigsWithAuthIndex?.claude ?? claudeApiKeysConfig ?? [];
+  const codexConfigsForUsage = providerConfigsWithAuthIndex?.codex ?? codexApiKeysConfig ?? [];
+  const vertexConfigsForUsage = providerConfigsWithAuthIndex?.vertex ?? vertexApiKeysConfig ?? [];
   const openaiProvidersForUsage =
-    openaiProviderState && openaiProviderState.source === openaiCompatibilityConfig
-      ? openaiProviderState.providers
-      : (openaiCompatibilityConfig ?? []);
+    providerConfigsWithAuthIndex?.openai ?? openaiCompatibilityConfig ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -724,10 +751,6 @@ export function UsagePage() {
     return modelNames.includes(detailModelFilter) ? detailModelFilter : REQUEST_EVENTS_ALL_FILTER;
   }, [detailModelFilter, modelNames]);
 
-  const topCredentialRows = useMemo(
-    () => credentialRows.filter((row) => row.requests > 0).slice(0, 3),
-    [credentialRows]
-  );
   const handleDetailModelFilterChange = useCallback((value: string) => {
     setDetailModelFilter(value);
     if (value !== REQUEST_EVENTS_ALL_FILTER) {
@@ -771,78 +794,51 @@ export function UsagePage() {
         </div>
       )}
 
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('usage_stats.title')}</h1>
-        <div className={styles.headerActions}>
-          <div className={styles.timeRangeGroup}>
-            <span className={styles.timeRangeLabel}>{t('usage_stats.range_filter')}</span>
-            <Select
-              value={timeRange}
-              options={timeRangeOptions}
-              onChange={(value) => setTimeRange(value as UsageTimeRange)}
-              className={styles.timeRangeSelectControl}
-              ariaLabel={t('usage_stats.range_filter')}
-              fullWidth={false}
-            />
-          </div>
-          <div className={styles.timeRangeGroup}>
-            <span className={styles.timeRangeLabel}>{t('usage_stats.credential_filter')}</span>
-            <Select
-              value={effectiveCredentialFilter}
-              options={credentialFilterOptions}
-              onChange={(value) => setCredentialFilter(value)}
-              className={styles.credentialFilterSelectControl}
-              ariaLabel={t('usage_stats.credential_filter')}
-              fullWidth={false}
-            />
-          </div>
-          {topCredentialRows.length > 0 && (
-            <div
-              className={styles.topKeyQuickGroup}
-              aria-label={t('usage_stats.top_key_quick_filter')}
-            >
-              <span className={styles.topKeyQuickLabel}>{t('usage_stats.top_key')}</span>
-              {topCredentialRows.map((row) => (
-                <button
-                  key={row.value}
-                  type="button"
-                  className={
-                    effectiveCredentialFilter === row.value
-                      ? styles.topKeyQuickButtonActive
-                      : styles.topKeyQuickButton
-                  }
-                  aria-pressed={effectiveCredentialFilter === row.value}
-                  onClick={() =>
-                    setCredentialFilter(
-                      effectiveCredentialFilter === row.value ? ALL_FILTER : row.value
-                    )
-                  }
-                  title={`${row.label}: ${row.requests.toLocaleString()}`}
-                >
-                  <svg
-                    className={styles.topKeyQuickIcon}
-                    aria-hidden="true"
-                    focusable="false"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="7.5" cy="15.5" r="5.5" />
-                    <path d="m21 2-9.6 9.6" />
-                    <path d="m15.5 7.5 3 3" />
-                    <path d="m17.5 5.5 3 3" />
-                  </svg>
-                  <span className={styles.topKeyQuickText}>{row.label}</span>
-                  {effectiveCredentialFilter === row.value && (
-                    <span className={styles.topKeyQuickStateDot} />
-                  )}
-                </button>
-              ))}
-            </div>
+      <div className={styles.headerBar}>
+        <div className={styles.headerBarLeft}>
+          <h1 className={styles.headerBarTitle}>{t('usage_stats.title')}</h1>
+          {lastRefreshedAt && (
+            <span className={styles.headerBarUpdated}>
+              {t('usage_stats.last_updated')}: {lastRefreshedAt.toLocaleTimeString()}
+            </span>
           )}
+        </div>
+        <div className={styles.headerBarCenter}>
+          <Select
+            value={timeRange}
+            options={timeRangeOptions}
+            onChange={(value) => setTimeRange(value as UsageTimeRange)}
+            className={styles.headerBarSelect}
+            ariaLabel={t('usage_stats.range_filter')}
+            fullWidth={false}
+          />
+          <Select
+            value={effectiveCredentialFilter}
+            options={credentialFilterOptions}
+            onChange={(value) => setCredentialFilter(value)}
+            className={styles.headerBarSelect}
+            ariaLabel={t('usage_stats.credential_filter')}
+            fullWidth={false}
+          />
+        </div>
+        <div className={styles.headerBarRight}>
+          <span
+            className={styles.serverHealthInlineBadge}
+            data-state={serverHealthInlineState}
+            title={
+              serverHealthInlineState === 'live'
+                ? `Service live (${serverHealthInlineLatency ?? 0}ms)`
+                : serverHealthInlineState === 'down'
+                  ? 'Service probe failed'
+                  : 'Service probe pending'
+            }
+          >
+            {serverHealthInlineState === 'live'
+              ? `✓ ${successRequestsInline}/${failureRequestsInline}`
+              : serverHealthInlineState === 'down'
+                ? '✗ Down'
+                : '—'}
+          </span>
           <Button
             variant="secondary"
             size="sm"
@@ -877,26 +873,10 @@ export function UsagePage() {
             style={{ display: 'none' }}
             onChange={handleImportChange}
           />
-          {lastRefreshedAt && (
-            <span className={styles.lastRefreshed}>
-              {t('usage_stats.last_updated')}: {lastRefreshedAt.toLocaleTimeString()}
-            </span>
-          )}
         </div>
       </div>
 
       {error && <div className={styles.errorBox}>{error}</div>}
-
-      {renderHeavyUsageSections && (
-        <div className={styles.topStatusRow}>
-          <ServiceHealthCard
-            usage={usage}
-            loading={isInitialLoading}
-            collapsible={true}
-            defaultCollapsed={false}
-          />
-        </div>
-      )}
 
       {/* Summary Cards - Top 4 KPIs */}
       {isInitialLoading || !filteredUsage ? (
@@ -1024,7 +1004,7 @@ export function UsagePage() {
                 : undefined,
           }}
           collapsible={true}
-          defaultCollapsed={false}
+          defaultCollapsed={true}
         />
           <ModelTokenDoughnut
             modelStats={modelStats}
@@ -1038,7 +1018,7 @@ export function UsagePage() {
             timeRange={timeRange}
             onChartPeriodChange={doughnutGranularity.setGranularity}
             collapsible={true}
-            defaultCollapsed={false}
+            defaultCollapsed={true}
           />
         </div>
       )}
@@ -1053,10 +1033,10 @@ export function UsagePage() {
           usage={visibleScopedUsage}
           recentDetails={recentDetails}
           loading={isInitialLoading}
-          geminiKeys={config?.geminiApiKeys || []}
-          claudeConfigs={config?.claudeApiKeys || []}
-          codexConfigs={config?.codexApiKeys || []}
-          vertexConfigs={config?.vertexApiKeys || []}
+          geminiKeys={geminiKeysForUsage}
+          claudeConfigs={claudeConfigsForUsage}
+          codexConfigs={codexConfigsForUsage}
+          vertexConfigs={vertexConfigsForUsage}
           openaiProviders={openaiProvidersForUsage}
           selectedModelFilter={effectiveDetailModelFilter}
           onSelectedModelFilterChange={handleDetailModelFilterChange}

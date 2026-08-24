@@ -625,6 +625,10 @@ export function buildCandidateUsageSourceIds(input: {
     result.push(normalizeUsageSourceId(apiKey));
     result.push(`${USAGE_SOURCE_PREFIX_KEY}${fnv1a64Hex(apiKey)}`);
     result.push(`${USAGE_SOURCE_PREFIX_MASKED}${maskApiKey(apiKey)}`);
+    // Also register the literal api_key so raw Source values from backend
+    // usage events can match without relying on the FNV hash agreement
+    // between backend and frontend implementations.
+    result.push(apiKey);
   }
 
   return Array.from(new Set(result));

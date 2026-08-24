@@ -432,7 +432,7 @@ export function RequestEventsDetailsCard({
       return {
         event_id: event.id,
         timestamp,
-        source: event.source || '',
+        source: event.source || event.api_key || '',
         auth_index: event.auth_index ?? null,
         request_id: event.request_id,
         latency_ms: event.duration_ms,
