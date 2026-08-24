@@ -2174,6 +2174,33 @@
   max-width: 180px;
   word-break: break-all;
   color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-primary);
+    outline: none;
+  }
+}
+
+.requestEventsCopyFeedback {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  color: #10b981;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.requestEventsCopyText {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .requestEventsResultSuccess {
@@ -2450,6 +2477,31 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.serverHealthBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+
+  &[data-state='live'] {
+    background: rgba(16, 185, 129, 0.14);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.32);
+  }
+
+  &[data-state='down'] {
+    background: rgba(244, 63, 94, 0.14);
+    color: #fb7185;
+    border-color: rgba(244, 63, 94, 0.32);
+  }
 }
 
 .healthWindow {
@@ -7006,6 +7058,23 @@ $navy-blue: #2A7B9B;
   border-color: rgba(196, 181, 253, 0.2);
 }
 
+.dataCapsuleCached {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+.dataCapsuleReasoning {
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.12);
+  border-color: rgba(244, 114, 182, 0.25);
+}
+
+.metricSubDetails {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
 .tokenRatioTrack {
   display: flex;
   width: 100%;
@@ -8127,6 +8196,17 @@ $navy-blue: #2A7B9B;
   font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.02em;
+}
+
+.cacheHitRate {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.28);
 }
 
 .metricCardBody {

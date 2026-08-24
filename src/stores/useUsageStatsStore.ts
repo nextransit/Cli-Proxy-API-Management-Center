@@ -36,6 +36,8 @@ export interface UsageStreamSummary {
   success_count?: number;
   failure_count?: number;
   latest_event_id: number;
+  requests_by_day?: Record<string, number>;
+  tokens_by_day?: Record<string, number>;
 }
 
 export type LoadUsageStatsOptions = {
@@ -68,6 +70,58 @@ type UsageStatsState = {
 };
 
 const createEmptyKeyStats = (): KeyStats => ({ bySource: {}, byAuthIndex: {} });
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatLocalDayKey = (timestampMs: number): string => {
+  const date = new Date(timestampMs);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildInlineDetail = (
+  event: UsageEventDetail,
+  apiKey: string,
+  model: string,
+  timestampMs: number,
+): Record<string, unknown> => {
+  const safeTimestamp = Number.isFinite(timestampMs) ? timestampMs : Date.now();
+  return {
+    event_id: event.id,
+    timestamp: event.requested_at || new Date(safeTimestamp).toISOString(),
+    source: event.source ?? '',
+    auth_index: event.auth_index ?? null,
+    request_id: event.request_id ?? '',
+    latency_ms: event.duration_ms ?? 0,
+    status_code: event.status_code ?? 0,
+    failed: event.failed === true,
+    tokens: {
+      input_tokens: event.tokens?.input ?? 0,
+      output_tokens: event.tokens?.output ?? 0,
+      reasoning_tokens: event.tokens?.reasoning ?? 0,
+      cached_tokens: event.tokens?.cached ?? 0,
+      total_tokens: event.tokens?.total ?? 0,
+    },
+    thinking: event.thinking ?? null,
+    request: null,
+    model_info: null,
+    __apiKey: apiKey,
+    __modelName: model,
+    __timestampMs: safeTimestamp,
+  };
+};
 
 let usageRequestToken = 0;
 let inFlightUsageRequest: {
@@ -203,11 +257,81 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
   },
 
   applyIncrementalEvent: (detail: UsageEventDetail) => {
-    const { recentDetails, lastEventId } = get();
+    const { recentDetails, lastEventId, usage, scopeKey } = get();
     if (detail.id <= lastEventId) return;
-    const next = [detail, ...recentDetails];
-    if (next.length > MAX_RECENT_DETAILS) next.length = MAX_RECENT_DETAILS;
-    set({ recentDetails: next, lastEventId: detail.id, lastRefreshedAt: Date.now(), error: null });
+
+    const recentNext = [detail, ...recentDetails];
+    if (recentNext.length > MAX_RECENT_DETAILS) recentNext.length = MAX_RECENT_DETAILS;
+
+    const update: Partial<UsageStatsState> = {
+      recentDetails: recentNext,
+      lastEventId: detail.id,
+      lastRefreshedAt: Date.now(),
+      error: null,
+    };
+
+    // For the all-time view, fold the SSE event into the in-store usage
+    // snapshot so the "今日请求" / "今日 Token" / "今日花费" cards refresh
+    // immediately. Without this, the cards would stay frozen on the last
+    // full snapshot value until the next /usage reload (potentially 60s+).
+    if (scopeKey.endsWith(':usage:all') && usage) {
+      const tokens = detail.tokens?.total ?? 0;
+      const isFailed = detail.failed === true;
+      const apiKey = detail.api_key || '_default';
+      const model = detail.model || 'unknown';
+      const timestampMs = detail.requested_at ? Date.parse(detail.requested_at) : NaN;
+      const dayKey = Number.isFinite(timestampMs)
+        ? formatLocalDayKey(timestampMs)
+        : formatLocalDayKey(Date.now());
+
+      const merged: UsageStatsSnapshot = { ...usage };
+      merged.total_requests = toNumber(merged.total_requests) + 1;
+      merged.total_tokens = toNumber(merged.total_tokens) + tokens;
+      merged.success_count = toNumber(merged.success_count) + (isFailed ? 0 : 1);
+      merged.failure_count = toNumber(merged.failure_count) + (isFailed ? 1 : 0);
+
+      const prevRequestsByDay = (merged.requests_by_day ?? {}) as Record<string, number>;
+      merged.requests_by_day = {
+        ...prevRequestsByDay,
+        [dayKey]: (prevRequestsByDay[dayKey] ?? 0) + 1,
+      };
+      const prevTokensByDay = (merged.tokens_by_day ?? {}) as Record<string, number>;
+      merged.tokens_by_day = {
+        ...prevTokensByDay,
+        [dayKey]: (prevTokensByDay[dayKey] ?? 0) + tokens,
+      };
+
+      const apis = (merged.apis ?? {}) as Record<string, unknown>;
+      const apiEntry = isRecord(apis[apiKey]) ? { ...(apis[apiKey] as Record<string, unknown>) } : {};
+      apiEntry.total_requests = toNumber(apiEntry.total_requests) + 1;
+      apiEntry.total_tokens = toNumber(apiEntry.total_tokens) + tokens;
+      apiEntry.success_count = toNumber(apiEntry.success_count) + (isFailed ? 0 : 1);
+      apiEntry.failure_count = toNumber(apiEntry.failure_count) + (isFailed ? 1 : 0);
+
+      const models = isRecord(apiEntry.models) ? { ...(apiEntry.models as Record<string, unknown>) } : {};
+      const modelEntry = isRecord(models[model])
+        ? { ...(models[model] as Record<string, unknown>) }
+        : {};
+      modelEntry.total_requests = toNumber(modelEntry.total_requests) + 1;
+      modelEntry.total_tokens = toNumber(modelEntry.total_tokens) + tokens;
+      modelEntry.success_count = toNumber(modelEntry.success_count) + (isFailed ? 0 : 1);
+      modelEntry.failure_count = toNumber(modelEntry.failure_count) + (isFailed ? 1 : 0);
+
+      const detailList = Array.isArray(modelEntry.details)
+        ? [buildInlineDetail(detail, apiKey, model, timestampMs), ...(modelEntry.details as unknown[])]
+        : [buildInlineDetail(detail, apiKey, model, timestampMs)];
+      if (detailList.length > MAX_RECENT_DETAILS) detailList.length = MAX_RECENT_DETAILS;
+      modelEntry.details = detailList;
+
+      models[model] = modelEntry;
+      apiEntry.models = models;
+      apis[apiKey] = apiEntry;
+      merged.apis = apis;
+
+      update.usage = merged;
+    }
+
+    set(update as UsageStatsState);
   },
 
   applyStreamSummary: (summary: UsageStreamSummary) => {
@@ -218,21 +342,49 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
     };
 
     if (state.scopeKey.endsWith(':usage:all')) {
-      update.usage = {
-        ...(state.usage ?? {}),
-        ...(typeof summary.total_requests === 'number'
-          ? { total_requests: summary.total_requests }
-          : {}),
-        ...(typeof summary.total_tokens === 'number'
-          ? { total_tokens: summary.total_tokens }
-          : {}),
-        ...(typeof summary.success_count === 'number'
-          ? { success_count: summary.success_count }
-          : {}),
-        ...(typeof summary.failure_count === 'number'
-          ? { failure_count: summary.failure_count }
-          : {}),
-      };
+      const mergedUsage: UsageStatsSnapshot = { ...(state.usage ?? {}) };
+
+      // Counter fields are monotonic on the server, but the client may
+      // have applied more recent SSE events before the server's snapshot
+      // arrived. Take the max so the cards never go backwards.
+      const takeMax = (current: unknown, incoming: number): number =>
+        Math.max(toNumber(current), incoming);
+      if (typeof summary.total_requests === 'number') {
+        mergedUsage.total_requests = takeMax(mergedUsage.total_requests, summary.total_requests);
+      }
+      if (typeof summary.total_tokens === 'number') {
+        mergedUsage.total_tokens = takeMax(mergedUsage.total_tokens, summary.total_tokens);
+      }
+      if (typeof summary.success_count === 'number') {
+        mergedUsage.success_count = takeMax(mergedUsage.success_count, summary.success_count);
+      }
+      if (typeof summary.failure_count === 'number') {
+        mergedUsage.failure_count = takeMax(mergedUsage.failure_count, summary.failure_count);
+      }
+
+      // Daily aggregates are monotonic on the server. Merge the per-day
+      // maps so the "今日请求" / "今日 Token" cards refresh alongside the
+      // SSE event stream without waiting on a heavy snapshot reload.
+      if (summary.requests_by_day && Object.keys(summary.requests_by_day).length > 0) {
+        const prev = (mergedUsage.requests_by_day ?? {}) as Record<string, number>;
+        const next: Record<string, number> = { ...prev };
+        for (const [day, count] of Object.entries(summary.requests_by_day)) {
+          const prevCount = next[day] ?? 0;
+          if (count > prevCount) next[day] = count;
+        }
+        mergedUsage.requests_by_day = next;
+      }
+      if (summary.tokens_by_day && Object.keys(summary.tokens_by_day).length > 0) {
+        const prev = (mergedUsage.tokens_by_day ?? {}) as Record<string, number>;
+        const next: Record<string, number> = { ...prev };
+        for (const [day, count] of Object.entries(summary.tokens_by_day)) {
+          const prevCount = next[day] ?? 0;
+          if (count > prevCount) next[day] = count;
+        }
+        mergedUsage.tokens_by_day = next;
+      }
+
+      update.usage = mergedUsage;
       update.lastRefreshedAt = Date.now();
     }
 

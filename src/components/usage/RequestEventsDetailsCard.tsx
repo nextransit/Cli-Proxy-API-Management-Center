@@ -20,6 +20,7 @@ import type { AuthFileItem } from '@/types/authFile';
 import type { CredentialInfo } from '@/types/sourceInfo';
 import type { UsageEventDetail } from '@/stores/useUsageStatsStore';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
+import { looksLikeProviderKey } from '@/utils/sourceResolver';
 import { parseTimestampMs } from '@/utils/timestamp';
 import {
   collectUsageDetailsWithEndpoint,
@@ -35,7 +36,10 @@ import {
 } from '@/utils/usage';
 import { downloadBlob } from '@/utils/download';
 import type { ParsedLogLine } from '@/pages/hooks/logTypes';
+import { copyTextToClipboard } from '@/utils/clipboard';
 import styles from '@/pages/UsagePage.module.scss';
+
+const COPY_FEEDBACK_TIMEOUT_MS = 1500;
 
 const ALL_FILTER = '__all__';
 const MAX_RENDERED_EVENTS = 500;
@@ -286,9 +290,21 @@ export function RequestEventsDetailsCard({
   });
 
   const [localModelFilter, setLocalModelFilter] = useState(ALL_FILTER);
+  const [copyFeedbackKey, setCopyFeedbackKey] = useState<string | null>(null);
+  const copyFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerCopy = useCallback((key: string, value: string) => {
+    if (!value) return;
+    void copyTextToClipboard(value).then((ok) => {
+      if (!ok) return;
+      setCopyFeedbackKey(key);
+      if (copyFeedbackTimer.current) clearTimeout(copyFeedbackTimer.current);
+      copyFeedbackTimer.current = setTimeout(() => setCopyFeedbackKey(null), COPY_FEEDBACK_TIMEOUT_MS);
+    });
+  }, []);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | '2xx' | '4xx' | '5xx' | 'other'>('all');
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [activeToast, setActiveToast] = useState<ActiveToast | null>(null);
   const [traceDrawerLine, setTraceDrawerLine] = useState<ParsedLogLine | null>(null);
@@ -431,7 +447,10 @@ export function RequestEventsDetailsCard({
         status_code: event.status_code,
         failed: event.failed === true,
         __modelName: event.model || 'unknown',
-        __endpoint: event.api_key || '',
+        // Do NOT expose the raw api_key here; it would leak provider
+        // credentials into the "来源" column. Resolve it through
+        // sourceInfoMap / authFileMap downstream instead.
+        __endpoint: '',
         __timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
       };
     });
@@ -538,7 +557,7 @@ export function RequestEventsDetailsCard({
         return `${row.source} · ${row.authIndex}`;
       }
 
-      if (row.sourceRaw !== '-' && row.sourceRaw !== row.source) {
+      if (row.sourceRaw !== '-' && row.sourceRaw !== row.source && !looksLikeProviderKey(row.sourceRaw)) {
         return `${row.source} · ${row.sourceRaw}`;
       }
 
@@ -627,6 +646,15 @@ export function RequestEventsDetailsCard({
           effectiveSourceFilter === ALL_FILTER || row.sourceKey === effectiveSourceFilter;
         const authIndexMatched =
           effectiveAuthIndexFilter === ALL_FILTER || row.authIndex === effectiveAuthIndexFilter;
+        const statusMatched =
+          statusFilter === 'all' || (() => {
+            const code = typeof row.statusCode === 'number' ? row.statusCode : Number(row.statusCode);
+            if (!Number.isFinite(code)) return statusFilter === 'other';
+            if (statusFilter === '2xx') return code >= 200 && code < 300;
+            if (statusFilter === '4xx') return code >= 400 && code < 500;
+            if (statusFilter === '5xx') return code >= 500 && code < 600;
+            return code <= 0 || code >= 600;
+          })();
         const searchMatched =
           !normalizedSearchText ||
           [
@@ -647,12 +675,13 @@ export function RequestEventsDetailsCard({
             .join(' ')
             .toLowerCase()
             .includes(normalizedSearchText);
-        return modelMatched && sourceMatched && authIndexMatched && searchMatched;
+        return modelMatched && sourceMatched && authIndexMatched && statusMatched && searchMatched;
       }),
     [
       effectiveAuthIndexFilter,
       effectiveModelFilter,
       effectiveSourceFilter,
+      statusFilter,
       normalizedSearchText,
       rows,
     ]
@@ -898,6 +927,25 @@ export function RequestEventsDetailsCard({
             fullWidth={false}
           />
         </div>
+        <div className={styles.requestEventsFilterItem}>
+          <span className={styles.requestEventsFilterLabel}>
+            {t('usage_stats.request_events_filter_status')}
+          </span>
+          <Select
+            value={statusFilter}
+            options={[
+              { value: 'all', label: t('usage_stats.request_events_status_all') },
+              { value: '2xx', label: t('usage_stats.request_events_status_2xx') },
+              { value: '4xx', label: t('usage_stats.request_events_status_4xx') },
+              { value: '5xx', label: t('usage_stats.request_events_status_5xx') },
+              { value: 'other', label: t('usage_stats.request_events_status_other') },
+            ]}
+            onChange={(value) => setStatusFilter(value as typeof statusFilter)}
+            className={styles.requestEventsSelect}
+            ariaLabel={t('usage_stats.request_events_filter_status')}
+            fullWidth={false}
+          />
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -1027,14 +1075,46 @@ export function RequestEventsDetailsCard({
                         {row.model}
                       </span>
                     </td>
-                    <td className={styles.requestEventsSourceCell} title={row.source}>
-                      <span>{row.source}</span>
+                    <td
+                      className={styles.requestEventsSourceCell}
+                      title={`${row.source} (click to copy)`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Copy source ${row.source}`}
+                      onClick={() => triggerCopy(`source-${row.id}`, row.source)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          triggerCopy(`source-${row.id}`, row.source);
+                        }
+                      }}
+                    >
+                      <span className={styles.requestEventsCopyText}>{row.source}</span>
                       {row.sourceType && (
                         <span className={styles.credentialType}>{row.sourceType}</span>
                       )}
+                      {copyFeedbackKey === `source-${row.id}` && (
+                        <span className={styles.requestEventsCopyFeedback}>Copied</span>
+                      )}
                     </td>
-                    <td className={styles.requestEventsAuthIndex} title={row.authIndex}>
-                      {row.authIndex}
+                    <td
+                      className={styles.requestEventsAuthIndex}
+                      title={`${row.authIndex} (click to copy)`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Copy auth index ${row.authIndex}`}
+                      onClick={() => triggerCopy(`auth-${row.id}`, row.authIndex)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          triggerCopy(`auth-${row.id}`, row.authIndex);
+                        }
+                      }}
+                    >
+                      <span className={styles.requestEventsCopyText}>{row.authIndex}</span>
+                      {copyFeedbackKey === `auth-${row.id}` && (
+                        <span className={styles.requestEventsCopyFeedback}>Copied</span>
+                      )}
                     </td>
                     <td>
                       <span

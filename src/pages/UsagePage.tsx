@@ -893,7 +893,7 @@ export function UsagePage() {
             usage={usage}
             loading={isInitialLoading}
             collapsible={true}
-            defaultCollapsed={true}
+            defaultCollapsed={false}
           />
         </div>
       )}
@@ -1024,7 +1024,7 @@ export function UsagePage() {
                 : undefined,
           }}
           collapsible={true}
-          defaultCollapsed={true}
+          defaultCollapsed={false}
         />
           <ModelTokenDoughnut
             modelStats={modelStats}
@@ -1038,7 +1038,7 @@ export function UsagePage() {
             timeRange={timeRange}
             onChartPeriodChange={doughnutGranularity.setGranularity}
             collapsible={true}
-            defaultCollapsed={true}
+            defaultCollapsed={false}
           />
         </div>
       )}

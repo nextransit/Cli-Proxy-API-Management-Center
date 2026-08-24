@@ -1134,7 +1134,17 @@
     "top_key_quick_filter": "Быстрый фильтр",
     "refreshing_data": "Обновление данных",
     "token_trend_focus": "Фокус",
-    "token_trend_focus_reset": "Сброс"
+    "token_trend_focus_reset": "Сброс",
+    "cached_short": "Кэш",
+    "reasoning_short": "Мысль",
+    "cost_no_price": "Тариф не задан",
+    "avg_latency_unknown": "Задержка неизвестна",
+    "request_events_filter_status": "Статус",
+    "request_events_status_all": "Все",
+    "request_events_status_2xx": "2xx",
+    "request_events_status_4xx": "4xx",
+    "request_events_status_5xx": "5xx",
+    "request_events_status_other": "Другое (0/таймаут)"
   },
   "stats": {
     "success": "Успех",

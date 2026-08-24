@@ -1169,7 +1169,18 @@
     "token_trend_focus_reset": "重置",
     "model_token_distribution": "模型 Token 分布",
     "others": "其他",
-    "trend_analysis": "趋势分析"
+    "trend_analysis": "趋势分析",
+    "cached_short": "缓存",
+    "reasoning_short": "推理",
+    "cost_no_price": "未配置费率",
+    "avg_latency_unknown": "延迟未知",
+    "cache_hit_rate_tooltip": "已缓存 Token 占总 Token 的比例（Prompt Cache 命中率）",
+    "request_events_filter_status": "状态",
+    "request_events_status_all": "全部",
+    "request_events_status_2xx": "2xx",
+    "request_events_status_4xx": "4xx",
+    "request_events_status_5xx": "5xx",
+    "request_events_status_other": "其他（0/超时）"
   },
   "stats": {
     "success": "成功",

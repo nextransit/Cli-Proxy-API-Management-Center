@@ -240,7 +240,10 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         </span>
       </span>
       <span className={styles.metricSubLine}>
-        ⏱ {t('usage_stats.avg_latency_short')}: {formatDurationMs(stats.avgLatency)}
+        ⏱ {t('usage_stats.avg_latency_short')}:{' '}
+          {stats.avgLatency === null
+            ? '--'
+            : formatDurationMs(stats.avgLatency)}
       </span>
       {stats.outcomesComplete && (
         <span
@@ -344,6 +347,15 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
             <IconToken />
           </span>
           <span className={styles.metricCardTitle}>{t('usage_stats.total_tokens')}</span>
+          <span
+            className={styles.cacheHitRate}
+            title={t('usage_stats.cache_hit_rate_tooltip')}
+          >
+            ⚡{' '}
+            {stats.detailsComplete && tokenBarTotal > 0
+              ? `${((stats.cachedTokens / tokenBarTotal) * 100).toFixed(1)}%`
+              : '--'}
+          </span>
         </div>
         <div className={styles.metricCardBody}>
           {showSkeleton ? skeletonSummary : tokensSummary}

@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { logsApi, type RequestLogDetail } from '@/services/api/logs';
 import { useAuthStore, useConfigStore, useNotificationStore } from '@/stores';
 import { copyToClipboard } from '@/utils/clipboard';
+import { looksLikeProviderKey } from '@/utils/sourceResolver';
 import { isTraceableRequestPath, useTraceResolver } from '@/pages/hooks/useTraceResolver';
 import type { ParsedLogLine } from '@/pages/hooks/logTypes';
 import styles from './RequestTraceDrawer.module.scss';
@@ -1130,8 +1131,13 @@ export function RequestTraceDrawer({
                       {c.modelMatched && (
                         <span className={styles.badge}>{t('logs.trace_model_matched')}</span>
                       )}
-                      <span className={styles.candidateEndpoint}>
-                        {c.detail.__endpoint}
+                      <span
+                        className={styles.candidateEndpoint}
+                        title={looksLikeProviderKey(c.detail.__endpoint) ? 'redacted' : c.detail.__endpoint}
+                      >
+                        {looksLikeProviderKey(c.detail.__endpoint)
+                          ? '••• redacted'
+                          : c.detail.__endpoint || '-'}
                       </span>
                       <span className={styles.candidateModel}>
                         {c.detail.__modelName || '-'}

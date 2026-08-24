@@ -1161,7 +1161,18 @@
     "token_trend_focus_reset": "Reset",
     "model_token_distribution": "Model Token Distribution",
     "others": "Others",
-    "trend_analysis": "Trend Analysis"
+    "trend_analysis": "Trend Analysis",
+    "cached_short": "Cache",
+    "reasoning_short": "Think",
+    "cost_no_price": "No rate configured",
+    "avg_latency_unknown": "Latency unknown",
+    "cache_hit_rate_tooltip": "Cached tokens as a share of total tokens (Prompt Cache hit rate)",
+    "request_events_filter_status": "Status",
+    "request_events_status_all": "All",
+    "request_events_status_2xx": "2xx",
+    "request_events_status_4xx": "4xx",
+    "request_events_status_5xx": "5xx",
+    "request_events_status_other": "Other (0/timeout)"
   },
   "stats": {
     "success": "Success",

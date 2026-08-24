@@ -1160,7 +1160,17 @@
     "top_key_quick_filter": "快速篩選",
     "refreshing_data": "正在更新資料",
     "token_trend_focus": "目前聚焦",
-    "token_trend_focus_reset": "重置"
+    "token_trend_focus_reset": "重置",
+    "cached_short": "緩存",
+    "reasoning_short": "推理",
+    "cost_no_price": "未配置費率",
+    "avg_latency_unknown": "延遲未知",
+    "request_events_filter_status": "狀態",
+    "request_events_status_all": "全部",
+    "request_events_status_2xx": "2xx",
+    "request_events_status_4xx": "4xx",
+    "request_events_status_5xx": "5xx",
+    "request_events_status_other": "其他（0/逾時）"
   },
   "stats": {
     "success": "成功",

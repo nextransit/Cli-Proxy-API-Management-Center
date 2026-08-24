@@ -9,6 +9,7 @@ import {
 } from '@/utils/usage';
 import type { UsagePayload } from './hooks/useUsageData';
 import { Card } from '@/components/ui/Card';
+import { useServerHealth } from '@/hooks/useServerHealth';
 import styles from '@/pages/UsagePage.module.scss';
 
 const COLOR_STOPS = [
@@ -97,6 +98,7 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
     }
   };
   const { t } = useTranslation();
+  const serverHealth = useServerHealth();
   const [activeTooltip, setActiveTooltip] = useState<ActiveTooltipState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -305,6 +307,19 @@ export function ServiceHealthCard({ usage, loading, collapsible = false, default
       extra={
         !collapsible || expanded ? (
           <div className={styles.healthMeta}>
+            <span
+              className={styles.serverHealthBadge}
+              data-state={serverHealth.state}
+              title={
+                serverHealth.state === 'live'
+                  ? `Service live (${serverHealth.latencyMs ?? 0}ms)`
+                  : serverHealth.state === 'down'
+                    ? 'Service probe failed'
+                    : 'Service probe pending'
+              }
+            >
+              {serverHealth.state === 'live' ? '✓ Live' : serverHealth.state === 'down' ? '✗ Down' : '—'}
+            </span>
             <span className={styles.healthWindow}>{t('service_health.window')}</span>
             <span className={`${styles.healthRate} ${rateClass}`}>
               {loading || !hasCompleteData ? '--' : `${healthData.successRate.toFixed(1)}%`}

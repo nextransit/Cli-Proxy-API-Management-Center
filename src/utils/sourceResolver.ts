@@ -43,8 +43,13 @@ const registerIdentity = (
   map.set(key, null);
 };
 
+export const PROVIDER_KEY_PREFIX = /^(sk-[A-Za-z0-9_-]{8,}|sk-ant-|sk-or-|AIza[0-9A-Za-z_-]{8,}|ghp_|gho_|github_pat_|dapi|ntn_|xai-|groq-|cog-|jfk-|pplx-|fvMk|qwen-|glm-|minimax-|MiniMax-)/;
+
+export const looksLikeProviderKey = (value: string) => PROVIDER_KEY_PREFIX.test(value);
+
 const formatRawSourceDisplayName = (source: string) => {
   if (!source) return '-';
+  if (looksLikeProviderKey(source)) return '未命名来源';
   return source.startsWith('t:') ? source.slice(2) : source;
 };
 
@@ -146,6 +151,13 @@ export function resolveSourceDisplay(
   }
 
   if (source) {
+    if (looksLikeProviderKey(source)) {
+      return {
+        displayName: '未命名来源',
+        type: '',
+        identityKey: 'source:redacted',
+      };
+    }
     return {
       displayName: formatRawSourceDisplayName(source),
       type: '',
