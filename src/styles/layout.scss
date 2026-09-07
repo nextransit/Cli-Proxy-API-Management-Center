@@ -429,6 +429,11 @@
     .nav-item {
       justify-content: center;
       padding: 10px;
+
+      // Hide the left accent bar when collapsed — the centered icon + tinted background is enough.
+      &.active::before {
+        display: none;
+      }
     }
   }
 
@@ -446,8 +451,12 @@
     width: 34px;
     height: 34px;
     object-fit: contain;
-    border-radius: 8px;
-    box-shadow: none;
+    border-radius: 9px;
+    padding: 2px;
+    background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--border-primary) 55%, transparent),
+      0 1px 2px rgb(0 0 0 / 0.04);
     flex-shrink: 0;
   }
 
@@ -464,45 +473,54 @@
   .nav-section {
     display: flex;
     flex-direction: column;
-    gap: $spacing-sm;
+    gap: 14px;
     flex: 1;
   }
 
+  .nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-group-label {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    user-select: none;
+  }
+
   .nav-item {
-    padding: 10px 12px;
-    border-radius: 11px;
+    position: relative;
+    padding: 8px 12px;
+    border-radius: 8px;
     border: 1px solid transparent;
-    color: var(--text-primary);
-    font-weight: 650;
+    color: var(--text-secondary);
+    font-size: 13.5px;
+    font-weight: 500;
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: $spacing-sm;
+    gap: 11px;
     cursor: pointer;
     transition:
       background $transition-fast,
-      border-color $transition-fast,
-      color $transition-fast,
-      transform $transition-fast;
+      color $transition-fast;
 
     .nav-icon {
-      width: 28px;
-      height: 28px;
+      width: 20px;
+      height: 20px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
       color: currentColor;
-      opacity: 0.96;
-      border-radius: 8px;
-      background:
-        linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0)),
-        color-mix(in srgb, var(--bg-secondary) 84%, transparent);
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-primary) 82%, transparent);
-      transition:
-        background $transition-fast,
-        box-shadow $transition-fast,
-        color $transition-fast;
+      opacity: 0.92;
+      transition: color $transition-fast;
 
       svg {
         width: 18px;
@@ -519,30 +537,35 @@
     }
 
     &:hover {
-      background: color-mix(in srgb, var(--text-primary) 7%, transparent);
-      border-color: color-mix(in srgb, var(--border-color) 58%, transparent);
-      transform: translateX(1px);
+      background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+      color: var(--text-primary);
 
       .nav-icon {
-        background:
-          linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0)),
-          color-mix(in srgb, var(--bg-primary) 88%, transparent);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-hover) 86%, transparent);
+        opacity: 1;
       }
     }
 
     &.active {
-      background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-      color: var(--text-primary);
-      border-color: color-mix(in srgb, var(--border-hover) 70%, transparent);
-      box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+      background: color-mix(in srgb, var(--primary-color) 11%, transparent);
+      color: var(--primary-color);
+      font-weight: 600;
 
       .nav-icon {
-        color: var(--primary-active);
-        background:
-          linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0)),
-          color-mix(in srgb, var(--primary-color) 14%, var(--bg-primary));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 24%, transparent);
+        color: var(--primary-color);
+        opacity: 1;
+      }
+
+      // Left accent bar — replaces the old heavy grey slab with a slim brand-color indicator.
+      &::before {
+        content: '';
+        position: absolute;
+        left: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 16px;
+        border-radius: 2px;
+        background: var(--primary-color);
       }
     }
   }
@@ -731,34 +754,12 @@
 }
 
 // ============================================
-// 暗色模式侧边栏选中态优化
+// Dark mode: keep the active icon glow as a subtle tech accent.
+// Background, text color and the left accent bar are already handled by the
+// theme-aware base styles above (var(--primary-color) resolves to blue in dark).
 // ============================================
 [data-theme='dark'] {
-  .sidebar {
-    .nav-item {
-      &.active {
-        // 透明背景 + 左侧蓝色高亮条
-        background: transparent;
-        border-left: 3px solid var(--primary-color);
-        border-top: none;
-        border-right: none;
-        border-bottom: none;
-        box-shadow: none;
-        
-        .nav-icon {
-          // 图标发光效果
-          color: var(--primary-color);
-          filter: drop-shadow(0 0 6px rgba(88, 166, 255, 0.5));
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0)),
-            color-mix(in srgb, var(--primary-color) 12%, var(--bg-primary));
-          box-shadow: inset 0 0 0 1px rgba(88, 166, 255, 0.2);
-        }
-        
-        .nav-label {
-          color: #ffffff;
-          font-weight: 600;
-        }
-      }
-    }
+  .sidebar .nav-item.active .nav-icon {
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--primary-color) 45%, transparent));
   }
 }

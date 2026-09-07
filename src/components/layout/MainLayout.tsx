@@ -388,19 +388,36 @@ export function MainLayout() {
     });
   }, [fetchConfig]);
 
-  const navItems = [
-    { path: '/', label: t('nav.dashboard'), icon: sidebarIcons.dashboard },
-    { path: '/config', label: t('nav.config_management'), icon: sidebarIcons.config },
-    { path: '/ai-providers', label: t('nav.ai_providers'), icon: sidebarIcons.aiProviders },
-    { path: '/auth-files', label: t('nav.auth_files'), icon: sidebarIcons.authFiles },
-    { path: '/oauth', label: t('nav.oauth', { defaultValue: 'OAuth' }), icon: sidebarIcons.oauth },
-    { path: '/quota', label: t('nav.quota_management'), icon: sidebarIcons.quota },
-    { path: '/usage', label: t('nav.usage_stats'), icon: sidebarIcons.usage },
-    { path: '/text-ops', label: t('nav.text_ops', { defaultValue: 'AI Workspace' }), icon: sidebarIcons.textOps },
-    ...(config?.loggingToFile
-      ? [{ path: '/logs', label: t('nav.logs'), icon: sidebarIcons.logs }]
-      : []),
-    { path: '/system', label: t('nav.system_info'), icon: sidebarIcons.system },
+  // Nav items grouped by functional area for a calmer, scannable sidebar.
+  // Groups: Monitoring (core metrics), Management (access control), System (tools & info).
+  const navGroups = [
+    {
+      label: t('sidebar.group.monitoring', { defaultValue: 'Monitoring' }),
+      items: [
+        { path: '/', label: t('nav.dashboard'), icon: sidebarIcons.dashboard },
+        { path: '/usage', label: t('nav.usage_stats'), icon: sidebarIcons.usage },
+        ...(config?.loggingToFile
+          ? [{ path: '/logs', label: t('nav.logs'), icon: sidebarIcons.logs }]
+          : []),
+      ],
+    },
+    {
+      label: t('sidebar.group.management', { defaultValue: 'Management' }),
+      items: [
+        { path: '/ai-providers', label: t('nav.ai_providers'), icon: sidebarIcons.aiProviders },
+        { path: '/auth-files', label: t('nav.auth_files'), icon: sidebarIcons.authFiles },
+        { path: '/oauth', label: t('nav.oauth', { defaultValue: 'OAuth' }), icon: sidebarIcons.oauth },
+        { path: '/quota', label: t('nav.quota_management'), icon: sidebarIcons.quota },
+      ],
+    },
+    {
+      label: t('sidebar.group.system', { defaultValue: 'System' }),
+      items: [
+        { path: '/text-ops', label: t('nav.text_ops', { defaultValue: 'AI Workspace' }), icon: sidebarIcons.textOps },
+        { path: '/config', label: t('nav.config_management'), icon: sidebarIcons.config },
+        { path: '/system', label: t('nav.system_info'), icon: sidebarIcons.system },
+      ],
+    },
   ];
   const getTransitionVariant = useCallback((fromPathname: string, toPathname: string) => {
     const normalize = (pathname: string) => {
@@ -614,17 +631,22 @@ export function MainLayout() {
           </div>
 
           <div className="nav-section">
-            {navItems.map((item) => (
-              <TransitionNavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => setSidebarOpen(false)}
-                title={showSidebarLabels ? undefined : item.label}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                {showSidebarLabels && <span className="nav-label">{item.label}</span>}
-              </TransitionNavLink>
+            {navGroups.map((group) => (
+              <div className="nav-group" key={group.label}>
+                {showSidebarLabels && <div className="nav-group-label">{group.label}</div>}
+                {group.items.map((item) => (
+                  <TransitionNavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setSidebarOpen(false)}
+                    title={showSidebarLabels ? undefined : item.label}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    {showSidebarLabels && <span className="nav-label">{item.label}</span>}
+                  </TransitionNavLink>
+                ))}
+              </div>
             ))}
           </div>
         </aside>
