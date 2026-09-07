@@ -51,7 +51,10 @@ export function buildEChartsTrendOption(
       trigger: 'axis',
       backgroundColor: theme.bgPrimary,
       borderColor: theme.border,
-      textStyle: { color: theme.textPrimary, fontFamily: FONT_FAMILY },
+      borderRadius: 8,
+      padding: [10, 14],
+      extraCssText: 'box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.08);',
+      textStyle: { color: theme.textPrimary, fontFamily: FONT_FAMILY, fontSize: 12 },
       formatter: ((params: unknown) => {
         const list = Array.isArray(params)
           ? (params as Array<{
@@ -109,13 +112,18 @@ export function buildEChartsTrendOption(
     xAxis: {
       type: 'category',
       data: data.labels,
-      axisLine: { lineStyle: { color: theme.border } },
-      axisLabel: { color: theme.textSecondary, hideOverlap: true },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: theme.textSecondary, fontSize: 11, hideOverlap: true },
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: theme.textSecondary },
-      splitLine: { lineStyle: { color: theme.borderMuted } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: theme.textSecondary, fontSize: 11 },
+      splitLine: {
+        lineStyle: { type: 'dashed', color: theme.borderMuted },
+      },
     },
     dataZoom: isNarrowScreen
       ? [
@@ -127,16 +135,16 @@ export function buildEChartsTrendOption(
       name: d.label,
       type: 'line',
       stack: 'total',
-      smooth: false,
+      smooth: true,
       showSymbol: false,
       sampling: 'lttb',
-      lineStyle: { width: 1, color: d.borderColor },
+      lineStyle: { width: 2, color: d.borderColor },
       itemStyle: { color: d.borderColor },
       areaStyle: {
-        color: buildAreaGradient(d.borderColor as string, 0.55, 0.20),
+        color: buildAreaGradient(d.borderColor as string, 0.22, 0),
       },
       data: d.data,
-      emphasis: { focus: 'series', lineStyle: { width: 2 } },
+      emphasis: { focus: 'series', lineStyle: { width: 3 } },
       blur: {
         lineStyle: { opacity: 0.15 },
         itemStyle: { opacity: 0.15 },

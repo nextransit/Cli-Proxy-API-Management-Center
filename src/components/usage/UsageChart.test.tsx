@@ -133,7 +133,7 @@ describe('<UsageChart /> rank-based coloring', () => {
     expect(colors[8]).toBe(TAIL_LINE_COLOR);
   });
 
-  it('uses a flat line width of 1 for every rank (stacked-area parity)', () => {
+  it('uses a flat line width of 2 for every rank (stacked-area parity)', () => {
     const baseTimestamp = Date.UTC(2026, 6, 15, 10, 0, 0); // 2026-07-15 10:00:00Z
     const scopedDetails = buildDetails(baseTimestamp, NINE_MODEL_NAMES, REQUESTS_PER_MODEL);
 
@@ -146,7 +146,7 @@ describe('<UsageChart /> rank-based coloring', () => {
     const widths = getSeriesLineWidths(option);
     expect(widths).toHaveLength(9);
     widths.forEach((width) => {
-      expect(width).toBe(1);
+      expect(width).toBe(2);
     });
   });
 });

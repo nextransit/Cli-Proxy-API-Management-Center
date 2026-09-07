@@ -110,11 +110,11 @@ describe('buildEChartsTrendOption - stacked area', () => {
     }
   });
 
-  it('sets smooth: false on every series (stacked area prefers straight edges)', () => {
+  it('sets smooth: true on every series (gentle bezier smoothing)', () => {
     const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
     const series = option.series as Array<{ smooth?: boolean }>;
     for (const s of series) {
-      expect(s.smooth).toBe(false);
+      expect(s.smooth).toBe(true);
     }
   });
 
@@ -125,19 +125,19 @@ describe('buildEChartsTrendOption - stacked area', () => {
       const css = s.areaStyle.color as string;
       expect(typeof css).toBe('string');
       expect(css).toContain('linear-gradient');
-      // 180deg = top first, bottom second; the larger alpha (0.55) should precede the smaller (0.2)
-      const topIdx = css.indexOf(', 0.55)');
-      const bottomIdx = css.indexOf(', 0.2)');
+      // 180deg = top first, bottom second; the larger alpha (0.22) should precede the smaller (0)
+      const topIdx = css.indexOf(', 0.22)');
+      const bottomIdx = css.indexOf(', 0)');
       expect(topIdx).toBeGreaterThan(-1);
       expect(bottomIdx).toBeGreaterThan(topIdx);
     }
   });
 
-  it('emphasis.lineStyle.width is reduced to 2 (was 3)', () => {
+  it('emphasis.lineStyle.width is 3 (highlighted on hover)', () => {
     const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
     const series = option.series as Array<{ emphasis: { lineStyle: { width: number } } }>;
     for (const s of series) {
-      expect(s.emphasis.lineStyle.width).toBe(2);
+      expect(s.emphasis.lineStyle.width).toBe(3);
     }
   });
 });
@@ -250,11 +250,11 @@ describe('buildEChartsTrendOption - 8 series with palette', () => {
     }
   });
 
-  it('uses a uniform line width of 1 across all series (stacked area)', () => {
+  it('uses a uniform line width of 2 across all series (stacked area)', () => {
     const option = buildEChartsTrendOption(data, theme, { isNarrowScreen: false });
     const series = option.series as Array<{ lineStyle: { width: number } }>;
     for (const s of series) {
-      expect(s.lineStyle.width).toBe(1);
+      expect(s.lineStyle.width).toBe(2);
     }
   });
 });
