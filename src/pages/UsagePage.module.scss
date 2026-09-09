@@ -12,7 +12,7 @@
   // Direct grid placement keyed by class fragment — see collapseRow below.
   > [class*='collapseRow'] {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--usage-section-gap);
     min-width: 0;
 
@@ -169,6 +169,56 @@
   height: 32px;
   font-size: 12px;
   min-width: 140px;
+}
+
+.headerBarQuickRange {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+
+  [data-theme='dark'] & {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.headerBarQuickRangeButton {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover:not(.headerBarQuickRangeButtonActive) {
+    background: rgba(99, 102, 241, 0.08);
+    color: #4338ca;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.5);
+    outline-offset: 1px;
+  }
+}
+
+.headerBarQuickRangeButtonActive {
+  background: rgba(99, 102, 241, 0.95);
+  color: #ffffff;
+
+  &:hover {
+    background: rgba(79, 70, 229, 0.95);
+    color: #ffffff;
+  }
 }
 
 .serverHealthInlineBadge {
@@ -2021,6 +2071,175 @@
   .tokenDistItem:hover & {
     opacity: 1;
   }
+}
+
+// Top-N selector control rendered inside the card header
+.tokenDistTopNControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tokenDistTopNLabel {
+  color: inherit;
+}
+
+.tokenDistTopNSelect {
+  font-size: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.6);
+  color: #0f172a;
+  border-radius: 6px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.4;
+
+  [data-theme='dark'] & {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(15, 23, 42, 0.55);
+    color: #e2e8f0;
+  }
+}
+
+// Interactive states for legend rows
+.tokenDistItem {
+  cursor: pointer;
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+  }
+}
+
+.tokenDistItemHovered {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.tokenDistItemSelected {
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.tokenDistItemDimmed {
+  opacity: 0.45;
+}
+
+.tokenDistItemHint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+// Drill-down detail panel (used for selected model and Others drawer)
+.tokenDistDetail {
+  margin-top: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(99, 102, 241, 0.04);
+
+  [data-theme='dark'] & {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(99, 102, 241, 0.08);
+  }
+}
+
+.tokenDistDetailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tokenDistDetailTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80%;
+
+  [data-theme='dark'] & {
+    color: #f1f5f9;
+  }
+}
+
+.tokenDistDetailClose {
+  background: transparent;
+  border: 0;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0 4px;
+
+  &:hover {
+    color: #0f172a;
+  }
+
+  [data-theme='dark'] &:hover {
+    color: #f1f5f9;
+  }
+}
+
+.tokenDistDetailRows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tokenDistDetailRow {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.tokenDistDetailDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tokenDistDetailLabel {
+  color: #475569;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  [data-theme='dark'] & {
+    color: #cbd5e1;
+  }
+}
+
+.tokenDistDetailValue {
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  font-weight: 500;
+
+  [data-theme='dark'] & {
+    color: #f1f5f9;
+  }
+}
+
+.tokenDistDetailPercent {
+  font-size: 11px;
+  color: #64748b;
+  min-width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tokenDistDetailTrack {
+  display: none; // visual track collapsed in detail rows for compactness
 }
 
 .chartsGrid {

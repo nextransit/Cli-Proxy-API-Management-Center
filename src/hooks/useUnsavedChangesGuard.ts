@@ -19,10 +19,22 @@ export type UseUnsavedChangesGuardOptions = {
   dialog: UnsavedChangesDialog;
 };
 
+const CANCELLED_NAVIGATION_SUPPRESSION_MS = 600;
+
+const buildNavigationKey = (location?: {
+  pathname?: string;
+  search?: string;
+  hash?: string;
+}) => {
+  if (!location) return '';
+  return `${location.pathname ?? ''}${location.search ?? ''}${location.hash ?? ''}`;
+};
+
 export function useUnsavedChangesGuard(options: UseUnsavedChangesGuardOptions) {
   const { enabled = true, shouldBlock, dialog } = options;
-  const { showConfirmation } = useNotificationStore();
+  const showConfirmation = useNotificationStore((state) => state.showConfirmation);
   const lastBlockedRef = useRef<string>('');
+  const cancelledBlockedRef = useRef<{ key: string; expiresAt: number } | null>(null);
   const allowNextNavigationUntilRef = useRef(0);
   const allowNextNavigationKeyRef = useRef('');
   const location = useLocation();
@@ -67,12 +79,21 @@ export function useUnsavedChangesGuard(options: UseUnsavedChangesGuardOptions) {
 
   const blockedKey = useMemo(() => {
     if (blocker.state !== 'blocked' || !blocker.location) return '';
-    return `${blocker.location.pathname}${blocker.location.search}${blocker.location.hash}`;
+    return buildNavigationKey(blocker.location);
   }, [blocker.location, blocker.state]);
 
   useEffect(() => {
     if (blocker.state !== 'blocked') {
       lastBlockedRef.current = '';
+      return;
+    }
+
+    if (cancelledBlockedRef.current && cancelledBlockedRef.current.expiresAt <= Date.now()) {
+      cancelledBlockedRef.current = null;
+    }
+
+    if (cancelledBlockedRef.current?.key === blockedKey) {
+      blocker.reset();
       return;
     }
 
@@ -87,10 +108,23 @@ export function useUnsavedChangesGuard(options: UseUnsavedChangesGuardOptions) {
       confirmText: dialog.confirmText,
       cancelText: dialog.cancelText,
       variant: dialog.variant ?? 'danger',
-      onConfirm: () => blocker.proceed(),
-      onCancel: () => blocker.reset(),
+      onConfirm: () => {
+        cancelledBlockedRef.current = null;
+        blocker.proceed();
+      },
+      onCancel: () => {
+        cancelledBlockedRef.current = {
+          key: blockedKey,
+          expiresAt: Date.now() + CANCELLED_NAVIGATION_SUPPRESSION_MS,
+        };
+        blocker.reset();
+      },
     });
   }, [blockedKey, blocker, dialog, showConfirmation]);
+
+  useEffect(() => {
+    cancelledBlockedRef.current = null;
+  }, [location.key]);
 
   return { allowNextNavigation };
 }

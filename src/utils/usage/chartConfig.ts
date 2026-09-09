@@ -114,41 +114,104 @@ export function buildEChartsTrendOption(
       data: data.labels,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: theme.textSecondary, fontSize: 11, hideOverlap: true },
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: theme.textSecondary, fontSize: 11 },
-      splitLine: {
-        lineStyle: { type: 'dashed', color: theme.borderMuted },
+      axisLabel: {
+        color: theme.textSecondary,
+        fontSize: 11,
+        hideOverlap: true,
+        // Auto-thin tick density for long series (e.g. >60 points) to avoid the
+        // dense "comb" look when the dashboard defaults to 30d/All ranges.
+        interval: data.labels.length > 60
+          ? Math.ceil(data.labels.length / 12)
+          : data.labels.length > 24
+            ? Math.ceil(data.labels.length / 12)
+            : 'auto',
       },
     },
+    yAxis: (() => {
+      const hasVolumeAxis = data.datasets.some((d) => d.yAxisID === 'yVolume');
+      const baseYAxis: EChartsOption['yAxis'] = {
+        type: 'value',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: theme.textSecondary, fontSize: 11 },
+        splitLine: {
+          lineStyle: { type: 'dashed', color: theme.borderMuted },
+        },
+      };
+      if (!hasVolumeAxis) return baseYAxis;
+      return [
+        baseYAxis,
+        {
+          type: 'value',
+          position: 'right',
+          axisLine: { show: false },
+          axisTick: { show: false },
+          axisLabel: { color: theme.textSecondary, fontSize: 11 },
+          splitLine: { show: false },
+          name: 'Requests',
+          nameTextStyle: { color: theme.textSecondary, fontSize: 10, padding: [0, 0, 0, -28] },
+        },
+      ];
+    })(),
     dataZoom: isNarrowScreen
       ? [
           { type: 'inside', throttle: 50 },
           { type: 'slider', height: 18, bottom: 8, brushSelect: true },
         ]
       : undefined,
-    series: data.datasets.map((d: ChartDataset) => ({
-      name: d.label,
-      type: 'line',
-      stack: 'total',
-      smooth: true,
-      showSymbol: false,
-      sampling: 'lttb',
-      lineStyle: { width: 2, color: d.borderColor },
-      itemStyle: { color: d.borderColor },
-      areaStyle: {
-        color: buildAreaGradient(d.borderColor as string, 0.22, 0),
-      },
-      data: d.data,
-      emphasis: { focus: 'series', lineStyle: { width: 3 } },
-      blur: {
-        lineStyle: { opacity: 0.15 },
-        itemStyle: { opacity: 0.15 },
-      },
-    })),
+    series: (() => {
+      const baseSeries: EChartsOption['series'] = data.datasets.map((d: ChartDataset) => ({
+        name: d.label,
+        type: 'line',
+        stack: 'total',
+        smooth: true,
+        showSymbol: false,
+        sampling: 'lttb',
+        lineStyle: { width: 2, color: d.borderColor },
+        itemStyle: { color: d.borderColor },
+        areaStyle: {
+          color: buildAreaGradient(d.borderColor as string, 0.22, 0),
+        },
+        data: d.data,
+        emphasis: { focus: 'series', lineStyle: { width: 3 } },
+        blur: {
+          lineStyle: { opacity: 0.15 },
+          itemStyle: { opacity: 0.15 },
+        },
+      }));
+      // MA7 overlay: aggregate totals across all datasets, then apply a 7-point
+      // trailing moving average. Helps smooth periodic weekend dips so the trend
+      // eye reads the underlying signal rather than day-of-week noise. Only when
+      // there are enough points to make the average meaningful.
+      if (data.labels.length >= 7) {
+        const totals = new Array(data.labels.length).fill(0);
+        data.datasets.forEach((d) => {
+          d.data.forEach((value, index) => {
+            totals[index] += Number(value) || 0;
+          });
+        });
+        const maSeries = new Array(totals.length).fill(null as number | null);
+        for (let index = 6; index < totals.length; index += 1) {
+          let sum = 0;
+          for (let offset = 0; offset < 7; offset += 1) {
+            sum += totals[index - offset];
+          }
+          maSeries[index] = sum / 7;
+        }
+        baseSeries.push({
+          name: 'MA7',
+          type: 'line',
+          smooth: true,
+          showSymbol: false,
+          sampling: 'lttb',
+          lineStyle: { width: 1.5, type: 'dashed', color: theme.textPrimary },
+          itemStyle: { color: theme.textPrimary },
+          data: maSeries,
+          z: 10,
+          emphasis: { focus: 'series', lineStyle: { width: 2.5 } },
+        });
+      }
+      return baseSeries;
+    })(),
   };
 }

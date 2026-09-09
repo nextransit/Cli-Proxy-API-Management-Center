@@ -135,6 +135,42 @@ export const modelsApi = {
   },
 
   /**
+   * Run a real Codex Responses request through the management api-call
+   * transport so the configuration page validates actual inference, not
+   * just model discovery.
+   */
+  async testResponsesViaApiCall(
+    baseUrl: string,
+    model: string,
+    apiKey?: string,
+    headers: Record<string, string> = {}
+  ) {
+    const normalized = normalizeApiBase(baseUrl);
+    if (!normalized) {
+      throw new Error('Invalid base url');
+    }
+
+    const endpoint = normalized.replace(/\/+$/, '') + '/responses';
+    const resolvedHeaders = { ...headers };
+    if (apiKey && !hasHeader(resolvedHeaders, 'authorization')) {
+      resolvedHeaders.Authorization = `Bearer ${apiKey}`;
+    }
+
+    const result = await apiCallApi.request({
+      method: 'POST',
+      url: endpoint,
+      header: Object.keys(resolvedHeaders).length ? resolvedHeaders : undefined,
+      data: JSON.stringify({ model, input: 'ping', stream: false })
+    });
+
+    if (result.statusCode < 200 || result.statusCode >= 300) {
+      throw new Error(getApiCallErrorMessage(result));
+    }
+
+    return result;
+  },
+
+  /**
    * Fetch models from /models endpoint via api-call (for OpenAI provider discovery)
    */
   async fetchModelsViaApiCall(

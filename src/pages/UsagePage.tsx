@@ -812,6 +812,28 @@ export function UsagePage() {
             ariaLabel={t('usage_stats.range_filter')}
             fullWidth={false}
           />
+          <div className={styles.headerBarQuickRange} role="group" aria-label={t('usage_stats.range_filter')}>
+            {(['7h', '24h', '7d', '30d'] as const).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={[
+                  styles.headerBarQuickRangeButton,
+                  timeRange === preset ? styles.headerBarQuickRangeButtonActive : '',
+                ].filter(Boolean).join(' ')}
+                onClick={() => setTimeRange(preset)}
+                aria-pressed={timeRange === preset}
+              >
+                {preset === '7h'
+                  ? '7H'
+                  : preset === '24h'
+                    ? '24H'
+                    : preset === '7d'
+                      ? '7D'
+                      : '30D'}
+              </button>
+            ))}
+          </div>
           <Select
             value={effectiveCredentialFilter}
             options={credentialFilterOptions}

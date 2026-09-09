@@ -136,6 +136,7 @@ export interface ModelStatsSummary {
   // Token breakdown
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cachedTokens: number;
 }
 
@@ -1337,6 +1338,7 @@ export function getModelStats(
       latency: LatencyAccumulator;
       inputTokens: number;
       outputTokens: number;
+      reasoningTokens: number;
       cachedTokens: number;
     }
   >();
@@ -1358,6 +1360,7 @@ export function getModelStats(
         latency: createLatencyAccumulator(),
         inputTokens: 0,
         outputTokens: 0,
+        reasoningTokens: 0,
         cachedTokens: 0,
       };
       existing.requests += Number(modelData.total_requests) || 0;
@@ -1394,11 +1397,13 @@ export function getModelStats(
             if (isRecord(tokens)) {
               const inputTokens = Number(tokens.input_tokens) || 0;
               const outputTokens = Number(tokens.output_tokens) || 0;
+              const reasoningTokens = Number(tokens.reasoning_tokens) || 0;
               const cachedTokensPrimary = Number(tokens.cached_tokens) || 0;
               const cachedTokensAlt = Number(tokens.cache_tokens) || 0;
               const cachedTokens = Math.max(cachedTokensPrimary, cachedTokensAlt);
               existing.inputTokens += inputTokens;
               existing.outputTokens += outputTokens;
+              existing.reasoningTokens += reasoningTokens;
               existing.cachedTokens += cachedTokens;
             }
           }
@@ -1429,6 +1434,7 @@ export function getModelStats(
         latencySampleCount: latencyStats.sampleCount,
         inputTokens: stats.inputTokens,
         outputTokens: stats.outputTokens,
+        reasoningTokens: stats.reasoningTokens,
         cachedTokens: stats.cachedTokens,
       };
     })

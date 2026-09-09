@@ -13,6 +13,7 @@ import {
   getCacheHitRate,
   getTokenBreakdownValue,
   type ChartData,
+  type ChartDataset,
   type UsageTimeRange,
   type UsageDetail,
 } from '@/utils/usage';
@@ -55,6 +56,9 @@ const TOKEN_FOCUS_CHART_COLORS = {
   output: '#22c55e',
   rate: '#94a3b8',
 };
+
+const OVERLAY_LINE_COLOR = '#f59e0b';
+const OVERLAY_LINE_DASH = [4, 3];
 
 // Sample details when the dataset is too large for chart rendering.
 function sampleDetails(details: UsageDetail[], max: number): UsageDetail[] {
@@ -282,6 +286,58 @@ function getTrendValue(metric: UsageChartMetric, detail: UsageDetail): number {
   return 1;
 }
 
+function buildOverlayRequestsSeries(
+  labels: string[],
+  scopedDetails: UsageDetail[],
+  period: 'hour' | 'day',
+  label: string
+): { data: number[]; label: string } {
+  const data = new Array(labels.length).fill(0);
+  const labelIndex = new Map(labels.map((l, i) => [l, i]));
+  scopedDetails.forEach((detail) => {
+    const timestamp = detail.__timestampMs || 0;
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return;
+    const l =
+      period === 'hour'
+        ? (() => {
+            const date = new Date(timestamp);
+            date.setMinutes(0, 0, 0);
+            return formatHourLabel(date);
+          })()
+        : formatDayLabel(new Date(timestamp));
+    const index = labelIndex.get(l);
+    if (index === undefined) return;
+    data[index] += 1;
+  });
+  return { data, label };
+}
+
+function buildOverlayTokensSeries(
+  labels: string[],
+  scopedDetails: UsageDetail[],
+  period: 'hour' | 'day',
+  label: string
+): { data: number[]; label: string } {
+  const data = new Array(labels.length).fill(0);
+  const labelIndex = new Map(labels.map((l, i) => [l, i]));
+  scopedDetails.forEach((detail) => {
+    const timestamp = detail.__timestampMs || 0;
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return;
+    const l =
+      period === 'hour'
+        ? (() => {
+            const date = new Date(timestamp);
+            date.setMinutes(0, 0, 0);
+            return formatHourLabel(date);
+          })()
+        : formatDayLabel(new Date(timestamp));
+    const index = labelIndex.get(l);
+    if (index === undefined) return;
+    data[index] += extractTotalTokens(detail);
+  });
+  return { data, label };
+}
+
 function buildTrendChartData(
   metric: UsageChartMetric,
   period: 'hour' | 'day',
@@ -361,7 +417,7 @@ function buildTrendChartData(
   });
   const rankedLines = [...rawSeries].sort((a, b) => b.total - a.total);
   const rankByLine = new Map(rankedLines.map((series, index) => [series.line, index]));
-  const datasets = rawSeries.map((series) => {
+  const datasets: ChartDataset[] = rawSeries.map((series) => {
     const rank = rankByLine.get(series.line) ?? 0;
     const color = getRankColor(rank);
     const isTop = rank === 0;
@@ -382,6 +438,56 @@ function buildTrendChartData(
       order: rank,
     };
   });
+
+  // Cross-axis overlay: when the primary metric is requests, show total tokens as
+  // a dashed overlay on a secondary Y-axis. Conversely when primary is tokens,
+  // show total request count on the secondary axis. Gives a single-chart view of
+  // "volume vs throughput" without a second chart.
+  if (metric === 'requests') {
+    const overlay = buildOverlayTokensSeries(
+      labels,
+      scopedDetails,
+      period,
+      t('usage_stats.overlay_total_tokens')
+    );
+    datasets.push({
+      label: overlay.label,
+      data: overlay.data,
+      borderColor: OVERLAY_LINE_COLOR,
+      backgroundColor: 'rgba(255, 255, 255, 0)',
+      pointBackgroundColor: OVERLAY_LINE_COLOR,
+      pointBorderColor: OVERLAY_LINE_COLOR,
+      pointRadius: 0,
+      pointHitRadius: 10,
+      fill: false,
+      tension: 0.42,
+      yAxisID: 'yVolume',
+      borderDash: OVERLAY_LINE_DASH,
+      order: -1,
+    });
+  } else {
+    const overlay = buildOverlayRequestsSeries(
+      labels,
+      scopedDetails,
+      period,
+      t('usage_stats.overlay_total_requests')
+    );
+    datasets.push({
+      label: overlay.label,
+      data: overlay.data,
+      borderColor: OVERLAY_LINE_COLOR,
+      backgroundColor: 'rgba(255, 255, 255, 0)',
+      pointBackgroundColor: OVERLAY_LINE_COLOR,
+      pointBorderColor: OVERLAY_LINE_COLOR,
+      pointRadius: 0,
+      pointHitRadius: 10,
+      fill: false,
+      tension: 0.42,
+      yAxisID: 'yVolume',
+      borderDash: OVERLAY_LINE_DASH,
+      order: -1,
+    });
+  }
 
   return { labels, datasets };
 }

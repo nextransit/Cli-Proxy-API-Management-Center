@@ -554,8 +554,21 @@ export function AiProvidersCodexEditPage() {
       }));
 
       try {
-        await modelsApi.fetchV1ModelsViaApiCall(
+        const discovered = await modelsApi.fetchV1ModelsViaApiCall(
           baseUrl,
+          hasCustomAuthorization ? undefined : apiKey,
+          headerObject
+        );
+        const testModel =
+          normalizedModels.find((model) => Boolean(model.alias || model.name) && (model.alias || model.name) !== '')?.alias ||
+          normalizedModels.find((model) => Boolean(model.name))?.name ||
+          discovered.find((model) => Boolean(model.name))?.name;
+        if (!testModel) {
+          throw new Error('no model configured for connectivity test');
+        }
+        await modelsApi.testResponsesViaApiCall(
+          baseUrl,
+          testModel,
           hasCustomAuthorization ? undefined : apiKey,
           headerObject
         );

@@ -127,7 +127,7 @@ describe('<UsageChart /> rank-based coloring', () => {
     if (!option) return;
 
     const colors = getSeriesColors(option);
-    expect(colors).toHaveLength(9);
+    expect(colors).toHaveLength(10);
     expect(colors[0]).toBe(MODEL_TREND_PALETTE[0]);
     expect(colors[7]).toBe(MODEL_TREND_PALETTE[7]);
     expect(colors[8]).toBe(TAIL_LINE_COLOR);
@@ -144,8 +144,8 @@ describe('<UsageChart /> rank-based coloring', () => {
     if (!option) return;
 
     const widths = getSeriesLineWidths(option);
-    expect(widths).toHaveLength(9);
-    widths.forEach((width) => {
+    expect(widths).toHaveLength(10);
+    widths.slice(0, 9).forEach((width) => {
       expect(width).toBe(2);
     });
   });
