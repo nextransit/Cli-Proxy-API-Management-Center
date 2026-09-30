@@ -12,54 +12,6 @@ import type { ModelPrice } from '@/utils/usage';
 import { SkeletonBlock } from '@/components/ui/Skeleton';
 import styles from '@/pages/UsagePage.module.scss';
 
-const IconCount = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M3 3v18h18" />
-    <path d="M18 17V9" />
-    <path d="M13 17V5" />
-    <path d="M8 17v-3" />
-  </svg>
-);
-
-const IconToken = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </svg>
-);
-
-const IconDollar = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="12" y1="1" x2="12" y2="23" />
-    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-  </svg>
-);
 
 export interface StatCardsProps {
   usage: UsagePayload | null;
@@ -247,9 +199,10 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       : '';
   const requestsFooterTitle =
     `${t('usage_stats.total_label', '总计')} ${stats.totalRequests.toLocaleString()}` +
-    ` · ${t('usage_stats.failure_short', '失败')} ${stats.failureRequests.toLocaleString()}` +
-    ` · ⏱ ${t('usage_stats.avg_latency_short')}: ` +
-    (stats.avgLatency === null ? '--' : formatDurationMs(stats.avgLatency));
+    ` / ${t('usage_stats.failure_short', '失败')} ${stats.failureRequests.toLocaleString()}` +
+    (stats.avgLatency !== null
+      ? ` · ⏱ ${formatDurationMs(stats.avgLatency)}`
+      : '');
   const requestsSummary = (
     <div className={styles.metricSummaryStack} title={successPrimaryTitle}>
       <div
@@ -261,19 +214,12 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
           : stats.totalRequests.toLocaleString()}
       </div>
       <div className={styles.metricSubLine} title={requestsFooterTitle}>
-        <span className={styles.dataCapsuleMuted}>
+        <span className={styles.metricSubMuted}>
           {t('usage_stats.total_label', '总计')} {stats.totalRequests.toLocaleString()}
         </span>
-        <span className={styles.dot}>·</span>
+        <span className={styles.subSep}>/</span>
         <span className={styles.failText} title={failureSecondaryTitle}>
           {t('usage_stats.failure_short', '失败')} {stats.failureRequests.toLocaleString()}
-        </span>
-        <span className={styles.dot}>·</span>
-        <span className={styles.metricSubMuted}>⏱ </span>
-        <span>
-          {stats.avgLatency === null
-            ? '--'
-            : formatDurationMs(stats.avgLatency)}
         </span>
       </div>
     </div>
@@ -287,12 +233,12 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       </div>
       <div className={styles.metricSubLine}>
         <span className={styles.metricSubMuted}>
-          ↙ {t('usage_stats.input_short')}{' '}
+          {t('usage_stats.tokens_input_caption', '输入')}{' '}
           {stats.detailsComplete ? formatTokenCount(stats.inputTokens) : '--'}
         </span>
-        <span className={styles.dot}>·</span>
+        <span className={styles.subSep}>/</span>
         <span className={styles.metricSubMuted}>
-          ↗ {t('usage_stats.output_short')}{' '}
+          {t('usage_stats.tokens_output_caption', '输出')}{' '}
           {stats.detailsComplete ? formatTokenCount(stats.outputTokens) : '--'}
         </span>
       </div>
@@ -314,8 +260,8 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       <div className={styles.metricSubLine}>
         <span className={styles.metricSubMuted}>
           {stats.hasPrices && stats.totalCost !== null
-            ? `≈ ${formatCny(cnyReference)} (${t('usage_stats.reference_fx')})`
-            : t('usage_stats.no_price_data', '历史累计：尚未配置模型单价')}
+            ? `≈ ${formatCny(cnyReference)} · ${t('usage_stats.reference_fx')}`
+            : t('usage_stats.no_price_data', '尚未配置模型单价')}
         </span>
       </div>
     </div>
@@ -329,9 +275,6 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         data-accent="requests"
       >
         <div className={styles.metricCardHeader}>
-          <span className={styles.metricCardIcon}>
-            <IconCount />
-          </span>
           <span className={styles.metricCardTitle}>
             {t('usage_stats.total_success_requests', '总成功请求')}
           </span>
@@ -355,9 +298,6 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         data-accent="tokens"
       >
         <div className={styles.metricCardHeader}>
-          <span className={styles.metricCardIcon}>
-            <IconToken />
-          </span>
           <span className={styles.metricCardTitle}>{t('usage_stats.total_tokens')}</span>
           <span
             className={styles.cacheHitRate}
@@ -380,9 +320,6 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
         data-accent="cost"
       >
         <div className={styles.metricCardHeader}>
-          <span className={styles.metricCardIcon}>
-            <IconDollar />
-          </span>
           <span className={styles.metricCardTitle}>{t('usage_stats.total_cost')}</span>
         </div>
         <div className={styles.metricCardBody}>{showSkeleton ? skeletonSummary : costSummary}</div>

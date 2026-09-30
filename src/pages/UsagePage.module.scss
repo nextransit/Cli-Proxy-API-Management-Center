@@ -9735,3 +9735,196 @@ $navy-blue: #2A7B9B;
 .metricCard .metricSummary > .tokenRatioTrack {
   display: none !important;
 }
+
+/* === Modern SaaS-style metric card ===
+ * Replaces the older dark dashboard accents with a neutral white card.
+ * Removes the colored border-left strip, scales the title to a quiet
+ * slate-500 13-px label, and re-anchors the main value to the left edge
+ * with proper unit sizing so M / B / $ read as subordinate suffixes.
+ */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.metricCard {
+  background: #ffffff;
+  border: 1px solid #eef0f3;
+  border-radius: 12px;
+  padding: 16px 20px 14px 20px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.02);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 112px;
+  border-left: 1px solid #eef0f3 !important;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.metricCard:hover {
+  border-color: #e2e5ec;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.metricCard .metricCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.metricCard .metricCardTitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.metricCard .metricCardIcon,
+.metricCard [class*="metricCardIcon"] {
+  display: none !important;
+}
+/* But the skeleton placeholder still needs its icon block visible during loading. */
+.metricCard[aria-hidden] .metricCardIcon {
+  display: flex !important;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.metricCard .metricCardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-top: 0;
+  padding: 0;
+}
+
+.metricCard .metricSummaryStack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 64px;
+}
+
+.metricCard .metricSummaryStack > .metricMainValue {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  text-shadow: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.metricCard .metricMainValue.primarySuccess,
+.metricCard .metricSummaryStack > .metricMainValue.primarySuccess {
+  color: #059669;
+}
+
+.metricCard .metricMainValue.metricCostValue,
+.metricCard .metricSummaryStack > .metricMainValue.metricCostValue {
+  color: #0f172a;
+}
+
+.metricCard .metricUnit,
+.metricCard .metricSummaryStack > .metricMainValue .metricUnit {
+  font-size: 15px;
+  font-weight: 600;
+  color: #64748b;
+  margin-left: 2px;
+  letter-spacing: -0.01em;
+}
+
+.metricCard .metricSubLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  color: #64748b;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.metricCard .metricSubLine .metricSubMuted {
+  color: #94a3b8;
+}
+
+.metricCard .metricSubLine .failText {
+  color: #e11d48;
+  font-weight: 500;
+}
+
+.metricCard .metricSubLine .dataCapsuleMuted {
+  color: #64748b;
+  background: transparent;
+  padding: 0;
+  border: 0;
+}
+
+.metricCard .metricSubLine .textSuccessAccent {
+  color: #059669;
+}
+
+.metricCard .subSep {
+  color: #cbd5e1;
+  font-weight: 400;
+  margin: 0 2px;
+}
+
+.metricCard .dot {
+  display: none !important;
+}
+
+/* Neutralized badges: success rate and tag chips. */
+.metricCard .successRateBadge,
+.metricCard .cacheHitRate {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #059669;
+  border: 0;
+  letter-spacing: 0;
+}
+
+.metricCard .cacheHitRate {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Force-hide the legacy rich variants that we still keep in the markup
+ * for accessibility/title tooltips. */
+.metricCard .metricSubDetails,
+.metricCard .metricMiniProgress,
+.metricCard .tokenRatioTrack,
+.metricCard .metricSummarySuccess {
+  display: none !important;
+}

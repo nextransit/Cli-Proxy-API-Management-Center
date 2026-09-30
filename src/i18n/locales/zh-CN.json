@@ -1201,7 +1201,12 @@
     "total_success_requests": "总成功请求",
     "success_rate_badge": "成功率",
     "failure_short": "失败",
-    "no_price_data": "历史累计：尚未配置模型单价"
+    "no_price_data": "历史累计：尚未配置模型单价",
+    "tokens_input_caption": "输入",
+    "tokens_output_caption": "输出",
+    "today_tokens_caption": "按成功 200 请求累计",
+    "today_cost_caption": "已匹配单价模型消耗",
+    "total_tokens_caption": "历史有效生成总量"
   },
   "stats": {
     "success": "成功",

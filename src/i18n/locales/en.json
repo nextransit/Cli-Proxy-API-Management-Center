@@ -1193,7 +1193,12 @@
     "total_success_requests": "Total Success Requests",
     "success_rate_badge": "Success Rate",
     "failure_short": "Failed",
-    "no_price_data": "No model prices configured"
+    "no_price_data": "No model prices configured",
+    "tokens_input_caption": "Input",
+    "tokens_output_caption": "Output",
+    "today_tokens_caption": "Counted from successful 200 requests",
+    "today_cost_caption": "Matched priced model consumption",
+    "total_tokens_caption": "Lifetime valid generations"
   },
   "stats": {
     "success": "Success",
