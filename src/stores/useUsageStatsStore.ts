@@ -38,6 +38,9 @@ export interface UsageStreamSummary {
   latest_event_id: number;
   requests_by_day?: Record<string, number>;
   tokens_by_day?: Record<string, number>;
+  success_count_by_day?: Record<string, number>;
+  failure_count_by_day?: Record<string, number>;
+  total_requests_by_day?: Record<string, number>;
 }
 
 export type LoadUsageStatsOptions = {
@@ -285,20 +288,50 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
         : formatLocalDayKey(Date.now());
 
       const merged: UsageStatsSnapshot = { ...usage };
-      merged.total_requests = toNumber(merged.total_requests) + 1;
-      merged.total_tokens = toNumber(merged.total_tokens) + tokens;
+      // Only successful (HTTP 200) requests count toward the headline
+      // request/token totals, matching the server-side aggregation.
+      merged.total_requests =
+        toNumber(merged.total_requests) + (isFailed ? 0 : 1);
+      merged.total_tokens =
+        toNumber(merged.total_tokens) + (isFailed ? 0 : tokens);
       merged.success_count = toNumber(merged.success_count) + (isFailed ? 0 : 1);
       merged.failure_count = toNumber(merged.failure_count) + (isFailed ? 1 : 0);
 
       const prevRequestsByDay = (merged.requests_by_day ?? {}) as Record<string, number>;
-      merged.requests_by_day = {
-        ...prevRequestsByDay,
-        [dayKey]: (prevRequestsByDay[dayKey] ?? 0) + 1,
-      };
+      merged.requests_by_day = isFailed
+        ? prevRequestsByDay
+        : {
+            ...prevRequestsByDay,
+            [dayKey]: (prevRequestsByDay[dayKey] ?? 0) + 1,
+          };
       const prevTokensByDay = (merged.tokens_by_day ?? {}) as Record<string, number>;
-      merged.tokens_by_day = {
-        ...prevTokensByDay,
-        [dayKey]: (prevTokensByDay[dayKey] ?? 0) + tokens,
+      merged.tokens_by_day = isFailed
+        ? prevTokensByDay
+        : {
+            ...prevTokensByDay,
+            [dayKey]: (prevTokensByDay[dayKey] ?? 0) + tokens,
+          };
+
+      // Maintain the daily outcome split so "今日成功请求" can show a real
+      // failure count in its footer while the primary value stays success-only.
+      const prevSuccessByDay = (merged.success_count_by_day ?? {}) as Record<string, number>;
+      merged.success_count_by_day = isFailed
+        ? prevSuccessByDay
+        : {
+            ...prevSuccessByDay,
+            [dayKey]: (prevSuccessByDay[dayKey] ?? 0) + 1,
+          };
+      const prevFailureByDay = (merged.failure_count_by_day ?? {}) as Record<string, number>;
+      merged.failure_count_by_day = isFailed
+        ? {
+            ...prevFailureByDay,
+            [dayKey]: (prevFailureByDay[dayKey] ?? 0) + 1,
+          }
+        : prevFailureByDay;
+      const prevTotalByDay = (merged.total_requests_by_day ?? {}) as Record<string, number>;
+      merged.total_requests_by_day = {
+        ...prevTotalByDay,
+        [dayKey]: (prevTotalByDay[dayKey] ?? 0) + 1,
       };
 
       const apis = (merged.apis ?? {}) as Record<string, unknown>;
@@ -382,6 +415,43 @@ export const useUsageStatsStore = create<UsageStatsState>((set, get) => ({
           if (count > prevCount) next[day] = count;
         }
         mergedUsage.tokens_by_day = next;
+      }
+
+      // Daily outcome split used by the "今日成功请求" footer. Merge each map
+      // monotonically so a late server snapshot never rolls the failure
+      // count (or success count) backwards.
+      if (
+        summary.success_count_by_day &&
+        Object.keys(summary.success_count_by_day).length > 0
+      ) {
+        const prev = (mergedUsage.success_count_by_day ?? {}) as Record<string, number>;
+        const next: Record<string, number> = { ...prev };
+        for (const [day, count] of Object.entries(summary.success_count_by_day)) {
+          if (count > (next[day] ?? 0)) next[day] = count;
+        }
+        mergedUsage.success_count_by_day = next;
+      }
+      if (
+        summary.failure_count_by_day &&
+        Object.keys(summary.failure_count_by_day).length > 0
+      ) {
+        const prev = (mergedUsage.failure_count_by_day ?? {}) as Record<string, number>;
+        const next: Record<string, number> = { ...prev };
+        for (const [day, count] of Object.entries(summary.failure_count_by_day)) {
+          if (count > (next[day] ?? 0)) next[day] = count;
+        }
+        mergedUsage.failure_count_by_day = next;
+      }
+      if (
+        summary.total_requests_by_day &&
+        Object.keys(summary.total_requests_by_day).length > 0
+      ) {
+        const prev = (mergedUsage.total_requests_by_day ?? {}) as Record<string, number>;
+        const next: Record<string, number> = { ...prev };
+        for (const [day, count] of Object.entries(summary.total_requests_by_day)) {
+          if (count > (next[day] ?? 0)) next[day] = count;
+        }
+        mergedUsage.total_requests_by_day = next;
       }
 
       update.usage = mergedUsage;

@@ -16,6 +16,9 @@ export interface StreamSummary {
   latest_event_id: number;
   requests_by_day?: Record<string, number>;
   tokens_by_day?: Record<string, number>;
+  success_count_by_day?: Record<string, number>;
+  failure_count_by_day?: Record<string, number>;
+  total_requests_by_day?: Record<string, number>;
 }
 
 export type StreamEvent =

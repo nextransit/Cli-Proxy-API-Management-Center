@@ -289,7 +289,7 @@ describe('applyIncrementalEvent', () => {
     });
   });
 
-  it('counts a failed SSE event toward failure_count', () => {
+  it('counts a failed SSE event toward failure_count only', () => {
     useUsageStatsStore.setState({
       usage: {
         total_requests: 1,
@@ -298,6 +298,9 @@ describe('applyIncrementalEvent', () => {
         failure_count: 0,
         requests_by_day: {},
         tokens_by_day: {},
+        success_count_by_day: {},
+        failure_count_by_day: {},
+        total_requests_by_day: {},
         apis: {},
       },
       scopeKey: 'http://127.0.0.1:8317::test-key::usage:all',
@@ -313,9 +316,16 @@ describe('applyIncrementalEvent', () => {
     } as UsageEventDetail);
 
     const usage = useUsageStatsStore.getState().usage as Record<string, unknown>;
-    expect(usage.total_requests).toBe(2);
+    // A failed request must not inflate the headline request/token totals.
+    expect(usage.total_requests).toBe(1);
+    expect(usage.total_tokens).toBe(5);
     expect(usage.failure_count).toBe(1);
     expect(usage.success_count).toBe(1);
+
+    const dayKey = new Date().toISOString().slice(0, 10);
+    expect((usage.success_count_by_day as Record<string, number>) ?? {}).toEqual({});
+    expect(usage.failure_count_by_day).toEqual({ [dayKey]: 1 });
+    expect(usage.total_requests_by_day).toEqual({ [dayKey]: 1 });
   });
 
   it('does not mutate the usage snapshot outside the all-time scope', () => {
