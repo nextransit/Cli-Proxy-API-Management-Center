@@ -341,59 +341,67 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
 
   return (
     <div className={styles.statsGrid} aria-busy={loading || undefined}>
-      {cards.map((card) => (
-        <section
-          key={card.key}
-          className={`${styles.metricCard} ${styles.metricCardToday}`}
-          aria-label={card.label}
-          data-accent={card.accentKey}
-        >
-          <div className={styles.metricCardHeader}>
+      {cards.map((card) => {
+        const successRateBadge =
+          card.accentKey === 'requests' && card.successRate ? (
             <span
-              className={styles.metricCardIcon}
+              className={styles.successRateBadge}
+              title={`${t('usage_stats.success_rate', '成功率')}: ${card.successRate}`}
             >
-              {card.icon}
+              {card.successRate}
             </span>
-            <span className={styles.metricCardTitle}>{card.label}</span>
-          </div>
-          <div className={styles.metricCardBody}>
-            {card.accentKey === 'requests' ? (
-              <div className={styles.metricSummarySuccess} title={card.num}>
-                <div className={styles.mainMetric}>{card.num}</div>
-                <div className={styles.subMetric}>
-                  <span>
-                    {card.totalLabel} {stats.today.totalRequests.toLocaleString()}
-                  </span>
-                  <span className={styles.dot}>·</span>
-                  <span className={styles.failText}>
-                    {card.failureLabel} {stats.today.failureRequests.toLocaleString()}
-                  </span>
-                  {card.successRate && (
-                    <>
-                      <span className={styles.dot}>·</span>
-                      <span className={styles.rateBadge}>{card.successRate}</span>
-                    </>
-                  )}
-                  <span
-                    className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
-                  >
-                    {card.subValue.label}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className={styles.metricSummary}>
-                <span className={styles.metricMainValue}>{card.num}</span>
-                <span
-                  className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
+          ) : null;
+        const primaryTitle = String(card.num);
+        const footer =
+          card.accentKey === 'requests' ? (
+            <>
+              <span className={styles.dataCapsuleMuted}>
+                {card.totalLabel} {stats.today.totalRequests.toLocaleString()}
+              </span>
+              <span className={styles.dot}>·</span>
+              <span className={styles.failText}>
+                {card.failureLabel} {stats.today.failureRequests.toLocaleString()}
+              </span>
+              <span className={styles.dot}>·</span>
+              <span
+                className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
+              >
+                {card.subValue.label}
+              </span>
+            </>
+          ) : (
+            <span
+              className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
+            >
+              {card.subValue.label}
+            </span>
+          );
+        return (
+          <section
+            key={card.key}
+            className={`${styles.metricCard} ${styles.metricCardToday}`}
+            aria-label={card.label}
+            data-accent={card.accentKey}
+          >
+            <div className={styles.metricCardHeader}>
+              <span className={styles.metricCardIcon}>{card.icon}</span>
+              <span className={styles.metricCardTitle}>{card.label}</span>
+              {successRateBadge}
+            </div>
+            <div className={styles.metricCardBody}>
+              <div className={styles.metricSummaryStack} title={primaryTitle}>
+                <div
+                  className={`${styles.metricMainValue} ${card.accentKey === 'requests' ? styles.primarySuccess : ''}`}
+                  title={primaryTitle}
                 >
-                  {card.subValue.label}
-                </span>
+                  {card.num}
+                </div>
+                <div className={styles.metricSubLine}>{footer}</div>
               </div>
-            )}
-          </div>
-        </section>
-      ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

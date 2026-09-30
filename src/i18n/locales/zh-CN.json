@@ -1200,7 +1200,8 @@
     "total_label": "总计",
     "total_success_requests": "总成功请求",
     "success_rate_badge": "成功率",
-    "failure_short": "失败"
+    "failure_short": "失败",
+    "no_price_data": "历史累计：尚未配置模型单价"
   },
   "stats": {
     "success": "成功",

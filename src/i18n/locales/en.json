@@ -1192,7 +1192,8 @@
     "total_label": "Total",
     "total_success_requests": "Total Success Requests",
     "success_rate_badge": "Success Rate",
-    "failure_short": "Failed"
+    "failure_short": "Failed",
+    "no_price_data": "No model prices configured"
   },
   "stats": {
     "success": "Success",

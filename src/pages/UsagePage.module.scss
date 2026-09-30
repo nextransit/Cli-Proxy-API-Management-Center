@@ -9658,3 +9658,80 @@ $navy-blue: #2A7B9B;
 :root:not([data-theme]) .textDangerAccent {
   color: #b91c1c;
 }
+
+/* === Uniform metric card stack ===
+ * The 6 cards on the usage page now share a single three-tier layout:
+ * header (title + optional badge), main metric (large primary value),
+ * and sub line (single-row auxiliary text). The body uses flex-column
+ * with justify-content: space-between so all six cards have identical
+ * height regardless of which metric is being rendered.
+ */
+.metricSummaryStack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 64px;
+}
+
+.metricCard .metricSummaryStack > .metricMainValue {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricCard .metricSummaryStack > .metricSubLine {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  color: var(--text-tertiary, #94a3b8);
+}
+
+/* The unified body keeps header pinned to the top and main metric to the
+ * bottom so the primary value stays visually anchored even when the
+ * sub-line is short or absent. */
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+}
+
+.metricCard .metricCardBody {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-top: 12px;
+}
+
+.metricCard .metricCardHeader {
+  margin-bottom: 4px;
+}
+
+/* Constrain the legacy compact-mode variants so they never inflate the
+ * card height after the layout refactor. */
+.metricCard .metricSubDetails,
+.metricCard .metricMiniProgress,
+.metricCard .tokenRatioTrack,
+.metricCard .metricSummarySuccess,
+.metricCard .metricSummary > .metricMiniProgress,
+.metricCard .metricSummary > .tokenRatioTrack {
+  display: none !important;
+}

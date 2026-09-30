@@ -245,14 +245,22 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
     stats.outcomesComplete && stats.failureRequests > 0
       ? stats.failureRequests.toLocaleString()
       : '';
+  const requestsFooterTitle =
+    `${t('usage_stats.total_label', '总计')} ${stats.totalRequests.toLocaleString()}` +
+    ` · ${t('usage_stats.failure_short', '失败')} ${stats.failureRequests.toLocaleString()}` +
+    ` · ⏱ ${t('usage_stats.avg_latency_short')}: ` +
+    (stats.avgLatency === null ? '--' : formatDurationMs(stats.avgLatency));
   const requestsSummary = (
-    <div className={styles.metricSummarySuccess} title={successPrimaryTitle}>
-      <div className={styles.mainMetric}>
+    <div className={styles.metricSummaryStack} title={successPrimaryTitle}>
+      <div
+        className={`${styles.metricMainValue} ${styles.primarySuccess}`}
+        title={successPrimaryTitle}
+      >
         {stats.outcomesComplete && stats.successRequests > 0
           ? stats.successRequests.toLocaleString()
           : stats.totalRequests.toLocaleString()}
       </div>
-      <div className={styles.subMetric}>
+      <div className={styles.metricSubLine} title={requestsFooterTitle}>
         <span className={styles.dataCapsuleMuted}>
           {t('usage_stats.total_label', '总计')} {stats.totalRequests.toLocaleString()}
         </span>
@@ -261,88 +269,55 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
           {t('usage_stats.failure_short', '失败')} {stats.failureRequests.toLocaleString()}
         </span>
         <span className={styles.dot}>·</span>
-        <span className={styles.textSuccessAccent}>
-          {t('usage_stats.success_rate')}: {requestSuccessRate.toFixed(1)}%
-        </span>
-        <span className={styles.dot}>·</span>
-        <span className={styles.metricSubMuted}>⏱ {t('usage_stats.avg_latency_short')}: </span>
+        <span className={styles.metricSubMuted}>⏱ </span>
         <span>
           {stats.avgLatency === null
             ? '--'
             : formatDurationMs(stats.avgLatency)}
         </span>
       </div>
-      {stats.outcomesComplete && (
-        <span
-          className={styles.metricMiniProgress}
-          title={`${t('usage_stats.success_rate')}: ${requestSuccessRate.toFixed(1)}%`}
-        >
-          <span
-            className={styles.metricMiniProgressSuccess}
-            style={{ width: `${requestSuccessRate}%` }}
-          />
-          <span
-            className={styles.metricMiniProgressFailure}
-            style={{ width: `${100 - requestSuccessRate}%` }}
-          />
-        </span>
-      )}
     </div>
   );
 
+  const tokensPrimary = formatMetricValue(formatTokenCount(stats.totalTokens));
   const tokensSummary = (
-    <div className={styles.metricSummary} title={preciseTokensTitle}>
-      <span className={styles.metricMainValue}>
-        {formatMetricValue(formatTokenCount(stats.totalTokens))}
-      </span>
-      <span className={styles.metricSubDetails}>
-        <span className={`${styles.dataCapsule} ${styles.dataCapsuleInput}`}>
-          ↙ {t('usage_stats.input_short')}:{' '}
+    <div className={styles.metricSummaryStack} title={preciseTokensTitle}>
+      <div className={styles.metricMainValue} title={preciseTokensTitle}>
+        {tokensPrimary}
+      </div>
+      <div className={styles.metricSubLine}>
+        <span className={styles.metricSubMuted}>
+          ↙ {t('usage_stats.input_short')}{' '}
           {stats.detailsComplete ? formatTokenCount(stats.inputTokens) : '--'}
         </span>
-        <span className={`${styles.dataCapsule} ${styles.dataCapsuleOutput}`}>
-          ↗ {t('usage_stats.output_short')}:{' '}
+        <span className={styles.dot}>·</span>
+        <span className={styles.metricSubMuted}>
+          ↗ {t('usage_stats.output_short')}{' '}
           {stats.detailsComplete ? formatTokenCount(stats.outputTokens) : '--'}
         </span>
-      </span>
-      {stats.detailsComplete && (
-        <span
-          className={styles.tokenRatioTrack}
-          title={`${t('usage_stats.input_tokens')}: ${stats.inputTokens.toLocaleString()} · ${t('usage_stats.output_tokens')}: ${stats.outputTokens.toLocaleString()}`}
-        >
-          <span
-            className={styles.tokenRatioInput}
-            style={{ width: `${percentOf(stats.inputTokens, tokenBarTotal)}%` }}
-          />
-          <span
-            className={styles.tokenRatioOutput}
-            style={{ width: `${percentOf(stats.outputTokens, tokenBarTotal)}%` }}
-          />
-          <span
-            className={styles.tokenRatioCached}
-            style={{ width: `${percentOf(stats.cachedTokens, tokenBarTotal)}%` }}
-          />
-          <span
-            className={styles.tokenRatioReasoning}
-            style={{ width: `${percentOf(stats.reasoningTokens, tokenBarTotal)}%` }}
-          />
-        </span>
-      )}
+      </div>
     </div>
   );
 
+  const costPrimary =
+    stats.hasPrices && stats.totalCost !== null
+      ? formatUsd(stats.totalCost)
+      : '--';
   const costSummary = (
-    <div className={styles.metricSummary} title={preciseCostTitle}>
-      <span className={`${styles.metricMainValue} ${styles.metricCostValue}`}>
-        {stats.hasPrices && stats.totalCost !== null
-          ? formatMetricValue(formatUsd(stats.totalCost))
-          : '--'}
-      </span>
-      {stats.hasPrices && stats.totalCost !== null && (
-        <span className={styles.metricSubLine}>
-          ≈ {formatCny(cnyReference)} ({t('usage_stats.reference_fx')})
+    <div className={styles.metricSummaryStack} title={preciseCostTitle}>
+      <div
+        className={`${styles.metricMainValue} ${styles.metricCostValue}`}
+        title={preciseCostTitle}
+      >
+        {formatMetricValue(costPrimary)}
+      </div>
+      <div className={styles.metricSubLine}>
+        <span className={styles.metricSubMuted}>
+          {stats.hasPrices && stats.totalCost !== null
+            ? `≈ ${formatCny(cnyReference)} (${t('usage_stats.reference_fx')})`
+            : t('usage_stats.no_price_data', '历史累计：尚未配置模型单价')}
         </span>
-      )}
+      </div>
     </div>
   );
 
