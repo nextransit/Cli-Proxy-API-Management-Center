@@ -1189,7 +1189,10 @@
     "tail_expand_other": "Show tail models ({{count}}, {{zero}} unused)",
     "tail_collapse": "Hide tail models ({{count}})",
     "today_success_requests": "Today Success Requests",
-    "total_label": "Total"
+    "total_label": "Total",
+    "total_success_requests": "Total Success Requests",
+    "success_rate_badge": "Success Rate",
+    "failure_short": "Failed"
   },
   "stats": {
     "success": "Success",

@@ -1197,7 +1197,10 @@
     "tail_expand_other": "展开长尾模型（{{count}} 个，含 {{zero}} 个无调用）",
     "tail_collapse": "收起长尾模型（{{count}} 个）",
     "today_success_requests": "今日成功请求",
-    "total_label": "总计"
+    "total_label": "总计",
+    "total_success_requests": "总成功请求",
+    "success_rate_badge": "成功率",
+    "failure_short": "失败"
   },
   "stats": {
     "success": "成功",

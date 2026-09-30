@@ -294,15 +294,26 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
   const todayCostComplete = stats.today.detailRequests >= stats.today.requests;
   const yesterdayCostComplete = stats.yesterday.detailRequests >= stats.yesterday.requests;
 
+  const todaySuccessRateText =
+    stats.today.totalRequests > 0
+      ? ((stats.today.successRequests / stats.today.totalRequests) * 100).toFixed(1) + '%'
+      : null;
   const cards = [
     {
       key: 'todayRequests',
-      label: t('usage_stats.today_requests') || '今日请求',
-      num: stats.today.requests.toLocaleString(),
+      label: t('usage_stats.today_success_requests', '今日成功请求'),
+      num: stats.today.successRequests.toLocaleString(),
       icon: <IconCount />,
-      accent: '#38bdf8',
+      accent: '#10b981',
       accentKey: 'requests',
-      subValue: buildTrend(stats.today.requests, stats.yesterday.requests, compareYesterday),
+      successRate: todaySuccessRateText,
+      totalLabel: t('usage_stats.total_label', '总计'),
+      failureLabel: t('usage_stats.failure_short', '失败'),
+      subValue: buildTrend(
+        stats.today.successRequests,
+        stats.yesterday.successRequests,
+        compareYesterday
+      ),
     },
     {
       key: 'todayTokens',
@@ -346,14 +357,40 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
             <span className={styles.metricCardTitle}>{card.label}</span>
           </div>
           <div className={styles.metricCardBody}>
-            <div className={styles.metricSummary}>
-              <span className={styles.metricMainValue}>{card.num}</span>
-              <span
-                className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
-              >
-                {card.subValue.label}
-              </span>
-            </div>
+            {card.accentKey === 'requests' ? (
+              <div className={styles.metricSummarySuccess} title={card.num}>
+                <div className={styles.mainMetric}>{card.num}</div>
+                <div className={styles.subMetric}>
+                  <span>
+                    {card.totalLabel} {stats.today.totalRequests.toLocaleString()}
+                  </span>
+                  <span className={styles.dot}>·</span>
+                  <span className={styles.failText}>
+                    {card.failureLabel} {stats.today.failureRequests.toLocaleString()}
+                  </span>
+                  {card.successRate && (
+                    <>
+                      <span className={styles.dot}>·</span>
+                      <span className={styles.rateBadge}>{card.successRate}</span>
+                    </>
+                  )}
+                  <span
+                    className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
+                  >
+                    {card.subValue.label}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.metricSummary}>
+                <span className={styles.metricMainValue}>{card.num}</span>
+                <span
+                  className={`${styles.metricSubLine} ${getTrendClassName(card.subValue.direction)}`}
+                >
+                  {card.subValue.label}
+                </span>
+              </div>
+            )}
           </div>
         </section>
       ))}

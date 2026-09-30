@@ -241,35 +241,37 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
     stats.outcomesComplete && stats.successRequests > 0
       ? stats.successRequests.toLocaleString()
       : preciseRequestsTitle;
+  const failureSecondaryTitle =
+    stats.outcomesComplete && stats.failureRequests > 0
+      ? stats.failureRequests.toLocaleString()
+      : '';
   const requestsSummary = (
-    <div className={styles.metricSummary} title={successPrimaryTitle}>
-      <span className={`${styles.metricMainValue} ${styles.textSuccessAccent}`}>
-        {formatMetricValue(
-          stats.outcomesComplete && stats.successRequests > 0
-            ? formatCompactNumber(stats.successRequests)
-            : formatCompactNumber(stats.totalRequests)
-        )}
-      </span>
-      <span className={styles.metricSubDetails}>
-        <span className={`${styles.dataCapsule} ${styles.dataCapsuleMuted}`}>
+    <div className={styles.metricSummarySuccess} title={successPrimaryTitle}>
+      <div className={styles.mainMetric}>
+        {stats.outcomesComplete && stats.successRequests > 0
+          ? stats.successRequests.toLocaleString()
+          : stats.totalRequests.toLocaleString()}
+      </div>
+      <div className={styles.subMetric}>
+        <span className={styles.dataCapsuleMuted}>
           {t('usage_stats.total_label', '总计')} {stats.totalRequests.toLocaleString()}
         </span>
-        <span className={`${styles.dataCapsule} ${styles.dataCapsuleFailure}`}>
+        <span className={styles.dot}>·</span>
+        <span className={styles.failText} title={failureSecondaryTitle}>
           {t('usage_stats.failure_short', '失败')} {stats.failureRequests.toLocaleString()}
         </span>
-      </span>
-      <span className={styles.metricSubLine}>
+        <span className={styles.dot}>·</span>
         <span className={styles.textSuccessAccent}>
           {t('usage_stats.success_rate')}: {requestSuccessRate.toFixed(1)}%
         </span>
-        <span className={styles.metricSubSeparator}> · </span>
+        <span className={styles.dot}>·</span>
         <span className={styles.metricSubMuted}>⏱ {t('usage_stats.avg_latency_short')}: </span>
         <span>
           {stats.avgLatency === null
             ? '--'
             : formatDurationMs(stats.avgLatency)}
         </span>
-      </span>
+      </div>
       {stats.outcomesComplete && (
         <span
           className={styles.metricMiniProgress}
@@ -348,14 +350,24 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
     <div className={styles.statsGrid} aria-busy={showSkeleton || undefined}>
       <section
         className={`${styles.metricCard} ${styles.metricCardLifetime}`}
-        aria-label={t('usage_stats.total_requests')}
+        aria-label={t('usage_stats.total_success_requests', '总成功请求')}
         data-accent="requests"
       >
         <div className={styles.metricCardHeader}>
           <span className={styles.metricCardIcon}>
             <IconCount />
           </span>
-          <span className={styles.metricCardTitle}>{t('usage_stats.total_requests')}</span>
+          <span className={styles.metricCardTitle}>
+            {t('usage_stats.total_success_requests', '总成功请求')}
+          </span>
+          {stats.outcomesComplete && (
+            <span
+              className={styles.successRateBadge}
+              title={`${t('usage_stats.success_rate', '成功率')}: ${requestSuccessRate.toFixed(1)}%`}
+            >
+              {requestSuccessRate.toFixed(1)}% {t('usage_stats.success_rate_badge', '成功率')}
+            </span>
+          )}
         </div>
         <div className={styles.metricCardBody}>
           {showSkeleton ? skeletonSummary : requestsSummary}
