@@ -42,6 +42,9 @@ interface PeriodStats {
   cost: number;
   tokens: number;
   requests: number;
+  successRequests: number;
+  failureRequests: number;
+  totalRequests: number;
   detailRequests: number;
 }
 
@@ -49,6 +52,9 @@ const EMPTY_PERIOD_STATS: PeriodStats = {
   cost: 0,
   tokens: 0,
   requests: 0,
+  successRequests: 0,
+  failureRequests: 0,
+  totalRequests: 0,
   detailRequests: 0,
 };
 
@@ -204,11 +210,15 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
         month.cost += cost;
         month.tokens += totalTokens;
         month.requests += 1;
+        month.successRequests += 1;
+        month.totalRequests += 1;
         month.detailRequests += 1;
       } else if (timestampMs >= previousMonthStart && timestampMs < monthStart) {
         previousMonth.cost += cost;
         previousMonth.tokens += totalTokens;
         previousMonth.requests += 1;
+        previousMonth.successRequests += 1;
+        previousMonth.totalRequests += 1;
         previousMonth.detailRequests += 1;
       }
     }
@@ -220,6 +230,40 @@ export function SummaryCards({ usage, loading, modelPrices }: SummaryCardsProps)
     yesterday.requests =
       getDailyAggregate(usage, 'requests_by_day', yesterdayKey) ?? yesterday.requests;
     yesterday.tokens = getDailyAggregate(usage, 'tokens_by_day', yesterdayKey) ?? yesterday.tokens;
+
+    // Best-effort daily success/total aggregation. Falls back to treating
+    // the day total as success-only when the backend does not expose
+    // outcome breakdown by day.
+    const aggregateOutcome = (usage as unknown as {
+      success_count_by_day?: Record<string, number>;
+    }).success_count_by_day;
+    const aggregateFailure = (usage as unknown as {
+      failure_count_by_day?: Record<string, number>;
+    }).failure_count_by_day;
+    const aggregateTotalReq = (usage as unknown as {
+      total_requests_by_day?: Record<string, number>;
+    }).total_requests_by_day;
+    if (aggregateOutcome) {
+      today.successRequests = Math.max(0, Number(aggregateOutcome[todayKey]) || 0);
+      yesterday.successRequests = Math.max(0, Number(aggregateOutcome[yesterdayKey]) || 0);
+    } else {
+      today.successRequests = today.requests;
+      yesterday.successRequests = yesterday.requests;
+    }
+    if (aggregateFailure) {
+      today.failureRequests = Math.max(0, Number(aggregateFailure[todayKey]) || 0);
+      yesterday.failureRequests = Math.max(0, Number(aggregateFailure[yesterdayKey]) || 0);
+    } else {
+      today.failureRequests = 0;
+      yesterday.failureRequests = 0;
+    }
+    if (aggregateTotalReq) {
+      today.totalRequests = Math.max(0, Number(aggregateTotalReq[todayKey]) || 0);
+      yesterday.totalRequests = Math.max(0, Number(aggregateTotalReq[yesterdayKey]) || 0);
+    } else {
+      today.totalRequests = today.successRequests + today.failureRequests;
+      yesterday.totalRequests = yesterday.successRequests + yesterday.failureRequests;
+    }
 
     return { today, yesterday, month, previousMonth };
   }, [usage, modelPrices]);

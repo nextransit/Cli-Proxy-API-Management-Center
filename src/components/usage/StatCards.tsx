@@ -162,6 +162,9 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
     details.forEach((detail) => {
       if (!detail.failed) successRequests++;
       else failureRequests++;
+      // Failed requests must never contribute to token totals, latency
+      // averages, or cost rollups.
+      if (detail.failed) return;
 
       const tokens = detail.tokens || {};
       inputTokens += toSafeNumber(tokens.input_tokens);
@@ -179,12 +182,21 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       if (hasPrices) totalCost += calculateCost(detail, modelPrices);
     });
 
-    const totalRequests = toSafeNumber(usage.total_requests ?? details.length);
+    // Prefer the backend-supplied success-only counters; fall back to the
+    // filtered detail scan when those fields are absent.
+    const backendSuccess = toSafeNumber(usage.success_count);
+    const backendFailure = toSafeNumber(usage.failure_count);
+    const backendTotal = toSafeNumber(usage.total_requests);
+    const useBackendCounters =
+      backendSuccess > 0 || backendFailure > 0 || backendTotal > 0;
+    const totalRequests = useBackendCounters
+      ? Math.max(backendSuccess + backendFailure, backendTotal, successRequests)
+      : successRequests;
+    const resolvedSuccessRequests = useBackendCounters ? backendSuccess : successRequests;
+    const resolvedFailureRequests = useBackendCounters ? backendFailure : failureRequests;
+    const resolvedTotalTokens =
+      usage.total_tokens ?? inputTokens + outputTokens + cachedTokens + reasoningTokens;
     const detailsComplete = details.length >= totalRequests;
-    const resolvedSuccessRequests =
-      usage.success_count === undefined ? successRequests : toSafeNumber(usage.success_count);
-    const resolvedFailureRequests =
-      usage.failure_count === undefined ? failureRequests : toSafeNumber(usage.failure_count);
     const outcomesComplete =
       totalRequests === 0 || resolvedSuccessRequests + resolvedFailureRequests >= totalRequests;
 
@@ -193,8 +205,7 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
       successRequests: resolvedSuccessRequests,
       failureRequests: resolvedFailureRequests,
       avgLatency: detailsComplete && latencyCount > 0 ? totalLatency / latencyCount : null,
-      totalTokens:
-        usage.total_tokens ?? inputTokens + outputTokens + cachedTokens + reasoningTokens,
+      totalTokens: resolvedTotalTokens,
       inputTokens,
       outputTokens,
       cachedTokens,
@@ -226,24 +237,38 @@ export function StatCards({ usage, loading, modelPrices = {} }: StatCardsProps) 
     </>
   );
 
+  const successPrimaryTitle =
+    stats.outcomesComplete && stats.successRequests > 0
+      ? stats.successRequests.toLocaleString()
+      : preciseRequestsTitle;
   const requestsSummary = (
-    <div className={styles.metricSummary} title={preciseRequestsTitle}>
-      <span className={styles.metricMainValue}>
-        {formatMetricValue(formatCompactNumber(stats.totalRequests))}
+    <div className={styles.metricSummary} title={successPrimaryTitle}>
+      <span className={`${styles.metricMainValue} ${styles.textSuccessAccent}`}>
+        {formatMetricValue(
+          stats.outcomesComplete && stats.successRequests > 0
+            ? formatCompactNumber(stats.successRequests)
+            : formatCompactNumber(stats.totalRequests)
+        )}
       </span>
       <span className={styles.metricSubDetails}>
-        <span className={`${styles.dataCapsule} ${styles.dataCapsuleSuccess}`}>
-          ✓ {stats.outcomesComplete ? stats.successRequests.toLocaleString() : '--'}
+        <span className={`${styles.dataCapsule} ${styles.dataCapsuleMuted}`}>
+          {t('usage_stats.total_label', '总计')} {stats.totalRequests.toLocaleString()}
         </span>
         <span className={`${styles.dataCapsule} ${styles.dataCapsuleFailure}`}>
-          ! {stats.outcomesComplete ? stats.failureRequests.toLocaleString() : '--'}
+          {t('usage_stats.failure_short', '失败')} {stats.failureRequests.toLocaleString()}
         </span>
       </span>
       <span className={styles.metricSubLine}>
-        ⏱ {t('usage_stats.avg_latency_short')}:{' '}
+        <span className={styles.textSuccessAccent}>
+          {t('usage_stats.success_rate')}: {requestSuccessRate.toFixed(1)}%
+        </span>
+        <span className={styles.metricSubSeparator}> · </span>
+        <span className={styles.metricSubMuted}>⏱ {t('usage_stats.avg_latency_short')}: </span>
+        <span>
           {stats.avgLatency === null
             ? '--'
             : formatDurationMs(stats.avgLatency)}
+        </span>
       </span>
       {stats.outcomesComplete && (
         <span
