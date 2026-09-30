@@ -9058,18 +9058,16 @@ $navy-blue: #2A7B9B;
 // ============================================
 // Unified metric-card system (FINAL OVERRIDES)
 // Two tiers are supported, applied via the card variant:
-//   .metricCardToday    — first row: live signal (today's window). Bright text,
-//                         3px accent-coloured left border, soft horizontal glow.
-//   .metricCardLifetime — second row: cumulative baseline. Lower-emphasis text,
-//                         dimmer border, no left accent — reads as "background".
-// The icon area becomes background-less; the per-card accent colour is applied
-// to the underlying SVG only via `currentColor`. Cards stay on the same
-// dark surface colour as the rest of the dashboard so the page reads as one
-// cohesive dark console rather than a row of neon tiles.
+//   .metricCardToday    — first row: live signal (today's window).
+//   .metricCardLifetime — second row: cumulative baseline.
+// All six cards share the same neutral white surface so the page reads as
+// one cohesive modern dashboard (Cloudflare / Vercel / Stripe), not a row
+// of neon tiles. Theme variants only change the surface tone, never the
+// card chrome.
 // ============================================
 
 .statsGrid {
-  gap: 8px;
+  gap: 16px;
   width: 100%;
   margin-bottom: 0;
   display: grid;
@@ -9082,61 +9080,60 @@ $navy-blue: #2A7B9B;
 
 .metricCard {
   min-width: 0;
-  height: 60px;
+  height: auto;
+  min-height: 112px;
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 12px;
-  padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: #151922;
+  gap: 0;
+  padding: 16px 20px 14px 20px;
+  border-radius: 12px;
+  border: 1px solid #eef0f3;
+  background: #ffffff;
   position: relative;
-  overflow: hidden;
-  transition: border-color 0.18s ease;
+  overflow: visible;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.02);
 
   &:hover {
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: #e2e5ec;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
   }
 
-  // Accent variants — chosen per-card by the component via inline style.
-  &[data-accent='requests'] {
-    border-left: 3px solid #38bdf8;
-    background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, #151922 38%);
-  }
-  &[data-accent='tokens'] {
-    border-left: 3px solid #a78bfa;
-    background: linear-gradient(90deg, rgba(167, 139, 250, 0.08) 0%, #151922 38%);
-  }
+  // No per-accent colored left border or gradient — keep the chrome uniform.
+  &[data-accent='requests'],
+  &[data-accent='tokens'],
   &[data-accent='cost'] {
-    border-left: 3px solid #34d399;
-    background: linear-gradient(90deg, rgba(52, 211, 153, 0.08) 0%, #151922 38%);
+    border: 1px solid #eef0f3;
+    background: #ffffff;
+    background-image: none;
   }
 
-  // Today row uses brighter main-value text and a slightly lifted bg so the
-  // first row reads as the primary signal.
   &.metricCardToday {
     .metricMainValue {
-      color: #f8fafc;
+      color: #0f172a;
       font-weight: 700;
+      font-size: 26px;
+      letter-spacing: -0.03em;
     }
   }
 
-  // Lifetime (cumulative) tier — same shell, quieter content.
   &.metricCardLifetime {
-    border-left-color: transparent;
-    border-color: rgba(255, 255, 255, 0.05);
-    background: #11151c;
+    border: 1px solid #eef0f3;
+    background: #ffffff;
+    background-image: none;
 
     .metricCardTitle {
-      color: var(--text-tertiary);
+      color: #64748b;
       font-weight: 500;
       letter-spacing: 0;
     }
     .metricMainValue {
-      color: #cbd5e1;
-      font-weight: 600;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 26px;
+      letter-spacing: -0.03em;
     }
     .metricCardIcon {
       color: var(--text-tertiary);
@@ -9148,244 +9145,182 @@ $navy-blue: #2A7B9B;
 .metricCardHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 0 0 auto;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  border-bottom: none;
+  padding-bottom: 0;
   min-width: 0;
 }
 
-// Background-less icon: the colour comes from `currentColor` which is set by
-// the card variant. We removed the solid coloured square — the icon now sits
-// directly on the card surface with an 85% opacity for a calmer look.
-.metricCardIcon {
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 14px;
-  background: transparent;
-  color: inherit;
-  opacity: 0.9;
-
-  svg {
-    width: 14px;
-    height: 14px;
-  }
-}
-
 .metricCardTitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
   letter-spacing: 0.01em;
+  text-transform: none;
 }
 
 .metricCardBody {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
   min-width: 0;
   flex: 1 1 auto;
+  margin-top: 0;
+  padding: 0;
 }
 
-.metricSummary {
+.metricSummaryStack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 64px;
+}
+
+.metricSummaryStack > .metricMainValue {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  text-shadow: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  flex-wrap: nowrap;
+  gap: 2px;
 }
 
-.metricMainValue {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  color: #f8fafc;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.metricMainValue.primarySuccess,
+.metricSummaryStack > .metricMainValue.primarySuccess {
+  color: #059669 !important;
+}
+
+.metricMainValue.metricCostValue,
+.metricSummaryStack > .metricMainValue.metricCostValue {
+  color: #0f172a !important;
+}
+
+.metricUnit,
+.metricSummaryStack > .metricMainValue .metricUnit {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  margin-left: 2px !important;
+  letter-spacing: -0.01em !important;
+  opacity: 1 !important;
 }
 
 .metricSubLine {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.2;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  color: #64748b;
+  text-align: left;
+  justify-content: flex-start;
 }
 
-.metricCostValue {
-  // The main value itself already shows in emerald via .metricCard[data-accent='cost'].
-  // Keep the secondary tone consistent with the rest of the row.
-  color: inherit;
+.metricSubLine .metricSubMuted {
+  color: #94a3b8;
 }
 
-// Suppress the rich second-tier elements that don't fit the 60px row anymore.
-// StatCards' previous rich variants (subDetails, mini progress, tokenRatioTrack)
-// are kept in the markup for accessibility/title but visually hidden in compact
-// mode. We keep the elements rendered so users can still see the precise counts
-// via the title-attribute tooltip.
+.metricSubLine .failText {
+  color: #e11d48;
+  font-weight: 500;
+}
+
+.metricSubLine .dataCapsuleMuted {
+  color: #64748b;
+  background: transparent;
+  padding: 0;
+  border: 0;
+}
+
+.metricSubLine .textSuccessAccent {
+  color: #059669;
+}
+
+.subSep {
+  color: #cbd5e1;
+  font-weight: 400;
+  margin: 0 2px;
+}
+
+.dot {
+  display: none;
+}
+
+.successRateBadge,
+.cacheHitRate {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+  letter-spacing: 0 !important;
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  text-shadow: none !important;
+  margin: 0 !important;
+}
+
+.cacheHitRate {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
 .metricSubDetails,
 .metricMiniProgress,
-.tokenRatioTrack {
-  display: none;
+.tokenRatioTrack,
+.metricSummarySuccess,
+.metricSummary {
+  display: none !important;
 }
 
-// Hide summaryCard / summaryCards entirely — they have been migrated to metricCard.
-// This avoids duplicate renders if anything still references them.
-.summaryCards,
-.summaryCard,
-.summaryCardIcon,
-.summaryCardContent,
-.summaryCardLabel,
-.summaryCardValue,
-.summaryCardNumber,
-.summaryCardUnit,
-.summaryCardTrend,
-.summaryCardTrendUp,
-.summaryCardTrendDown,
-.summaryCardTrendFlat {
-  display: none;
-}
-
-
-// Force metric card chrome on every theme. The dark console look the user is
-// asking for should survive even when the rest of the app is in light mode.
-// Use a scoped selector that matches the specificity of the white-theme
-// overrides (.container .statsGrid > .metricCard = 0,3,0).
-.container .statsGrid > .metricCard {
-  background: #151922 !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
-  color: #f8fafc;
-
-  &[data-accent='requests'] {
-    border-left: 3px solid #38bdf8 !important;
-    background: linear-gradient(90deg, rgba(56, 189, 248, 0.10) 0%, #151922 38%) !important;
-  }
-  &[data-accent='tokens'] {
-    border-left: 3px solid #a78bfa !important;
-    background: linear-gradient(90deg, rgba(167, 139, 250, 0.10) 0%, #151922 38%) !important;
-  }
-  &[data-accent='cost'] {
-    border-left: 3px solid #34d399 !important;
-    background: linear-gradient(90deg, rgba(52, 211, 153, 0.10) 0%, #151922 38%) !important;
-  }
-}
-
-.container .statsGrid > .metricCard .metricCardTitle {
-  color: #cbd5e1;
-}
-
-.container .statsGrid > .metricCard .metricMainValue {
-  color: #f8fafc !important;
-}
-
-// Background-less icon square. The colour is set inline by the component via
-// style={{ color: card.accent }}; we just ensure there's no background pill.
-.container .statsGrid > .metricCard .metricCardIcon {
-  background: transparent !important;
-}
-
-// Lifetime tier — same shell, quieter content.
-.container .statsGrid > .metricCard.metricCardLifetime {
-  border-left: 3px solid transparent !important;
-  background: #11151c !important;
-  border-color: rgba(255, 255, 255, 0.05) !important;
-
-  .metricMainValue {
-    color: #cbd5e1 !important;
-    font-weight: 600 !important;
-  }
-
-  .metricCardTitle {
-    color: var(--text-tertiary, #64748b);
-    font-weight: 500;
-    letter-spacing: 0;
-  }
-}
-
-// -------------------------------------------------------------------------
-// Per-accent text/icon colours (FINAL OVERRIDES)
-// The container's white-theme override sets `color: var(--text-primary)` on
-// every descendant via `[data-theme=white] .container *:not(...):not(...)`
-// with !important. To win the cascade we MUST match or beat that specificity
-// AND keep !important. The selector below uses three classes plus the
-// [data-accent=...] attribute selector, giving specificity (0,4,0) and
-// `!important` so it always wins. We deliberately do NOT rely on inline
-// style — the icon span is now driven by data-accent and SCSS owns the
-// colour, which is immune to the `*` override.
-// -------------------------------------------------------------------------
-
-// -------------------------------------------------------------------------
-// Per-accent text/icon/value colours — FINAL OVERRIDES
-// Two themes:
-//   * Dark (`html[data-theme="dark"]` or unset dark surface) — high-contrast
-//     white value, micro-glow on the left border.
-//   * Light (`html[data-theme="white"]` / "light" / unset default) — white
-//     card surface, darker text, softer gradient.
-//
-// Numbers get a per-accent tint in both themes:
-//   requests -> sky, tokens -> indigo/violet, cost -> emerald.
-// Lifetime tier reuses the same accents but at lower contrast (muted
-// slate for icon, deeper neutral for value) so the today row keeps the
-// accent as the primary signal.
-// -------------------------------------------------------------------------
-
-// ---------- Today row, dark theme -----------------------------------------
-.container .statsGrid > .metricCard.metricCardToday[data-theme-mode='dark'][data-accent='requests'] .metricCardIcon,
-:global([data-theme='dark']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricCardIcon,
-.container .statsGrid > .metricCard.metricCardToday[data-accent='requests']:not([data-theme-mode='light']) .metricCardIcon {
-  color: #38bdf8 !important;
-}
-.container .statsGrid > .metricCard.metricCardToday[data-accent='tokens']:not([data-theme-mode='light']) .metricCardIcon {
-  color: #a78bfa !important;
-}
-.container .statsGrid > .metricCard.metricCardToday[data-accent='cost']:not([data-theme-mode='light']) .metricCardIcon {
-  color: #34d399 !important;
-}
-
-.container .statsGrid > .metricCard.metricCardToday .metricCardTitle {
-  color: #cbd5e1 !important;
-}
-.container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue {
-  color: #38bdf8 !important;
-}
-.container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue {
-  color: #a78bfa !important;
-}
-.container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue {
-  color: #34d399 !important;
-}
-
-// ---------- Today row, light theme ----------------------------------------
+// Light theme — same neutral white card. The overrides below are kept for
+// source symmetry with the dark-theme variants; the chrome is identical.
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday {
   background: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  border-color: #eef0f3 !important;
   color: #0f172a;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'],
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'],
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] {
-  border-left: 3px solid #0ea5e9 !important;
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.10) 0%, #ffffff 38%) !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'],
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'],
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] {
-  border-left: 3px solid #7c3aed !important;
-  background: linear-gradient(90deg, rgba(124, 58, 237, 0.08) 0%, #ffffff 38%) !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'],
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'],
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] {
-  border-left: 3px solid #059669 !important;
-  background: linear-gradient(90deg, rgba(5, 150, 105, 0.10) 0%, #ffffff 38%) !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday .metricCardTitle,
@@ -9396,17 +9331,17 @@ $navy-blue: #2A7B9B;
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='requests'] .metricMainValue {
-  color: #0369a1 !important;
+  color: #0f172a !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='tokens'] .metricMainValue {
-  color: #6d28d9 !important;
+  color: #0f172a !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardToday[data-accent='cost'] .metricMainValue {
-  color: #047857 !important;
+  color: #0f172a !important;
 }
 
 // ---------- Lifetime row, dark theme --------------------------------------
@@ -9419,43 +9354,46 @@ $navy-blue: #2A7B9B;
   font-weight: 500 !important;
 }
 .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue {
-  color: #7dd3fc !important;
-  font-weight: 600 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue {
-  color: #c4b5fd !important;
-  font-weight: 600 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue {
-  color: #6ee7b7 !important;
-  font-weight: 600 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 
 // ---------- Lifetime row, light theme -------------------------------------
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime {
-  background: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background: #ffffff !important;
+  border-color: #eef0f3 !important;
   color: #1e293b;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'],
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'],
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] {
-  border-left: 3px solid #0ea5e9 !important;
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.06) 0%, #f8fafc 38%) !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'],
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'],
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] {
-  border-left: 3px solid #7c3aed !important;
-  background: linear-gradient(90deg, rgba(124, 58, 237, 0.05) 0%, #f8fafc 38%) !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'],
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'],
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] {
-  border-left: 3px solid #059669 !important;
-  background: linear-gradient(90deg, rgba(5, 150, 105, 0.06) 0%, #f8fafc 38%) !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
 }
 
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime .metricCardTitle,
@@ -9473,27 +9411,21 @@ $navy-blue: #2A7B9B;
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='requests'] .metricMainValue {
-  color: #0369a1 !important;
-  font-weight: 600 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='tokens'] .metricMainValue {
-  color: #6d28d9 !important;
-  font-weight: 600 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 :global([data-theme='white']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue,
 :global([data-theme='light']) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue,
 :root:not([data-theme]) .container .statsGrid > .metricCard.metricCardLifetime[data-accent='cost'] .metricMainValue {
-  color: #047857 !important;
-  font-weight: 600 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
-
-/* === Success-tinted card primary value === */
-.textSuccessAccent {
-  color: #10b981;
-}
-
 [data-theme='white'] .textSuccessAccent,
 [data-theme='light'] .textSuccessAccent,
 :root:not([data-theme]) .textSuccessAccent {
@@ -9927,4 +9859,245 @@ $navy-blue: #2A7B9B;
 .metricCard .tokenRatioTrack,
 .metricCard .metricSummarySuccess {
   display: none !important;
+}
+
+/* === Hard override: collapse legacy 60px row into modern stacked card ===
+ * The earlier .metricCard rules below hard-coded height: 60px,
+ * display: flex; flex-direction: row; padding: 0 14px; background: #151922;
+ * and per-accent coloured border-left / gradient backgrounds. They win by
+ * source order and override the cleaner rules above. The block below
+ * re-asserts the modern stacked card on every metric card via
+ * higher-specificity descendant selectors and !important where needed.
+ */
+.container .statsGrid,
+.container :global(.statsGrid) {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+
+.container .metricCard,
+.container :global(.metricCard) {
+  height: auto !important;
+  min-height: 112px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  gap: 0 !important;
+  padding: 16px 20px 14px 20px !important;
+  border-radius: 12px !important;
+  border: 1px solid #eef0f3 !important;
+  border-left: 1px solid #eef0f3 !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.02) !important;
+  background-image: none !important;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease !important;
+  overflow: visible !important;
+}
+
+.container .metricCard:hover,
+.container :global(.metricCard):hover {
+  border-color: #e2e5ec !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+}
+
+.container .metricCard[data-accent="requests"],
+.container :global(.metricCard)[data-accent="requests"],
+.container .metricCard[data-accent="tokens"],
+.container :global(.metricCard)[data-accent="tokens"],
+.container .metricCard[data-accent="cost"],
+.container :global(.metricCard)[data-accent="cost"] {
+  border-left: 1px solid #eef0f3 !important;
+  border-left-color: #eef0f3 !important;
+  background: #ffffff !important;
+  background-image: none !important;
+}
+
+.container .metricCard .metricCardHeader,
+.container :global(.metricCard) .metricCardHeader {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.container .metricCard .metricCardTitle,
+.container :global(.metricCard) .metricCardTitle {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  letter-spacing: 0.01em !important;
+  text-transform: none !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.container .metricCard .metricCardIcon,
+.container :global(.metricCard) .metricCardIcon,
+.container .metricCard [class*="metricCardIcon"],
+.container :global(.metricCard) [class*="metricCardIcon"] {
+  display: none !important;
+}
+
+.container .metricCard[aria-hidden] .metricCardIcon,
+.container :global(.metricCard)[aria-hidden] .metricCardIcon {
+  display: flex !important;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.container .metricCard .metricCardBody,
+.container :global(.metricCard) .metricCardBody {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  margin-top: 0 !important;
+  padding: 0 !important;
+}
+
+.container .metricCard .metricSummaryStack,
+.container :global(.metricCard) .metricSummaryStack {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-height: 64px !important;
+}
+
+.container .metricCard .metricSummaryStack > .metricMainValue,
+.container :global(.metricCard) .metricSummaryStack > .metricMainValue {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.03em !important;
+  font-variant-numeric: tabular-nums !important;
+  color: #0f172a !important;
+  text-shadow: none !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: flex !important;
+  align-items: baseline !important;
+  gap: 2px !important;
+}
+
+.container .metricCard .metricMainValue.primarySuccess,
+.container :global(.metricCard) .metricMainValue.primarySuccess {
+  color: #059669 !important;
+}
+
+.container .metricCard .metricMainValue.metricCostValue,
+.container :global(.metricCard) .metricMainValue.metricCostValue {
+  color: #0f172a !important;
+}
+
+.container .metricCard .metricUnit,
+.container :global(.metricCard) .metricUnit {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  margin-left: 2px !important;
+  letter-spacing: -0.01em !important;
+  opacity: 1 !important;
+}
+
+.container .metricCard .metricSubLine,
+.container :global(.metricCard) .metricSubLine {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+  color: #64748b !important;
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+
+.container .metricCard .metricSubLine .metricSubMuted,
+.container :global(.metricCard) .metricSubLine .metricSubMuted {
+  color: #94a3b8 !important;
+}
+
+.container .metricCard .metricSubLine .failText,
+.container :global(.metricCard) .metricSubLine .failText {
+  color: #e11d48 !important;
+  font-weight: 500 !important;
+}
+
+.container .metricCard .subSep,
+.container :global(.metricCard) .subSep {
+  color: #cbd5e1 !important;
+  font-weight: 400 !important;
+  margin: 0 2px !important;
+}
+
+.container .metricCard .dot,
+.container :global(.metricCard) .dot {
+  display: none !important;
+}
+
+.container .metricCard .successRateBadge,
+.container :global(.metricCard) .successRateBadge,
+.container .metricCard .cacheHitRate,
+.container :global(.metricCard) .cacheHitRate {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+  letter-spacing: 0 !important;
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  text-shadow: none !important;
+  margin: 0 !important;
+}
+
+.container .metricCard .cacheHitRate,
+.container :global(.metricCard) .cacheHitRate {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+.container .metricCard .metricSubDetails,
+.container :global(.metricCard) .metricSubDetails,
+.container .metricCard .metricMiniProgress,
+.container :global(.metricCard) .metricMiniProgress,
+.container .metricCard .tokenRatioTrack,
+.container :global(.metricCard) .tokenRatioTrack,
+.container .metricCard .metricSummarySuccess,
+.container :global(.metricCard) .metricSummarySuccess,
+.container .metricCard .metricSummary,
+.container :global(.metricCard) .metricSummary {
+  display: none !important;
+}
+
+/* In dark/white/light themes the rules above still apply because we
+ * explicitly set background/border on the card itself. The theme
+ * variants that follow only adjust the surface tone. */
+:global([data-theme="dark"]) .container .metricCard,
+:global([data-theme="dark"]) .container :global(.metricCard) {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #eef0f3 !important;
+  border-left: 1px solid #eef0f3 !important;
 }
